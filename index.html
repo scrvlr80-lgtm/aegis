@@ -30,22 +30,21 @@ html,body{height:100%;margin:0}
 body{color:var(--text-main);background:var(--primary);overflow:hidden}
 .console-frame,.chat-area,.chat-container{background:var(--primary)!important}
 
-/* --- DUE FINESTRE PARALLELE --- */
-/* La chat NON viene toccata: viene solo spostata dentro questo contenitore,
-   accanto allo specchio. Cosi' i suoi figli restano dove sono. */
-.ag-scena{display:flex;flex-direction:row;align-items:stretch;gap:14px;
-  width:100%;height:100vh;height:100dvh;padding:14px;box-sizing:border-box}
-body.ag-attivo{overflow:hidden}
-.ag-scena > .ag-pannello{flex:0 0 42%;min-width:0;min-height:0}
-.ag-scena > .ag-chat{flex:1 1 auto;min-width:0;min-height:0;
-  max-width:none!important;width:auto!important;margin:0!important}
+/* --- QUATTRO RETTANGOLI: due a sinistra (mascherati), due a destra --- */
+/* La chat non viene toccata: viene spostata dentro la scena, accanto allo
+   specchio. Le due finestre hanno la stessa base e la stessa altezza. */
+.ag-scena{display:flex;flex-direction:row;align-items:stretch;gap:16px;
+  width:100%;height:100vh;height:100dvh;padding:16px;box-sizing:border-box}
+body.ag-attivo{overflow:hidden;margin:0}
+.ag-scena > .ag-pannello,
+.ag-scena > .ag-chat{flex:1 1 0;min-width:0;min-height:0;display:flex;flex-direction:column;
+  max-width:none!important;width:auto!important;margin:0!important;height:auto!important}
 
-.ag-pannello{display:flex;flex-direction:column;overflow:hidden;
-  background:var(--console-bg);border:1px solid var(--hairline);border-radius:14px;
-  font-family:'Inter',sans-serif}
-.ag-testa{display:flex;align-items:center;gap:8px;padding:12px 14px;flex:none;
-  border-bottom:1px solid var(--hairline);background:var(--primary);
-  border-radius:14px 14px 0 0}
+.ag-pannello{overflow:hidden;background:var(--console-bg);
+  border:1px solid var(--hairline);border-radius:14px;font-family:'Inter',sans-serif}
+/* riga 1: intestazione, alla stessa altezza della barra pulsanti a destra */
+.ag-testa{display:flex;align-items:center;gap:8px;height:52px;padding:0 14px;flex:none;
+  border-bottom:1px solid var(--hairline);background:var(--primary)}
 .ag-testa svg{width:14px;height:14px;color:var(--text-light);flex:none}
 .ag-tit{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
   color:var(--text-light);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -57,36 +56,42 @@ body.ag-attivo{overflow:hidden}
 .ag-ner:empty{display:none}
 .ag-ner.ag-carico{opacity:.55}
 .ag-ner.ag-pronto{border-color:var(--c-addr);color:var(--c-addr)}
+/* riga 2: la conversazione, si allunga a riempire */
 .ag-corpo{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
-/* margin-top:auto invece di justify-content:flex-end: col secondo, il testo
-   lungo esce dall alto e non si puo scorrere */
 .ag-lista{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;padding:14px;
   display:flex;flex-direction:column;gap:10px}
 .ag-lista > *:first-child{margin-top:auto}
-.ag-anteprima{padding:0 14px;flex:none;max-height:34%;overflow-y:auto}
+.ag-legenda{display:flex;flex-wrap:wrap;gap:5px 11px;padding:8px 14px;flex:none;
+  border-top:1px solid var(--hairline);background:var(--primary)}
+.ag-legenda span{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text-light)}
+.ag-legenda i{width:9px;height:9px;border-radius:2px;display:block}
+/* riga 3: riquadro basso, stessa forma del campo di scrittura a destra */
+.ag-basso{flex:none;padding:14px;border-top:1px solid var(--hairline);background:var(--primary);
+  border-radius:0 0 14px 14px}
+.ag-anteprima{min-height:56px;max-height:34vh;overflow-y:auto;padding:12px 14px;
+  border:1px solid var(--hairline);border-radius:14px;background:var(--console-bg)}
+.ag-anteprima:empty::before{content:'Scrivi nell altra finestra';color:var(--text-light);
+  opacity:.5;font-size:12px}
+
 .ag-bolla{font-family:'SF Mono',ui-monospace,Menlo,monospace;font-size:11.5px;line-height:1.8;
   white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;padding:9px 11px;
   border-radius:10px;max-width:94%;flex:none}
 .ag-bolla.ag-user{background:var(--user-bubble);align-self:flex-end}
 .ag-bolla.ag-bot{background:var(--primary);border:1px solid var(--hairline);align-self:flex-start}
-.ag-bolla.ag-ghost{opacity:.6;border:1px dashed var(--hairline);background:transparent;align-self:flex-end}
+.ag-bolla.ag-ghost{border:0;background:transparent;padding:0;max-width:100%;opacity:.85}
 .ag-vuoto{color:var(--text-light);opacity:.6;font-family:'Inter',sans-serif;font-size:12px;
   text-align:center;align-self:center;line-height:1.7;padding:20px}
 .ag-t{border-radius:3px;padding:1px 4px;font-weight:700;color:#fff}
 .ag-per{background:var(--c-per)} .ag-addr{background:var(--c-addr)} .ag-city{background:var(--c-city)}
 .ag-date{background:var(--c-date)} .ag-bank{background:var(--c-bank)} .ag-mail{background:var(--c-mail)}
 .ag-tech{background:var(--c-tech)} .ag-med{background:var(--c-med)} .ag-id{background:var(--c-id)}
-.ag-legenda{display:flex;flex-wrap:wrap;gap:5px 11px;padding:9px 14px;flex:none;
-  border-top:1px solid var(--hairline);background:var(--primary);border-radius:0 0 14px 14px}
-.ag-legenda span{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text-light)}
-.ag-legenda i{width:9px;height:9px;border-radius:2px;display:block}
 
-/* --- TELEFONO: una sopra l altra --- */
+/* --- TELEFONO: una sopra l altra, stessa larghezza --- */
 @media(max-width:820px){
   .ag-scena{flex-direction:column;gap:10px;padding:10px}
-  .ag-scena > .ag-pannello{flex:0 0 34%}
-  .ag-scena > .ag-chat{flex:1 1 auto}
+  .ag-scena > .ag-pannello,.ag-scena > .ag-chat{flex:1 1 0}
   .ag-legenda{display:none}
+  .ag-anteprima{min-height:44px;max-height:22vh}
 }
 /* --- interfaccia --- */
 .gdpr-overlay,.img-disclaimer-overlay{background-color:rgba(0,0,0,.35)!important}
@@ -5465,6 +5470,19 @@ if (recognition) {
         conf += KB.modifiers.inGazetteer * Math.min(1, known.length / words.length);
       }
       if (p.category === 'PERSONA') {
+        // Un nome non attraversa un punto: "Paolo Rossi. F.to Marco" non deve
+        // diventare "Paolo Rossi. F". Si taglia tutto dal primo punto in poi.
+        const tagliaPunto = value.match(/^([^.]*?)\s*\.[\s\S]*$/);
+        if (tagliaPunto && tagliaPunto[1].trim().length >= 2) {
+          const tenuto = tagliaPunto[1].trim();
+          const off = value.indexOf(tenuto);
+          if (off >= 0) { start += off; value = tenuto; end = start + value.length; }
+        }
+        // niente iniziale isolata in coda ("Marco De Luca F" -> "Marco De Luca")
+        const senzaCoda = value.replace(/[\s,;:]+[A-Z]$/, '');
+        if (senzaCoda !== value && senzaCoda.trim().length >= 2) {
+          value = senzaCoda; end = start + value.length;
+        }
         // Le parole di contorno ("Sono", "Gentile", "Hola") vanno TAGLIATE,
         // non usate per scartare il match: altrimenti si perde anche il nome.
         let words = value.split(/\s+/);
@@ -6201,7 +6219,11 @@ if (recognition) {
     return r.testo;
   };
   window.aegisModello=function(grezzo){
-    righe.push({ruolo:'bot',testo:String(grezzo||'')});
+    // Nello specchio la risposta va mostrata PROTETTA: i codici che il modello
+    // ha riusato restano, e qualsiasi dato personale che avesse scritto in
+    // chiaro viene mascherato adesso. Mostrarla grezza sarebbe una bugia.
+    var protetta = maschera(String(grezzo||''), true).testo;
+    righe.push({ruolo:'bot',testo:protetta});
     autoScroll=true; disegna(); salva();
     return decodifica(grezzo);
   };
@@ -6334,13 +6356,15 @@ if (recognition) {
       '</div>'+
       '<div class="ag-corpo">'+
         '<div class="ag-lista" id="ag-lista"></div>'+
-        '<div class="ag-anteprima" id="ag-anteprima"></div>'+
         '<div class="ag-legenda">'+
           '<span><i class="ag-per"></i>nomi</span><span><i class="ag-addr"></i>indirizzi</span>'+
           '<span><i class="ag-city"></i>luoghi</span><span><i class="ag-date"></i>date</span>'+
           '<span><i class="ag-bank"></i>bancari</span><span><i class="ag-mail"></i>contatti</span>'+
           '<span><i class="ag-id"></i>documenti</span>'+
         '</div>'+
+      '</div>'+
+      '<div class="ag-basso">'+
+        '<div class="ag-anteprima" id="ag-anteprima"></div>'+
       '</div>';
 
     scena.appendChild(p);      // finestra 1: lo specchio
