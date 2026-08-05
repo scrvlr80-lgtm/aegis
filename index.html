@@ -45,6 +45,11 @@ body{color:var(--text-main);background:var(--primary);overflow:hidden}
 .ag-badge{margin-left:auto;min-width:20px;text-align:center;padding:1px 7px;border-radius:9px;
   background:var(--hairline);color:var(--text-light);font-size:10px;font-weight:700;transition:.2s}
 .ag-badge.att{background:var(--accent);color:#fff}
+.ag-ner{font-size:9px;font-weight:700;letter-spacing:.05em;padding:1px 6px;border-radius:8px;
+  border:1px solid var(--hairline);color:var(--text-light);white-space:nowrap}
+.ag-ner:empty{display:none}
+.ag-ner.ag-carico{opacity:.55}
+.ag-ner.ag-pronto{border-color:var(--c-addr);color:var(--c-addr)}
 .ag-chiudi{display:none;width:26px;height:26px;border:1px solid var(--hairline);border-radius:7px;
   background:transparent;color:var(--text-light);cursor:pointer;font-size:15px;line-height:1;flex:none}
 .ag-corpo{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
@@ -4357,9 +4362,9 @@ if (recognition) {
      ------------------------------------------------------------------ */
   const GAZ = {
     givenNames: {
-      en: 'James John Robert Michael William David Richard Joseph Thomas Charles Christopher Daniel Matthew Anthony Mark Donald Steven Paul Andrew Joshua Kenneth Kevin Brian George Timothy Ronald Jason Edward Jeffrey Ryan Jacob Gary Nicholas Eric Stephen Jonathan Larry Justin Scott Brandon Benjamin Samuel Gregory Alexander Patrick Frank Raymond Jack Dennis Jerry Tyler Aaron Henry Douglas Peter Adam Nathan Zachary Walter Kyle Harold Carl Jeremy Keith Roger Gerald Ethan Arthur Terry Christian Sean Lawrence Austin Joe Noah Jesse Albert Bryan Billy Bruce Willie Jordan Dylan Alan Ralph Gabriel Roy Juan Wayne Eugene Logan Randy Louis Russell Vincent Philip Bobby Johnny Bradley Mary Patricia Jennifer Linda Elizabeth Barbara Susan Jessica Sarah Karen Nancy Lisa Margaret Betty Sandra Ashley Dorothy Kimberly Emily Donna Michelle Carol Amanda Melissa Deborah Stephanie Rebecca Laura Sharon Cynthia Kathleen Amy Shirley Angela Helen Anna Brenda Pamela Nicole Ruth Katherine Samantha Christine Emma Catherine Debra Virginia Rachel Carolyn Janet Maria Heather Diane Julie Joyce Victoria Kelly Christina Joan Evelyn Lauren Judith Olivia Frances Martha Cheryl Megan Andrea Hannah Jacqueline Ann Gloria Jean Kathryn Alice Teresa Sara Janice Doris Madison Julia Grace Judy Abigail Marie Denise Beverly Amber Theresa Marilyn Danielle Diana Brittany Natalie Sophia Rose Isabella Alexis Kayla Charlotte Adrian Aidan Alex Alfie Amelia Anne Archie Audrey Barry Beatrice Bella Ben Bernard Beth Bethany Bill Blake Caleb Callum Cameron Caroline Carter Charlie Chelsea Chloe Chris Claire Clara Clark Cody Cole Colin Connor Corey Courtney Craig Curtis Daisy Dale Damian Dan Darren Dave Dawn Dean Debbie Declan Derek Dominic Duncan Eleanor Elena Eli Elijah Ella Ellie Elliot Erica Erin Eva Evan Faith Felix Fiona Florence Francis Fred Freddie Freya Gareth Gavin Gemma Georgia Gillian Graham Grant Greg Harriet Harry Harvey Hayden Hayley Holly Hope Howard Hugh Hunter Ian Imogen Isaac Isabel Isla Ivy Jackson Jade Jake Jamie Jane Jasmine Jasper Jay Jeff Jenna Jill Jim Joanna Joel Josh Julian Kaitlyn Kate Katie Ken Kim Lara Leah Lee Leo Leon Leonard Leslie Lewis Liam Lily Lois Lorraine Louise Lucas Lucy Luke Lydia Maisie Malcolm Mandy Marcus Martin Mason Maureen Max Maya Melanie Mia Mike Miles Millie Molly Monica Morgan Naomi Neil Nicola Nigel Noel Nora Norman Oliver Oscar Owen Paige Paula Pauline Penelope Phoebe Poppy Reece Regina Rhys Riley Rita Robin Rory Rosie Ross Ruby Sally Sam Scarlett Sebastian Shane Shannon Shaun Sheila Simon Sofia Sophie Stanley Stella Steve Stuart Sydney Tanya Taylor Terence Theo Tiffany Tim Tina Toby Todd Tom Tommy Tony Tracy Travis Trevor Tristan Valerie Vanessa Vera Vernon Veronica Victor Violet Vivian Wade Wanda Warren Wendy Wesley Wilfred Will Wyatt Yvonne Zoe'.split(' '),
-      es: 'Antonio Jose Manuel Francisco David Juan Javier Daniel Jose Carlos Miguel Rafael Pedro Angel Alejandro Fernando Sergio Pablo Jorge Alberto Luis Alvaro Diego Adrian Raul Enrique Jesus Oscar Ivan Ruben Andres Joaquin Ramon Victor Mario Eduardo Roberto Ignacio Marcos Hugo Martin Gonzalo Guillermo Cesar Emilio Julio Nicolas Santiago Maria Carmen Ana Isabel Laura Cristina Marta Lucia Elena Sara Paula Raquel Pilar Rosa Julia Teresa Beatriz Silvia Patricia Nuria Alba Andrea Irene Sandra Monica Angela Claudia Natalia Alicia Esther Rocio Eva Ines Clara Sofia Nerea Miriam Susana Yolanda Consuelo Dolores Mercedes Concepcion Antonia Francisca Josefa Manuela Encarnacion Amparo Victoria Emilia Valerio Aitor Alonso Amador Anselmo Aurelio Baltasar Bartolome Benito Bernardo Blas Bruno Casimiro Cayetano Cristobal Damian Dario Desiderio Dionisio Domingo Efrain Eliseo Emiliano Ernesto Esteban Eusebio Evaristo Ezequiel Facundo Faustino Felipe Felix Fermin Fidel Florencio Franco Gabriel Gaspar German Gerardo Gregorio Gustavo Heriberto Hilario Horacio Humberto Ibai Ildefonso Isidro Ismael Israel Iker Jacinto Jaime Jeronimo Jonatan Jordi Josue Juanjo Julian Justo Lautaro Leandro Leonardo Leoncio Lorenzo Lucas Luciano Marcelo Marcial Mariano Mateo Matias Mauricio Maximo Modesto Moises Nazario Nestor Nicanor Norberto Octavio Olegario Omar Oriol Orlando Oswaldo Pascual Patricio Pelayo Plácido Porfirio Primitivo Prudencio Quique Ramiro Regino Reinaldo Remigio Renato Ricardo Rodolfo Rodrigo Rogelio Rolando Roman Romualdo Rufino Salvador Samuel Sancho Santos Saturnino Sebastian Segundo Serafin Servando Severino Silvestre Simon Sixto Tadeo Teodoro Teofilo Timoteo Tomas Toribio Ulises Urbano Valentin Valeriano Venancio Vicente Virgilio Vitorio Adela Adriana Agueda Aitana Aleida Alejandra Amaia Amalia Amanda Anabel Angeles Angelica Angustias Anita Araceli Ariadna Ascension Asuncion Aurora Azucena Barbara Begona Belen Benita Bernarda Blanca Brigida Candela Candelaria Caridad Carla Carlota Carolina Casilda Catalina Cayetana Celia Celina Cesarea Chelo Cinta Clemencia Concha Constanza Covadonga Dalia Daniela Delfina Delia Diana Dominga Dorotea Edurne Elisa Elisabet Eloisa Elvira Encarna Enriqueta Erika Ernestina Esmeralda Esperanza Estefania Estela Ester Estrella Eugenia Eulalia Evangelina Fabiola Fatima Felicidad Felisa Fernanda Filomena Flora Florencia Gabriela Gema Genoveva Georgina Gloria Gracia Graciela Guadalupe Guiomar Herminia Hilda Idoia Iris Irma Isaura Itziar Jacinta Jimena Josefina Juana Judith Juliana Justina Lara Leire Leonor Leticia Lidia Lorena Lourdes Luisa Luz Macarena Magdalena Maite Mar Marcela Margarita Mariana Maribel Marina Marisol Martina Matilde Melania Micaela Milagros Miren Montserrat Nieves Noelia Ofelia Olga Olivia Oriana Paloma Paulina Paz Petra Purificacion Rafaela Ramona Rebeca Regina Remedios Rosalia Rosario Rosaura Ruth Sagrario Salome Saray Sol Soledad Sonia Tamara Trinidad Ursula Vanesa Veronica Vicenta Violeta Virginia Visitacion Xiomara Zaida Zulema'.split(' '),
-      it: 'Giuseppe Giovanni Antonio Mario Luigi Francesco Angelo Vincenzo Pietro Salvatore Carlo Franco Domenico Bruno Paolo Michele Giorgio Aldo Sergio Luciano Marco Andrea Alessandro Stefano Roberto Massimo Fabio Maurizio Claudio Lorenzo Matteo Luca Davide Simone Riccardo Federico Gabriele Nicola Daniele Emanuele Alberto Enrico Filippo Tommaso Leonardo Cristian Manuel Samuele Maria Anna Giuseppina Rosa Angela Giovanna Teresa Lucia Carmela Caterina Francesca Antonietta Anna Laura Paola Elena Silvia Daniela Cristina Barbara Sara Giulia Chiara Valentina Federica Martina Alessia Elisa Simona Monica Roberta Alessandra Claudia Serena Ilaria Marta Beatrice Sofia Aurora Ginevra Emma Alice Vittoria Matilde Greta Noemi Valerio Fabrizio Cristiano Emiliano Ruggero Ettore Ivano Adriano Silvio Renzo Dario Egidio Gianluca Gianmarco Gianni Giacomo Raffaele Rocco Sandro Tiziano Ugo Umberto Vito Walter Amedeo Arturo Attilio Augusto Cesare Corrado Costantino Damiano Elia Emilio Ennio Ercole Fausto Ferdinando Fulvio Gaetano Gennaro Gerardo Gioacchino Giordano Giulio Guido Ignazio Ivan Lamberto Livio Loris Marcello Mariano Martino Massimiliano Mauro Michelangelo Mirko Nazzareno Nino Oreste Orlando Osvaldo Ottavio Pasquale Patrizio Piero Primo Quirino Remo Renato Rinaldo Rodolfo Romeo Rosario Ruben Saverio Sebastiano Settimio Severino Silvano Siro Tarcisio Teodoro Tiberio Tullio Valentino Vasco Virgilio Vittorio Zeno Alessio Christian Dennis Denis Elio Enzo Fabiano Gastone Gilberto Giulio Adele Agata Agnese Alba Albertina Alda Alessandrina Amalia Ambra Anita Annamaria Antonella Ariana Arianna Assunta Aurelia Azzurra Benedetta Bianca Brigida Camilla Carla Carlotta Carolina Cecilia Celeste Clara Clelia Cleofe Concetta Consuelo Cornelia Costanza Cristiana Debora Delia Diana Dina Donatella Dora Edda Egle Elda Eleonora Elettra Eliana Elsa Elvira Emanuela Enrica Erica Ermelinda Ersilia Ester Eugenia Eva Evelina Fabiana Fernanda Fiorella Flavia Flora Franca Fulvia Gabriella Gaia Gemma Giada Gilda Gioia Giorgia Gisella Giuditta Gloria Grazia Ida Ilenia Immacolata Ines Ingrid Irene Iride Irma Isabella Isotta Ivana Jessica Jolanda Katia Lara Larissa Letizia Lia Licia Lidia Liliana Linda Lisa Livia Loredana Lorena Loretta Luana Lucrezia Ludovica Luisa Luna Maddalena Mafalda Manuela Mara Marcella Margherita Mariangela Marianna Marilena Marina Marisa Maristella Marzia Melania Michela Milena Mirella Miriam Morena Nadia Natalia Nella Nicoletta Nina Norma Ombretta Ornella Orsola Ottavia Palmira Pamela Pia Pierina Raffaella Rachele Rebecca Renata Rina Rita Romina Rosalia Rosanna Rossana Rossella Sabrina Samanta Sandra Selene Serenella Sonia Stella Susanna Tamara Tania Tatiana Tecla Tiziana Tosca Ursula Valeria Vanessa Vania Vera Veronica Viola Virginia Viviana Wanda Zaira Zelinda Mariachiara Nicole Asia Patrizia Deborah Silvana Cinzia Sole Sveva Adelaide Angelica Antonia Armida Augusta Brigitta Bruna Carmen Dafne Dalila Diletta Dolores Domitilla Donata Doriana Edvige Elisabetta Emilia Erminia Eufemia Eulalia Fiorenza Flaviana Floriana Fortunata Genoveffa Germana Gina Graziella Griselda Leda Lelia Liana Luciana Marica Marinella Mariolina Mercedes Mimma Narcisa Nunzia Piera Priscilla Rosaria Rosella Rosetta Sabina Stefania Tonia Violetta Zoe Abele Achille Adalberto Adamo Adeodato Agostino Amerigo Annibale Anselmo Aquilino Arcangelo Armando Arnaldo Aurelio Baldo Barnaba Bartolomeo Basilio Battista Beniamino Benedetto Benito Bernardino Bernardo Biagio Bonifacio Camillo Carmelo Cassio Cataldo Ciro Clemente Cornelio Cosimo Costante Danilo Demetrio Desiderio Diego Donatello Donato Duccio Edgardo Edmondo Edoardo Efrem Ermanno Erminio Ernesto Eros Eugenio Evaristo Felice Ferruccio Fiammetta Fiorenzo Flavio Floriano Folco Fortunato Frediano Galeazzo Galileo Gaspare Gavino Gaudenzio Geremia Germano Gherardo Giacinto Giano Gildo Gino Gioele Girolamo Giuliano Goffredo Graziano Gregorio Gustavo Iacopo Icaro Ippolito Italo Ivo Jacopo Lanfranco Lapo Lazzaro Leopoldo Libero Lino Ludovico Luitprando Macario Manfredo Manlio Mansueto Manuele Marcellino Marchetto Marciano Marino Melchiorre Milvio Mirco Modesto Napoleone Narciso Nereo Nevio Niccolo Nicolao Norberto Nunzio Oddone Odorico Olimpio Oliviero Omero Orazio Orfeo Oriano Oscar Ottaviano Ottone Pacifico Palmiro Pancrazio Pio Pirro Placido Pompeo Ponziano Porfirio Prisco Prospero Raffaello Ranieri Raimondo Raniero Rino Romano Romolo Rossano Rubens Ruggiero Sabatino Sante Secondo Sforza Silvestro Simplicio Spartaco Stanislao Taddeo Tammaro Tancredi Teobaldo Terenzio Teseo Tito Torquato Tranquillo Tristano Ubaldo Ulisse Urbano Valente Venerando Venanzio Venturino Verdiano Vezio Vico Vittore Viviano Vladimiro Zanobi Zenone'.split(' ')
+      en: 'James John Robert Michael William David Richard Joseph Thomas Charles Christopher Daniel Matthew Anthony Mark Donald Steven Paul Andrew Joshua Kenneth Kevin Brian George Timothy Ronald Jason Edward Jeffrey Ryan Jacob Gary Nicholas Eric Stephen Jonathan Larry Justin Scott Brandon Benjamin Samuel Gregory Alexander Patrick Frank Raymond Jack Dennis Jerry Tyler Aaron Henry Douglas Peter Adam Nathan Zachary Walter Kyle Harold Carl Jeremy Keith Roger Gerald Ethan Arthur Terry Christian Sean Lawrence Austin Joe Noah Jesse Albert Bryan Billy Bruce Willie Jordan Dylan Alan Ralph Gabriel Roy Juan Wayne Eugene Logan Randy Louis Russell Vincent Philip Bobby Johnny Bradley Mary Patricia Jennifer Linda Elizabeth Barbara Susan Jessica Sarah Karen Nancy Lisa Margaret Betty Sandra Ashley Dorothy Kimberly Emily Donna Michelle Carol Amanda Melissa Deborah Stephanie Rebecca Laura Sharon Cynthia Kathleen Amy Shirley Angela Helen Anna Brenda Pamela Nicole Ruth Katherine Samantha Christine Emma Catherine Debra Virginia Rachel Carolyn Janet Maria Heather Diane Julie Joyce Victoria Kelly Christina Joan Evelyn Lauren Judith Olivia Frances Martha Cheryl Megan Andrea Hannah Jacqueline Ann Gloria Jean Kathryn Alice Teresa Sara Janice Doris Madison Julia Grace Judy Abigail Marie Denise Beverly Amber Theresa Marilyn Danielle Diana Brittany Natalie Sophia Rose Isabella Alexis Kayla Charlotte Adrian Aidan Alex Alfie Amelia Anne Archie Audrey Barry Beatrice Bella Ben Bernard Beth Bethany Bill Blake Caleb Callum Cameron Caroline Carter Charlie Chelsea Chloe Chris Claire Clara Clark Cody Cole Colin Connor Corey Courtney Craig Curtis Daisy Dale Damian Dan Darren Dave Dawn Dean Debbie Declan Derek Dominic Duncan Eleanor Elena Eli Elijah Ella Ellie Elliot Erica Erin Eva Evan Faith Felix Fiona Florence Francis Fred Freddie Freya Gareth Gavin Gemma Georgia Gillian Graham Grant Greg Harriet Harry Harvey Hayden Hayley Holly Hope Howard Hugh Hunter Ian Imogen Isaac Isabel Isla Ivy Jackson Jade Jake Jamie Jane Jasmine Jasper Jay Jeff Jenna Jill Jim Joanna Joel Josh Julian Kaitlyn Kate Katie Ken Kim Lara Leah Lee Leo Leon Leonard Leslie Lewis Liam Lily Lois Lorraine Louise Lucas Lucy Luke Lydia Maisie Malcolm Mandy Marcus Martin Mason Maureen Max Maya Melanie Mia Mike Miles Millie Molly Monica Morgan Naomi Neil Nicola Nigel Noel Nora Norman Oliver Oscar Owen Paige Paula Pauline Penelope Phoebe Poppy Reece Regina Rhys Riley Rita Robin Rory Rosie Ross Ruby Sally Sam Scarlett Sebastian Shane Shannon Shaun Sheila Simon Sofia Sophie Stanley Stella Steve Stuart Sydney Tanya Taylor Terence Theo Tiffany Tim Tina Toby Todd Tom Tommy Tony Tracy Travis Trevor Tristan Valerie Vanessa Vera Vernon Veronica Victor Violet Vivian Wade Wanda Warren Wendy Wesley Wilfred Will Wyatt Yvonne Zoe Pippo Peppe Peppino Beppe Beppino Nino Ninetto Totò Ciccio Cicci Lillo Nello Nuccio Puccio Rino Gino Dino Nando Lando Vanni Tonio Toni Memo Mimmo Cencio Checco Ceccio Bepi Titta Bibi Nini Pinuccio Sasà Salvo Turi Turiddu Iano Gianni Nanni Zeno Bruno Lallo Lolo Momo Cocò Coco Gigi Gigio Vito Lino Tino Pino Renzo Enzo Cesco Meo Neri Lapo Bindo Paco Pepe Pepito Chema Nacho Quique Curro Lolo Manolo Pancho Chelo Charo Concha Lola Lupe Maite Mari Merche Nati Pili Rocio Tere Toni Txema Xavi Kike Bea Cris Fran Rafa Danny Eddie Frankie Georgie Jimmy Joey Kenny Mickey Nicky Ricky Robbie Ronnie Sammy Willy Cathy Gigi Jenny Kitty Libby Maggie Nelly Patty Sandy Tammy Tessa Trixie Vicky Winnie'.split(' '),
+      es: 'Antonio Jose Manuel Francisco David Juan Javier Daniel Jose Carlos Miguel Rafael Pedro Angel Alejandro Fernando Sergio Pablo Jorge Alberto Luis Alvaro Diego Adrian Raul Enrique Jesus Oscar Ivan Ruben Andres Joaquin Ramon Victor Mario Eduardo Roberto Ignacio Marcos Hugo Martin Gonzalo Guillermo Cesar Emilio Julio Nicolas Santiago Maria Carmen Ana Isabel Laura Cristina Marta Lucia Elena Sara Paula Raquel Pilar Rosa Julia Teresa Beatriz Silvia Patricia Nuria Alba Andrea Irene Sandra Monica Angela Claudia Natalia Alicia Esther Rocio Eva Ines Clara Sofia Nerea Miriam Susana Yolanda Consuelo Dolores Mercedes Concepcion Antonia Francisca Josefa Manuela Encarnacion Amparo Victoria Emilia Valerio Aitor Alonso Amador Anselmo Aurelio Baltasar Bartolome Benito Bernardo Blas Bruno Casimiro Cayetano Cristobal Damian Dario Desiderio Dionisio Domingo Efrain Eliseo Emiliano Ernesto Esteban Eusebio Evaristo Ezequiel Facundo Faustino Felipe Felix Fermin Fidel Florencio Franco Gabriel Gaspar German Gerardo Gregorio Gustavo Heriberto Hilario Horacio Humberto Ibai Ildefonso Isidro Ismael Israel Iker Jacinto Jaime Jeronimo Jonatan Jordi Josue Juanjo Julian Justo Lautaro Leandro Leonardo Leoncio Lorenzo Lucas Luciano Marcelo Marcial Mariano Mateo Matias Mauricio Maximo Modesto Moises Nazario Nestor Nicanor Norberto Octavio Olegario Omar Oriol Orlando Oswaldo Pascual Patricio Pelayo Plácido Porfirio Primitivo Prudencio Quique Ramiro Regino Reinaldo Remigio Renato Ricardo Rodolfo Rodrigo Rogelio Rolando Roman Romualdo Rufino Salvador Samuel Sancho Santos Saturnino Sebastian Segundo Serafin Servando Severino Silvestre Simon Sixto Tadeo Teodoro Teofilo Timoteo Tomas Toribio Ulises Urbano Valentin Valeriano Venancio Vicente Virgilio Vitorio Adela Adriana Agueda Aitana Aleida Alejandra Amaia Amalia Amanda Anabel Angeles Angelica Angustias Anita Araceli Ariadna Ascension Asuncion Aurora Azucena Barbara Begona Belen Benita Bernarda Blanca Brigida Candela Candelaria Caridad Carla Carlota Carolina Casilda Catalina Cayetana Celia Celina Cesarea Chelo Cinta Clemencia Concha Constanza Covadonga Dalia Daniela Delfina Delia Diana Dominga Dorotea Edurne Elisa Elisabet Eloisa Elvira Encarna Enriqueta Erika Ernestina Esmeralda Esperanza Estefania Estela Ester Estrella Eugenia Eulalia Evangelina Fabiola Fatima Felicidad Felisa Fernanda Filomena Flora Florencia Gabriela Gema Genoveva Georgina Gloria Gracia Graciela Guadalupe Guiomar Herminia Hilda Idoia Iris Irma Isaura Itziar Jacinta Jimena Josefina Juana Judith Juliana Justina Lara Leire Leonor Leticia Lidia Lorena Lourdes Luisa Luz Macarena Magdalena Maite Mar Marcela Margarita Mariana Maribel Marina Marisol Martina Matilde Melania Micaela Milagros Miren Montserrat Nieves Noelia Ofelia Olga Olivia Oriana Paloma Paulina Paz Petra Purificacion Rafaela Ramona Rebeca Regina Remedios Rosalia Rosario Rosaura Ruth Sagrario Salome Saray Sol Soledad Sonia Tamara Trinidad Ursula Vanesa Veronica Vicenta Violeta Virginia Visitacion Xiomara Zaida Zulema Pippo Peppe Peppino Beppe Beppino Nino Ninetto Totò Ciccio Cicci Lillo Nello Nuccio Puccio Rino Gino Dino Nando Lando Vanni Tonio Toni Memo Mimmo Cencio Checco Ceccio Bepi Titta Bibi Nini Pinuccio Sasà Salvo Turi Turiddu Iano Gianni Nanni Zeno Lallo Lolo Momo Cocò Coco Gigi Gigio Vito Lino Tino Pino Renzo Enzo Cesco Meo Neri Lapo Bindo Paco Pepe Pepito Chema Nacho Curro Lolo Manolo Pancho Charo Lola Lupe Mari Merche Nati Pili Tere Toni Txema Xavi Kike Bea Cris Fran Rafa Bobby Billy Charlie Danny Eddie Frankie Georgie Jimmy Joey Johnny Kenny Larry Mickey Nicky Ricky Robbie Ronnie Sammy Tommy Willy Betty Cathy Debbie Ellie Gigi Jenny Kitty Libby Maggie Mandy Millie Nelly Patty Sally Sandy Tammy Tessa Trixie Vicky Winnie'.split(' '),
+      it: 'Giuseppe Giovanni Antonio Mario Luigi Francesco Angelo Vincenzo Pietro Salvatore Carlo Franco Domenico Bruno Paolo Michele Giorgio Aldo Sergio Luciano Marco Andrea Alessandro Stefano Roberto Massimo Fabio Maurizio Claudio Lorenzo Matteo Luca Davide Simone Riccardo Federico Gabriele Nicola Daniele Emanuele Alberto Enrico Filippo Tommaso Leonardo Cristian Manuel Samuele Maria Anna Giuseppina Rosa Angela Giovanna Teresa Lucia Carmela Caterina Francesca Antonietta Anna Laura Paola Elena Silvia Daniela Cristina Barbara Sara Giulia Chiara Valentina Federica Martina Alessia Elisa Simona Monica Roberta Alessandra Claudia Serena Ilaria Marta Beatrice Sofia Aurora Ginevra Emma Alice Vittoria Matilde Greta Noemi Valerio Fabrizio Cristiano Emiliano Ruggero Ettore Ivano Adriano Silvio Renzo Dario Egidio Gianluca Gianmarco Gianni Giacomo Raffaele Rocco Sandro Tiziano Ugo Umberto Vito Walter Amedeo Arturo Attilio Augusto Cesare Corrado Costantino Damiano Elia Emilio Ennio Ercole Fausto Ferdinando Fulvio Gaetano Gennaro Gerardo Gioacchino Giordano Giulio Guido Ignazio Ivan Lamberto Livio Loris Marcello Mariano Martino Massimiliano Mauro Michelangelo Mirko Nazzareno Nino Oreste Orlando Osvaldo Ottavio Pasquale Patrizio Piero Primo Quirino Remo Renato Rinaldo Rodolfo Romeo Rosario Ruben Saverio Sebastiano Settimio Severino Silvano Siro Tarcisio Teodoro Tiberio Tullio Valentino Vasco Virgilio Vittorio Zeno Alessio Christian Dennis Denis Elio Enzo Fabiano Gastone Gilberto Giulio Adele Agata Agnese Alba Albertina Alda Alessandrina Amalia Ambra Anita Annamaria Antonella Ariana Arianna Assunta Aurelia Azzurra Benedetta Bianca Brigida Camilla Carla Carlotta Carolina Cecilia Celeste Clara Clelia Cleofe Concetta Consuelo Cornelia Costanza Cristiana Debora Delia Diana Dina Donatella Dora Edda Egle Elda Eleonora Elettra Eliana Elsa Elvira Emanuela Enrica Erica Ermelinda Ersilia Ester Eugenia Eva Evelina Fabiana Fernanda Fiorella Flavia Flora Franca Fulvia Gabriella Gaia Gemma Giada Gilda Gioia Giorgia Gisella Giuditta Gloria Grazia Ida Ilenia Immacolata Ines Ingrid Irene Iride Irma Isabella Isotta Ivana Jessica Jolanda Katia Lara Larissa Letizia Lia Licia Lidia Liliana Linda Lisa Livia Loredana Lorena Loretta Luana Lucrezia Ludovica Luisa Luna Maddalena Mafalda Manuela Mara Marcella Margherita Mariangela Marianna Marilena Marina Marisa Maristella Marzia Melania Michela Milena Mirella Miriam Morena Nadia Natalia Nella Nicoletta Nina Norma Ombretta Ornella Orsola Ottavia Palmira Pamela Pia Pierina Raffaella Rachele Rebecca Renata Rina Rita Romina Rosalia Rosanna Rossana Rossella Sabrina Samanta Sandra Selene Serenella Sonia Stella Susanna Tamara Tania Tatiana Tecla Tiziana Tosca Ursula Valeria Vanessa Vania Vera Veronica Viola Virginia Viviana Wanda Zaira Zelinda Mariachiara Nicole Asia Patrizia Deborah Silvana Cinzia Sole Sveva Adelaide Angelica Antonia Armida Augusta Brigitta Bruna Carmen Dafne Dalila Diletta Dolores Domitilla Donata Doriana Edvige Elisabetta Emilia Erminia Eufemia Eulalia Fiorenza Flaviana Floriana Fortunata Genoveffa Germana Gina Graziella Griselda Leda Lelia Liana Luciana Marica Marinella Mariolina Mercedes Mimma Narcisa Nunzia Piera Priscilla Rosaria Rosella Rosetta Sabina Stefania Tonia Violetta Zoe Abele Achille Adalberto Adamo Adeodato Agostino Amerigo Annibale Anselmo Aquilino Arcangelo Armando Arnaldo Aurelio Baldo Barnaba Bartolomeo Basilio Battista Beniamino Benedetto Benito Bernardino Bernardo Biagio Bonifacio Camillo Carmelo Cassio Cataldo Ciro Clemente Cornelio Cosimo Costante Danilo Demetrio Desiderio Diego Donatello Donato Duccio Edgardo Edmondo Edoardo Efrem Ermanno Erminio Ernesto Eros Eugenio Evaristo Felice Ferruccio Fiammetta Fiorenzo Flavio Floriano Folco Fortunato Frediano Galeazzo Galileo Gaspare Gavino Gaudenzio Geremia Germano Gherardo Giacinto Giano Gildo Gino Gioele Girolamo Giuliano Goffredo Graziano Gregorio Gustavo Iacopo Icaro Ippolito Italo Ivo Jacopo Lanfranco Lapo Lazzaro Leopoldo Libero Lino Ludovico Luitprando Macario Manfredo Manlio Mansueto Manuele Marcellino Marchetto Marciano Marino Melchiorre Milvio Mirco Modesto Napoleone Narciso Nereo Nevio Niccolo Nicolao Norberto Nunzio Oddone Odorico Olimpio Oliviero Omero Orazio Orfeo Oriano Oscar Ottaviano Ottone Pacifico Palmiro Pancrazio Pio Pirro Placido Pompeo Ponziano Porfirio Prisco Prospero Raffaello Ranieri Raimondo Raniero Rino Romano Romolo Rossano Rubens Ruggiero Sabatino Sante Secondo Sforza Silvestro Simplicio Spartaco Stanislao Taddeo Tammaro Tancredi Teobaldo Terenzio Teseo Tito Torquato Tranquillo Tristano Ubaldo Ulisse Urbano Valente Venerando Venanzio Venturino Verdiano Vezio Vico Vittore Viviano Vladimiro Zanobi Zenone Pippo Peppe Peppino Beppe Beppino Ninetto Totò Ciccio Cicci Lillo Nello Nuccio Puccio Dino Nando Lando Vanni Tonio Toni Memo Mimmo Cencio Checco Ceccio Bepi Titta Bibi Nini Pinuccio Sasà Salvo Turi Turiddu Iano Nanni Lallo Lolo Momo Cocò Coco Gigi Gigio Tino Pino Cesco Meo Neri Bindo Paco Pepe Pepito Chema Nacho Quique Curro Lolo Manolo Pancho Chelo Charo Concha Lola Lupe Maite Mari Merche Nati Pili Rocio Tere Toni Txema Xavi Kike Bea Cris Fran Rafa Bobby Billy Charlie Danny Eddie Frankie Georgie Jimmy Joey Johnny Kenny Larry Mickey Nicky Ricky Robbie Ronnie Sammy Tommy Willy Betty Cathy Debbie Ellie Gigi Jenny Kitty Libby Maggie Mandy Millie Nelly Patty Sally Sandy Tammy Tessa Trixie Vicky Winnie'.split(' ')
     },
     familyNames: {
       en: 'Smith Johnson Williams Brown Jones Miller Davis Wilson Anderson Taylor Thomas Moore Jackson Martin Lee Thompson White Harris Clark Lewis Robinson Walker Young Allen King Wright Scott Hill Green Adams Nelson Baker Hall Campbell Mitchell Carter Roberts Turner Phillips Evans Parker Edwards Collins Stewart Morris Murphy Cook Rogers Morgan Peterson Cooper Reed Bailey Bell Gomez Kelly Howard Ward Cox Richardson Wood Watson Brooks Bennett Gray James Reyes Cruz Hughes Price Myers Long Foster Sanders Ross Powell Sullivan Russell Ortiz Jenkins Gutierrez Perry Butler Barnes Fisher Henderson Coleman Simmons Patterson Jordan Reynolds Hamilton Graham Wallace Griffin Murray Freeman Wells'.split(' '),
@@ -5979,6 +5984,86 @@ if (recognition) {
 </script>
 <script>
 /* =============================================================================
+   AEGIS — secondo strato: riconoscimento dei nomi propri sconosciuti
+   Le regole restano il fondamento (checksum, struttura): questo modello guarda
+   SOLO le parole che le regole non hanno rivendicato, e solo per i nomi di
+   persona. Se non si carica, Aegis continua a funzionare com'e': questo file
+   non deve mai bloccare né rallentare nulla.
+   ============================================================================= */
+(function () {
+  'use strict';
+
+  var MODELLO = 'Xenova/distilbert-base-multilingual-cased-ner-hrl';
+  var pipe = null;          // pipeline pronta
+  var avviato = false;
+  var stato = 'spento';     // spento | carico | pronto | fallito
+
+  function segnala(s) {
+    stato = s;
+    try { window.dispatchEvent(new CustomEvent('aegis-ner', { detail: s })); } catch (e) {}
+  }
+
+  function carica() {
+    if (avviato) return;
+    avviato = true;
+    segnala('carico');
+
+    // Su una pagina web il caricamento da CDN e' consentito (a differenza di
+    // un'estensione, dove le regole di Chrome vietano il codice remoto).
+    var s = document.createElement('script');
+    s.type = 'module';
+    s.textContent =
+      "import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.2';\n" +
+      "env.allowLocalModels = false;\n" +
+      "env.backends.onnx.wasm.numThreads = 1;\n" +
+      "pipeline('token-classification', '" + MODELLO + "', { dtype: 'q8' })\n" +
+      "  .then(p => { window.__AEGIS_PIPE__ = p; })\n" +
+      "  .catch(e => { window.__AEGIS_PIPE_ERR__ = e; });";
+    s.onerror = function () { segnala('fallito'); };
+    document.head.appendChild(s);
+
+    var giri = 0;
+    var t = setInterval(function () {
+      giri++;
+      if (window.__AEGIS_PIPE__) { clearInterval(t); pipe = window.__AEGIS_PIPE__; segnala('pronto'); }
+      else if (window.__AEGIS_PIPE_ERR__ || giri > 600) { clearInterval(t); segnala('fallito'); }
+    }, 200);
+  }
+
+  /* Ritorna [{valore, inizio, fine}] delle sole PERSONE trovate.
+     Non lancia mai: in caso di problema torna elenco vuoto. */
+  async function persone(testo) {
+    if (!pipe || !testo || testo.length < 2) return [];
+    try {
+      var out = await pipe(testo);
+      var ent = [], cur = null;
+      out.forEach(function (r) {
+        var tipo = String(r.entity || '').replace(/^[BI]-/, '');
+        var apre = String(r.entity || '').indexOf('B-') === 0;
+        if (tipo !== 'PER') { if (cur) { ent.push(cur); cur = null; } return; }
+        if (apre || !cur) { if (cur) ent.push(cur); cur = { inizio: r.start, fine: r.end }; }
+        else { cur.fine = r.end; }
+      });
+      if (cur) ent.push(cur);
+      return ent
+        .map(function (e) { return { valore: testo.slice(e.inizio, e.fine).trim(), inizio: e.inizio, fine: e.fine }; })
+        .filter(function (e) { return e.valore.length > 1; });
+    } catch (e) {
+      return [];
+    }
+  }
+
+  window.AEGIS_NER = {
+    carica: carica,
+    persone: persone,
+    get stato() { return stato; },
+    get pronto() { return stato === 'pronto'; }
+  };
+})();
+
+</script>
+<script>
+/* =============================================================================
    AEGIS — pannello integrato (una sola pagina, niente iframe)
    Sinistra/sopra: quello che riceve il modello.  Destra/sotto: la chat vera.
    Il testo mascherato NON e' una vetrina: e' quello che parte davvero.
@@ -6012,7 +6097,7 @@ if (recognition) {
   /* ---------- utilita' ---------- */
   function colore(token){
     var t=String(token).replace(/[\[\]]/g,'').split('_')[0];
-    if(t==='PER'||t==='ALIAS'||t==='NAME') return 'per';
+    if(t==='PER'||t==='ALIAS'||t==='NAME'||t==='NER') return 'per';
     if(t==='ADDR') return 'addr';
     if(t==='CITY'||t==='ZIP'||t==='POSTCODE'||t==='GPS') return 'city';
     if(t==='DOB'||t==='DATE'||t==='AGE') return 'date';
@@ -6031,10 +6116,54 @@ if (recognition) {
     return out;
   }
 
+  /* ---------- secondo strato: nomi che le regole non conoscono ----------
+     Il modello gira mentre l'utente scrive e il risultato viene messo da parte.
+     Al momento dell'invio si usa quello gia' pronto, senza attese. */
+  var nerCache = { testo:null, ent:[] };
+
+  function aggiornaNer(testo){
+    if(!window.AEGIS_NER || !window.AEGIS_NER.pronto) return;
+    if(nerCache.testo === testo) return;
+    window.AEGIS_NER.persone(testo).then(function(ent){
+      nerCache = { testo: testo, ent: ent||[] };
+      var i=document.getElementById('user-input');
+      if(i && i.value===testo) anteprima(testo);   // ridisegna con i nomi trovati
+    });
+  }
+
+  // Applica al testo GIA' mascherato dalle regole i nomi trovati dal modello,
+  // saltando quelli che ricadono dentro un codice esistente.
+  function fondiNer(testoOriginale, res){
+    if(!nerCache.ent.length || nerCache.testo !== testoOriginale) return res;
+    var extra = [];
+    nerCache.ent.forEach(function(e){
+      var v = e.valore;
+      if(!v || v.length<2) return;
+      if(res.text.indexOf(v) === -1) return;        // gia' sostituito dalle regole
+      if(/^\d+$/.test(v)) return;
+      var doppio = res.vault.some(function(x){
+        return String(x.value).toLowerCase().indexOf(v.toLowerCase())!==-1
+            || v.toLowerCase().indexOf(String(x.value).toLowerCase())!==-1;
+      });
+      if(doppio) return;
+      extra.push(v);
+    });
+    if(!extra.length) return res;
+    extra.sort(function(a,b){ return b.length-a.length; });
+    var testo = res.text, vaultNuovo = res.vault.slice();
+    extra.forEach(function(v,i){
+      var tk='[[NER_'+String(i+1).padStart(2,'0')+']]';
+      try{ testo = testo.split(v).join(tk); }catch(err){ return; }
+      vaultNuovo.push({ token: tk, value: v, sub:'full_name', category:'PERSONA', review:true });
+    });
+    return { text: testo, vault: vaultNuovo, leaks: res.leaks||[], stats: res.stats };
+  }
+
   /* ---------- mascheratura ---------- */
   function maschera(testo, congela){
     var r;
     try{ r=AEGIS.protect(testo,{level:LIVELLO}); }catch(e){ return {testo:testo,voci:[]}; }
+    r = fondiNer(testo, r);
     var out=r.text, voci=[], tmp={};
     r.vault.forEach(function(v){
       var chiave=String(v.value).toLowerCase(), tok=null;
@@ -6196,7 +6325,7 @@ if (recognition) {
       '<div class="ag-testa">'+
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'+
         '<span class="ag-tit">Quello che riceve il modello</span>'+
-        '<span class="ag-badge" id="ag-badge">0</span>'+
+        '<span class="ag-badge" id="ag-badge">0</span>'+'<span class="ag-ner" id="ag-ner" title="Riconoscimento avanzato dei nomi"></span>'+
         '<button class="ag-chiudi" id="ag-chiudi" title="Comprimi">\u2013</button>'+
       '</div>'+
       '<div class="ag-corpo">'+
@@ -6211,6 +6340,21 @@ if (recognition) {
       '</div>';
     frame.insertBefore(p, frame.firstChild);
     frame.classList.add('ag-doppio');
+
+    window.addEventListener('aegis-ner', function(ev){
+      var el=document.getElementById('ag-ner');
+      if(!el) return;
+      var s=ev.detail;
+      el.className='ag-ner ag-'+s;
+      el.textContent = s==='carico' ? 'NER…' : (s==='pronto' ? 'NER' : '');
+      el.title = s==='pronto' ? 'Riconoscimento avanzato attivo'
+        : s==='carico' ? 'Riconoscimento avanzato in preparazione'
+        : 'Riconoscimento avanzato non disponibile: restano attive le regole';
+      if(s==='pronto'){
+        var i=document.getElementById('user-input');
+        if(i && i.value) aggiornaNer(i.value);
+      }
+    });
 
     lista=document.getElementById('ag-lista');
     anteprimaEl=document.getElementById('ag-anteprima');
@@ -6241,8 +6385,16 @@ if (recognition) {
       var t;
       input.addEventListener('input',function(){
         clearTimeout(t);
-        t=setTimeout(function(){ autoScroll=true; anteprima(input.value); },100);
+        t=setTimeout(function(){
+          autoScroll=true;
+          anteprima(input.value);
+          aggiornaNer(input.value);
+        },100);
       });
+      // il modello parte al primo tocco: chi non scrive non scarica nulla
+      input.addEventListener('focus',function(){
+        if(window.AEGIS_NER) window.AEGIS_NER.carica();
+      },{once:true});
       input.addEventListener('focus',function(){
         // tornando a scrivere la striscia si richiude da sola
         if(mobile()) p.classList.remove('ag-aperto');
