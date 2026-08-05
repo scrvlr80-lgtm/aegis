@@ -28,10 +28,11 @@
   --c-bank:#8E4EC6;--c-mail:#00A2C7;--c-tech:#5B6270;--c-med:#E93D82;--c-id:#D6409F;}
 html,body{height:100%;margin:0}
 body{color:var(--text-main);background:var(--primary);overflow:hidden}
-.console-frame,.chat-area{background:var(--primary)!important}
+.console-frame,.chat-area,.chat-container{background:var(--primary)!important}
 
 /* --- DESKTOP: due colonne affiancate --- */
-.console-frame.ag-doppio{display:grid;grid-template-columns:minmax(280px,38%) 1fr;
+.console-frame.ag-doppio,.chat-container.ag-doppio{display:grid;
+  grid-template-columns:minmax(280px,38%) 1fr;
   height:100vh;height:100dvh;max-height:none;width:100%;max-width:none;border-radius:0;
   border:0;overflow:hidden}
 .ag-pannello{display:flex;flex-direction:column;min-width:0;min-height:0;
@@ -78,7 +79,7 @@ body{color:var(--text-main);background:var(--primary);overflow:hidden}
 
 /* --- TELEFONO: striscia sottile attaccata sopra il campo di scrittura --- */
 @media(max-width:820px){
-  .console-frame.ag-doppio{grid-template-columns:1fr;grid-template-rows:1fr}
+  .console-frame.ag-doppio,.chat-container.ag-doppio{grid-template-columns:1fr;grid-template-rows:1fr}
   .ag-legenda{display:none}
   .ag-pannello.ag-striscia{
     border-right:0;border-top:1px solid var(--hairline);border-bottom:1px solid var(--hairline);
@@ -6315,9 +6316,22 @@ if (recognition) {
     anteprimaEl.scrollTop = anteprimaEl.scrollHeight;
   }
 
+  // Il contenitore della chat ha nomi diversi a seconda del tenant: qui si
+  // prova in ordine e si tiene il primo che esiste davvero. Senza questo, il
+  // pannello non veniva mai creato e restava tutto invisibile.
+  function trovaFrame(){
+    var candidati = ['.chat-container','.console-frame','.chat-shell','.app-shell'];
+    for(var i=0;i<candidati.length;i++){
+      var el=document.querySelector(candidati[i]);
+      if(el) return el;
+    }
+    var m=document.getElementById('chat-messages');
+    return m ? m.parentElement : null;
+  }
+
   function costruisci(){
     if(document.getElementById('ag-pannello')) return true;
-    var frame=document.querySelector('.console-frame');
+    var frame=trovaFrame();
     if(!frame) return false;
     var p=document.createElement('div');
     p.id='ag-pannello'; p.className='ag-pannello';
@@ -6422,7 +6436,7 @@ if (recognition) {
   function collocare(){
     var p=document.getElementById('ag-pannello');
     if(!p) return;
-    var frame=document.querySelector('.console-frame');
+    var frame=trovaFrame();
     var wrap=document.getElementById('chat-input-wrapper');
     if(mobile()){
       if(wrap && p.parentElement!==wrap.parentElement){
