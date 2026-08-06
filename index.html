@@ -92,6 +92,9 @@ body.ag-attivo{overflow:hidden;margin:0}
   .ag-legenda{display:none}
   .ag-anteprima{min-height:44px;max-height:22vh}
 }
+/* --- chips eliminate del tutto --- */
+.chips-container,.chips-wrapper,.suggested-chips,.chip,.chip-item,
+.chips-row,.chips-scroll,.chip-nav,.chip-arrow,[class*="chip"]{display:none!important}
 /* --- interfaccia --- */
 .gdpr-overlay,.img-disclaimer-overlay{background-color:rgba(0,0,0,.35)!important}
 .gdpr-modal,.img-disclaimer-modal{background-color:var(--primary)!important}
@@ -4369,6 +4372,16 @@ if (recognition) {
       'Ltd Inc Corp LLC GmbH SpA Srl SL SA PLC University College Hospital Clinic Bank Group Holding Limited Company Department Ministry Agency Office ' +
       'Street Avenue Road Lane Drive Boulevard Court Place Square Calle Avenida Plaza Paseo Carretera Via Viale Piazza Corso Largo Strada Vicolo ' +
       'Dear Sincerely Regards Best Kind Thank Thanks Hello Hi Please Note Subject From To Date Re Fwd Attn ' +
+      // enti, corpi e qualifiche: non sono nomi di persona
+      'Stradale Municipale Locale Postale Ferroviaria Penitenziaria Provinciale Regionale ' +
+      'Comunale Nazionale Statale Militare Civile Giudiziaria Scientifica Forestale Tributaria ' +
+      'Polizia Carabinieri Guardia Finanza Prefettura Questura Comando Stazione Caserma Procura ' +
+      'Tribunale Corte Cassazione Appello Ministero Assessorato Direzione Ufficio Servizio ' +
+      'Reparto Dipartimento Sezione Squadra Nucleo Distaccamento Circoscrizione Municipio ' +
+      'Ospedale Clinica Ambulatorio Pronto Soccorso Degenza Ricovero Dimissione Verbale ' +
+      'Referto Certificato Attestato Ricevuta Fattura Contratto Scrittura Privata Convalida ' +
+      'Comisaria Juzgado Fiscalia Ayuntamiento Diputacion Consejeria Delegacion Subdelegacion ' +
+      'Police Department Precinct Sheriff Marshal Court District Federal County Municipal ' +
       // parole capitalizzate a inizio frase: senza queste il rilevatore
       // ingloba il verbo che precede il nome ("Sono Marco Rossi")
       'Sono Siamo Ecco Salve Buongiorno Buonasera Gentile Egregio Spettabile Cordiali Saluti Grazie Ciao ' +
@@ -5191,6 +5204,16 @@ if (recognition) {
     'Madrelingua Italiano Inglese Spagnolo Francese Tesi Laurea Magistrale Triennale Patente ' +
     'Docker Jira Confluence Trello Excel SQL REST API BPMN Power ' +
     'Nome Data Residenza Telefono Email Codice Nota '+
+    // corpi, enti e qualifiche: non sono nomi di persona
+    'Stradale Municipale Locale Postale Ferroviaria Penitenziaria Provinciale Regionale '+
+    'Comunale Nazionale Statale Militare Civile Giudiziaria Scientifica Forestale Tributaria '+
+    'Polizia Carabinieri Guardia Finanza Prefettura Questura Comando Stazione Caserma Procura '+
+    'Tribunale Corte Cassazione Appello Ministero Assessorato Direzione Ufficio Servizio '+
+    'Reparto Dipartimento Sezione Squadra Nucleo Distaccamento Circoscrizione Municipio '+
+    'Ospedale Clinica Ambulatorio Pronto Soccorso Reparto Degenza Ricovero Dimissione '+
+    'Verbale Referto Certificato Attestato Ricevuta Fattura Contratto Scrittura Privata '+
+    'Comisaria Juzgado Fiscalia Ayuntamiento Diputacion Consejeria Delegacion Subdelegacion '+
+    'Police Department Precinct Sheriff Marshal Court District Federal County Municipal '+
     // sigle e termini tecnici: non sono dati personali
     'TTL CACHE LRU LFU FIFO LIFO CPU GPU RAM ROM SSD HDD NOSQL YAML TSV HTTPS URI UUID GUID '+
     'CRUD SOAP GRPC DNS TCP UDP SSH FTP SMTP CDN ORM SDK IDE CLI GUI RPC AMQP JWT OAUTH SAML '+
@@ -6203,12 +6226,32 @@ if (recognition) {
   }
 
   /* ---------- API usata dalla chat ---------- */
+  /* GARANZIA DI PARTENZA — questo e' il punto in cui il testo lascia il
+     dispositivo. Non basta mascherare una volta: si ricontrolla il risultato
+     e, se il motore trova ancora qualcosa, si maschera di nuovo. Se dopo tre
+     passate resta qualcosa, il messaggio NON parte. Meglio un invio bloccato
+     che un dato in chiaro. */
+  function esistonoResidui(t){
+    try{
+      // I codici gia' inseriti vanno tolti prima del controllo, altrimenti
+      // il motore li riconosce come dati e il controllo non finisce mai.
+      var pulito = String(t).replace(/\[\[[A-Z]+_\d+[A-Z]?\]\]/g,' ');
+      var r=AEGIS.protect(pulito,{level:LIVELLO});
+      return r.vault.length > 0;
+    }catch(e){ return false; }
+  }
+
   window.aegisMaskHistory=function(msgs){
     return msgs.map(function(m){
       if(!m||!m.content) return m;
       var t=String(m.content);
-      if(/\[\[[A-Z]+_\d+\]\]/.test(t)) return m;
-      return { role:m.role, content: maschera(t,true).testo };
+      var giri=0;
+      while(esistonoResidui(t) && giri<3){ t = maschera(t,true).testo; giri++; }
+      if(esistonoResidui(t)){
+        console.error('[Aegis] residui dopo 3 passate: invio bloccato');
+        throw new Error('AEGIS_RESIDUI');
+      }
+      return { role:m.role, content:t };
     });
   };
   window.aegisUtente=function(testo){
@@ -6224,6 +6267,7 @@ if (recognition) {
     var protetta = maschera(String(grezzo||''), true).testo;
     righe.push({ruolo:'bot',testo:protetta});
     autoScroll=true; disegna(); salva();
+    setTimeout(function(){ if(window.aegisRiapplica) window.aegisRiapplica(); }, 120);
     return decodifica(grezzo);
   };
   window.aegisDecodifica=decodifica;
@@ -6272,14 +6316,27 @@ if (recognition) {
     var l=(document.documentElement.lang||navigator.language||'it').slice(0,2).toLowerCase();
     return ETICHETTE[l]?l:'en';
   }
+  // L'interruttore vale per l'INTERA conversazione: i dati stanno anche nei
+  // messaggi dell'utente, che non hanno un pulsante proprio.
+  var evidenzaAccesa = false;
   window.aegisToggleHL=function(btn){
-    var cont=btn.closest('.bot-actions-container');
-    var bolla=cont?cont.parentElement:null;
-    if(!bolla) return;
-    var on=btn.classList.toggle('on');
-    if(on) window.aegisEvidenzia(bolla); else window.aegisTogliEvidenza(bolla);
-    var lbl=btn.querySelector('.ag-lbl');
-    if(lbl) lbl.textContent = ETICHETTE[lingua()][on?0:1];
+    evidenzaAccesa = !evidenzaAccesa;
+    var zona = document.getElementById('chat-messages') || document.body;
+    if(evidenzaAccesa) window.aegisEvidenzia(zona);
+    else window.aegisTogliEvidenza(zona);
+    document.querySelectorAll('.ag-toggle').forEach(function(b){
+      b.classList.toggle('on', evidenzaAccesa);
+      var l=b.querySelector('.ag-lbl');
+      if(l) l.textContent = ETICHETTE[lingua()][evidenzaAccesa?0:1];
+    });
+  };
+  // se l'evidenziazione e' accesa, i messaggi nuovi la ereditano
+  window.aegisRiapplica=function(){
+    if(!evidenzaAccesa) return;
+    var zona=document.getElementById('chat-messages');
+    if(!zona) return;
+    window.aegisTogliEvidenza(zona);
+    window.aegisEvidenzia(zona);
   };
 
   /* ---------- disegno del pannello ---------- */
