@@ -6308,45 +6308,59 @@ if (recognition) {
   };
 
   /* ---------- evidenziatore nella risposta in chiaro ---------- */
+  // Evidenzia i dati sensibili DIRETTAMENTE nel testo che sta guardando, con
+  // il motore. Non dipende dal vault: funziona anche su testo incollato o su
+  // una risposta che contiene nomi mai digitati prima.
+  function segmentiSensibili(testo){
+    try{
+      var r = AEGIS.protect(String(testo), {level:LIVELLO});
+      // ricostruisco le posizioni: ogni valore del vault e' un segmento
+      var segs = [];
+      r.vault.forEach(function(v){
+        var val = String(v.value);
+        if(val.length < 2) return;
+        var tipo = v.token.replace(/[\[\]]/g,'').split('_')[0];
+        var from = 0, idx;
+        while((idx = testo.indexOf(val, from)) !== -1){
+          segs.push({ s: idx, e: idx+val.length, col: colore(v.token) });
+          from = idx + val.length;
+        }
+      });
+      return segs.sort(function(a,b){ return a.s-b.s; });
+    }catch(e){ return []; }
+  }
+
   window.aegisEvidenzia=function(root){
-    if(!root || !vault.size) return;
-    var coppie=[];
-    vault.forEach(function(val,k){ var v=String(val); if(v.length>=2) coppie.push({k:k.split('~')[0], val:v}); });
-    if(!coppie.length) return;
-    coppie.sort(function(a,b){ return b.val.length-a.val.length; });
-    // Cerca in ogni bolla di testo, saltando la barra dei pulsanti. Opera sui
-    // singoli nodi di testo per non rompere l'HTML della bolla.
+    if(!root) return;
     var it=document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
     var nodi=[], n;
     while((n=it.nextNode())){
       var par=n.parentElement;
       if(!par) continue;
-      if(par.closest && par.closest('.bot-actions-container,.message-actions,.ag-toggle')) continue;
-      if(par.classList && par.classList.contains('ag-m')) continue;   // gia' evidenziato
-      if(n.nodeValue && n.nodeValue.trim()) nodi.push(n);
+      if(par.closest && par.closest('.bot-actions-container,.message-actions,.ag-toggle,.ag-testa,.ag-legenda')) continue;
+      if(par.classList && par.classList.contains('ag-m')) continue;
+      if(n.nodeValue && n.nodeValue.trim().length>1) nodi.push(n);
     }
     nodi.forEach(function(nodo){
-      var t=nodo.nodeValue, trovato=false, html='';
-      var resto=t;
-      // costruzione progressiva: trova la prima occorrenza di un valore
-      while(resto.length){
-        var best=-1, bestP=null;
-        coppie.forEach(function(p){
-          var idx=resto.indexOf(p.val);
-          if(idx!==-1 && (best===-1 || idx<best)){ best=idx; bestP=p; }
-        });
-        if(best===-1){ html+=esc(resto); break; }
-        html += esc(resto.slice(0,best));
-        html += '<mark class="ag-m '+(colorDi.get(bestP.k)||'id')+'">'+esc(bestP.val)+'</mark>';
-        resto = resto.slice(best+bestP.val.length);
-        trovato=true;
-      }
-      if(!trovato) return;
+      var t = nodo.nodeValue;
+      var segs = segmentiSensibili(t);
+      if(!segs.length) return;
+      // rimuovo sovrapposizioni tenendo il primo
+      var puliti=[], ultimo=-1;
+      segs.forEach(function(g){ if(g.s>=ultimo){ puliti.push(g); ultimo=g.e; } });
+      var html='', pos=0;
+      puliti.forEach(function(g){
+        html += esc(t.slice(pos, g.s));
+        html += '<mark class="ag-m '+g.col+'">'+esc(t.slice(g.s, g.e))+'</mark>';
+        pos = g.e;
+      });
+      html += esc(t.slice(pos));
       var sp=document.createElement('span');
       sp.className='ag-wrap'; sp.innerHTML=html;
       nodo.parentNode.replaceChild(sp, nodo);
     });
   };
+
   window.aegisTogliEvidenza=function(el){
     if(!el) return;
     el.querySelectorAll('span.ag-wrap').forEach(function(w){
