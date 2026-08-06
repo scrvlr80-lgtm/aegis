@@ -56,6 +56,8 @@ body.ag-attivo{overflow:hidden;margin:0}
 .ag-ner:empty{display:none}
 .ag-ner.ag-carico{opacity:.55}
 .ag-ner.ag-pronto{border-color:var(--c-addr);color:var(--c-addr)}
+/* interruttore evidenziatore dentro lo specchio */
+.ag-toggle-sp{width:auto;min-width:104px;height:24px;padding:0 10px;font-size:9.5px;flex:none}
 /* riga 2: la conversazione, si allunga a riempire */
 .ag-corpo{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;background:var(--console-bg)}
 .ag-lista{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;padding:18px 16px;
@@ -4381,6 +4383,7 @@ if (recognition) {
       'Ospedale Clinica Ambulatorio Pronto Soccorso Degenza Ricovero Dimissione Verbale ' +
       'Referto Certificato Attestato Ricevuta Fattura Contratto Scrittura Privata Convalida ' +
       'Comisaria Juzgado Fiscalia Ayuntamiento Diputacion Consejeria Delegacion Subdelegacion ' +
+      'Autorita Autoridad Authority Giudiziaria Judicial Prefetto Sindaco Console Ambasciata Consolato Commissariato Commissario Ispettore Ispettorato Agenzia Entrate Dogana Catasto Anagrafe INPS INAIL ASL USL Motorizzazione ' +
       'Police Department Precinct Sheriff Marshal Court District Federal County Municipal ' +
       // parole capitalizzate a inizio frase: senza queste il rilevatore
       // ingloba il verbo che precede il nome ("Sono Marco Rossi")
@@ -5212,7 +5215,7 @@ if (recognition) {
     'Reparto Dipartimento Sezione Squadra Nucleo Distaccamento Circoscrizione Municipio '+
     'Ospedale Clinica Ambulatorio Pronto Soccorso Reparto Degenza Ricovero Dimissione '+
     'Verbale Referto Certificato Attestato Ricevuta Fattura Contratto Scrittura Privata '+
-    'Comisaria Juzgado Fiscalia Ayuntamiento Diputacion Consejeria Delegacion Subdelegacion '+
+    'Comisaria Juzgado Fiscalia Ayuntamiento Diputacion Consejeria Delegacion Subdelegacion Autorita Autoridad Authority Giudiziaria Judicial Prefetto Sindaco Console Ambasciata Consolato Commissariato Commissario Ispettore Ispettorato Agenzia Entrate Dogana Catasto Anagrafe INPS INAIL ASL USL Motorizzazione '+
     'Police Department Precinct Sheriff Marshal Court District Federal County Municipal '+
     // sigle e termini tecnici: non sono dati personali
     'TTL CACHE LRU LFU FIFO LIFO CPU GPU RAM ROM SSD HDD NOSQL YAML TSV HTTPS URI UUID GUID '+
@@ -5389,7 +5392,10 @@ if (recognition) {
       (g.givenNames[loc] || []).filter(okName).forEach(n => GSET.given.add(n.toLowerCase()));
       (g.familyNames[loc] || []).filter(okName).forEach(n => GSET.family.add(n.toLowerCase()));
     });
-    (g.notNames || []).forEach(n => GSET.not.add(n.toLowerCase()));
+    // confronto senza accenti: "Autorita" in lista copre "Autorità" nel testo
+    const sfoglia = x => String(x).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    GSET.notFold = new Set();
+    (g.notNames || []).forEach(n => { GSET.not.add(n.toLowerCase()); GSET.notFold.add(sfoglia(n)); });
   })();
 
   // sostituibile a runtime con i dataset ufficiali (ISTAT / INE / Census)
@@ -5508,9 +5514,11 @@ if (recognition) {
         // Le parole di contorno ("Sono", "Gentile", "Hola") vanno TAGLIATE,
         // non usate per scartare il match: altrimenti si perde anche il nome.
         let words = value.split(/\s+/);
+        const fold2 = w => w.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const isEnte = w => GSET.not.has(w.toLowerCase()) || (GSET.notFold && GSET.notFold.has(fold2(w)));
         let cutStart = 0, cutEnd = words.length;
-        while (cutStart < cutEnd && GSET.not.has(words[cutStart].toLowerCase())) cutStart++;
-        while (cutEnd > cutStart && GSET.not.has(words[cutEnd - 1].toLowerCase())) cutEnd--;
+        while (cutStart < cutEnd && isEnte(words[cutStart])) cutStart++;
+        while (cutEnd > cutStart && isEnte(words[cutEnd - 1])) cutEnd--;
         if (cutEnd - cutStart < 1) return;              // era tutto contorno
         if (cutStart > 0 || cutEnd < words.length) {
           const kept = words.slice(cutStart, cutEnd).join(' ');
@@ -5545,7 +5553,7 @@ if (recognition) {
       cache.toks.forEach(tk => {
         const lw = tk.w.toLowerCase();
         if (!GSET.given.has(lw) && !GSET.family.has(lw)) return;
-        if (GSET.not.has(lw)) return;
+        if (GSET.not.has(lw) || GSET.notFold.has(lw.normalize('NFD').replace(/[\u0300-\u036f]/g,''))) return;
         push({ 0: tk.w, index: tk.s }, 0);
       });
       if (p.gazetteer.anyCase) {
@@ -5560,7 +5568,7 @@ if (recognition) {
           const lw = tk.w.toLowerCase();
           if (tk.w !== lw) return;                       // gia' visto sopra
           if (!GSET.given.has(lw) && !GSET.family.has(lw)) return;
-          if (GSET.not.has(lw)) return;
+          if (GSET.not.has(lw) || GSET.notFold.has(lw.normalize('NFD').replace(/[\u0300-\u036f]/g,''))) return;
           push({ 0: tk.w, index: tk.s }, 0);
         });
       }
@@ -5703,7 +5711,7 @@ if (recognition) {
         const lw = w.toLowerCase();
         if (done.has(lw)) return;
         done.add(lw);
-        if (GSET.not.has(lw)) return;
+        if (GSET.not.has(lw) || GSET.notFold.has(lw.normalize('NFD').replace(/[\u0300-\u036f]/g,''))) return;
         if (w !== w[0].toUpperCase() + w.slice(1) && w !== w.toUpperCase()) return;
         let re;
         try {
@@ -5754,6 +5762,13 @@ if (recognition) {
   function coverAll(text, taken) {
     const rules = KB.coverAll || [];
     const stop = KB.coverStop || new Set();
+    // versione senza accenti dello stoplist: "Autorita" copre "Autorità"
+    if (!KB._stopFold) {
+      KB._stopFold = new Set();
+      stop.forEach(w => KB._stopFold.add(String(w).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')));
+    }
+    const stopFold = KB._stopFold;
+    const inStop = w => stop.has(w) || stopFold.has(String(w).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''));
     const occ = occupancy(text.length, taken);
     const out = [];
     rules.forEach(r => {
@@ -5780,10 +5795,12 @@ if (recognition) {
         // scarta se e' una singola parola dello stoplist o un mese/giorno
         if (r.token === 'NAME') {
           // "Sono Valerio" -> "Valerio": la parola di contorno va tagliata
+          const nn = w => GSET.not.has(w.toLowerCase()) || (GSET.notFold && GSET.notFold.has(w.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')));
+          const isStop = w => inStop(w) || nn(w);
           let ws = val.split(/\s+/);
           let a = 0, b = ws.length;
-          while (a < b && (stop.has(ws[a]) || GSET.not.has(ws[a].toLowerCase()))) a++;
-          while (b > a && (stop.has(ws[b - 1]) || GSET.not.has(ws[b - 1].toLowerCase()))) b--;
+          while (a < b && isStop(ws[a])) a++;
+          while (b > a && isStop(ws[b - 1])) b--;
           if (b - a < 1) { if (m.index === re.lastIndex) re.lastIndex++; continue; }
           if (a > 0 || b < ws.length) {
             const kept = ws.slice(a, b).join(' ');
@@ -5792,8 +5809,8 @@ if (recognition) {
             s += off; val = kept; e = s + val.length;
           }
           const words = val.split(/\s+/);
-          if (words.every(w => stop.has(w) || GSET.not.has(w.toLowerCase()))) { if (m.index === re.lastIndex) re.lastIndex++; continue; }
-          if (words.length === 1 && (stop.has(val) || GSET.not.has(val.toLowerCase()))) { if (m.index === re.lastIndex) re.lastIndex++; continue; }
+          if (words.every(isStop)) { if (m.index === re.lastIndex) re.lastIndex++; continue; }
+          if (words.length === 1 && isStop(val)) { if (m.index === re.lastIndex) re.lastIndex++; continue; }
         }
         out.push({
           patternId: r.id, category: r.category, sub: r.sub, token: r.token,
@@ -6088,6 +6105,7 @@ if (recognition) {
   };
 })();
 
+
 </script>
 <script>
 /* =============================================================================
@@ -6191,7 +6209,7 @@ if (recognition) {
     var r;
     try{ r=AEGIS.protect(testo,{level:LIVELLO}); }catch(e){ return {testo:testo,voci:[]}; }
     r = fondiNer(testo, r);
-    var out=r.text, voci=[], tmp={};
+    var out=r.text, voci=[], tmp={}, usati={}, assegnati=0;
     r.vault.forEach(function(v){
       var chiave=String(v.value).toLowerCase(), tok=null;
       vault.forEach(function(val,k){ if(!tok && String(val).toLowerCase()===chiave) tok=k.split('~')[0]; });
@@ -6208,6 +6226,19 @@ if (recognition) {
           colorDi.set(tok,colore(v.token));
         }
       }
+      // PROTEZIONE: due persone diverse non possono finire sullo stesso codice.
+      // Se capita, se ne conia uno nuovo: al ripristino diventerebbero la
+      // stessa persona, ed e' l'errore peggiore che questo sistema possa fare.
+      if(usati[tok] !== undefined && usati[tok] !== v.value){
+        var tp=tok.split('_')[0], n=0, cand;
+        do { n++; cand = tp+'_'+String((contatore[tp]||0)+assegnati+n).padStart(2,'0'); }
+        while(usati[cand] !== undefined || vault.has(cand));
+        tok = cand;
+        if(congela){ vault.set(tok, v.value); }
+        colorDi.set(tok, colore(v.token));
+      }
+      usati[tok] = v.value;
+      assegnati++;
       out=out.split(v.token).join('[['+tok+']]');
       voci.push({tok:tok,col:colorDi.get(tok)||colore(v.token)});
     });
@@ -6277,27 +6308,39 @@ if (recognition) {
   };
 
   /* ---------- evidenziatore nella risposta in chiaro ---------- */
-  window.aegisEvidenzia=function(el){
-    if(!el || !vault.size) return;
+  window.aegisEvidenzia=function(root){
+    if(!root || !vault.size) return;
     var coppie=[];
-    vault.forEach(function(val,k){ coppie.push({k:k.split('~')[0], val:String(val)}); });
+    vault.forEach(function(val,k){ var v=String(val); if(v.length>=2) coppie.push({k:k.split('~')[0], val:v}); });
+    if(!coppie.length) return;
     coppie.sort(function(a,b){ return b.val.length-a.val.length; });
-    var it=document.createTreeWalker(el, NodeFilter.SHOW_TEXT), nodi=[], n;
+    // Cerca in ogni bolla di testo, saltando la barra dei pulsanti. Opera sui
+    // singoli nodi di testo per non rompere l'HTML della bolla.
+    var it=document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
+    var nodi=[], n;
     while((n=it.nextNode())){
-      if(n.parentElement && n.parentElement.closest('.bot-actions-container')) continue;
-      nodi.push(n);
+      var par=n.parentElement;
+      if(!par) continue;
+      if(par.closest && par.closest('.bot-actions-container,.message-actions,.ag-toggle')) continue;
+      if(par.classList && par.classList.contains('ag-m')) continue;   // gia' evidenziato
+      if(n.nodeValue && n.nodeValue.trim()) nodi.push(n);
     }
     nodi.forEach(function(nodo){
-      var t=nodo.nodeValue;
-      if(!t || !t.trim()) return;
-      var trovato=false, html=esc(t);
-      coppie.forEach(function(p){
-        if(p.val.length<2 || t.indexOf(p.val)===-1) return;
+      var t=nodo.nodeValue, trovato=false, html='';
+      var resto=t;
+      // costruzione progressiva: trova la prima occorrenza di un valore
+      while(resto.length){
+        var best=-1, bestP=null;
+        coppie.forEach(function(p){
+          var idx=resto.indexOf(p.val);
+          if(idx!==-1 && (best===-1 || idx<best)){ best=idx; bestP=p; }
+        });
+        if(best===-1){ html+=esc(resto); break; }
+        html += esc(resto.slice(0,best));
+        html += '<mark class="ag-m '+(colorDi.get(bestP.k)||'id')+'">'+esc(bestP.val)+'</mark>';
+        resto = resto.slice(best+bestP.val.length);
         trovato=true;
-        var e=esc(p.val);
-        try{ html=html.replace(new RegExp(rx(e),'g'),
-          '<mark class="ag-m '+(colorDi.get(p.k)||'id')+'">'+e+'</mark>'); }catch(err){}
-      });
+      }
       if(!trovato) return;
       var sp=document.createElement('span');
       sp.className='ag-wrap'; sp.innerHTML=html;
@@ -6342,7 +6385,9 @@ if (recognition) {
   /* ---------- disegno del pannello ---------- */
   var lista, anteprimaEl, badge, vuoto;
 
+  var codiciAccesi = true;
   function coloraToken(t){
+    if(!codiciAccesi) return esc(t);
     return esc(t).replace(/\[\[([A-Z]+)_(\d+)([A-Z]?)\]\]/g,function(full,tipo,num,vr){
       var tok=tipo+'_'+num+(vr||'');
       return '<span class="ag-t ag-'+(colorDi.get(tok)||colore(full))+'">'+full+'</span>';
@@ -6408,7 +6453,7 @@ if (recognition) {
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'+
         '<span class="ag-tit">Quello che riceve il modello</span>'+
         '<span class="ag-badge" id="ag-badge">0</span>'+
-        '<span class="ag-ner" id="ag-ner" title="Riconoscimento avanzato dei nomi"></span>'+
+        '<span class="ag-ner" id="ag-ner" title="Riconoscimento avanzato dei nomi"></span>'+'<button class="ag-toggle ag-toggle-sp on" id="ag-sp-hl" title="Evidenzia i codici"><span class="ag-dot"></span><span class="ag-lbl"></span></button>'+
       '</div>'+
       '<div class="ag-corpo">'+
         '<div class="ag-lista" id="ag-lista"></div>'+
@@ -6442,6 +6487,20 @@ if (recognition) {
         if(i && i.value) aggiornaNer(i.value);
       }
     });
+
+    var spHl=document.getElementById('ag-sp-hl');
+    if(spHl){
+      spHl.addEventListener('click',function(e){
+        e.stopPropagation();
+        codiciAccesi = !codiciAccesi;
+        spHl.classList.toggle('on', codiciAccesi);
+        var l=spHl.querySelector('.ag-lbl');
+        if(l) l.textContent = ETICHETTE[lingua()][codiciAccesi?0:1];
+        disegna();
+        var i=document.getElementById('user-input');
+        if(i) anteprima(i.value);
+      });
+    }
 
     lista=document.getElementById('ag-lista');
     anteprimaEl=document.getElementById('ag-anteprima');
@@ -6494,7 +6553,10 @@ if (recognition) {
     if(!costruisci()){ setTimeout(avvia,300); return; }
     setInterval(function(){
       document.querySelectorAll('.ag-toggle .ag-lbl').forEach(function(l){
-        if(!l.textContent) l.textContent=ETICHETTE[lingua()][1];
+        if(l.textContent) return;
+        var b=l.parentElement;
+        var acceso = b && b.id==='ag-sp-hl' ? codiciAccesi : false;
+        l.textContent=ETICHETTE[lingua()][acceso?0:1];
       });
     },700);
   }
