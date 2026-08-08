@@ -38,15 +38,17 @@ body{color:var(--text-main);background:var(--primary);overflow:hidden}
 body.ag-attivo{overflow:hidden;margin:0}
 .ag-scena > .ag-pannello,
 .ag-scena > .ag-chat{flex:1 1 0;min-width:0;min-height:0;display:flex;flex-direction:column;
-  max-width:none!important;width:auto!important;margin:0!important;height:auto!important}
+  max-width:none!important;width:auto!important;margin:0!important;height:100%!important}
 /* I messaggi NON sono figli diretti di .chat-container: in mezzo c'e
    .chat-main-area. Col combinatore > il selettore non combaciava con
    nulla e la regola era inerte, cosi il campo di scrittura risaliva
    in cima a chat vuota. Serve il discendente (spazio). */
-.ag-scena .ag-chat .chat-main-area{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+.ag-scena .ag-chat .chat-main-area{flex:1 1 auto!important;min-height:0!important;
+  display:flex!important;flex-direction:column!important}
 .ag-scena .ag-chat .chat-messages{flex:1 1 auto!important;min-height:0!important;
-  overflow-y:auto;height:auto!important;max-height:none!important}
-.ag-scena .ag-chat .chat-input-wrapper{flex:none;margin-top:0}
+  overflow-y:auto!important;height:auto!important;max-height:none!important}
+/* cintura: anche se i messaggi collassano, il campo resta in fondo */
+.ag-scena .ag-chat .chat-input-wrapper{flex:none!important;margin-top:auto!important}
 
 .ag-pannello{overflow:hidden;background:var(--console-bg);
   border:1px solid var(--hairline);border-radius:14px;font-family:'Inter',sans-serif}
@@ -680,7 +682,10 @@ body {
         }
     });
 
-    const APP_LANGUAGES = [
+    // lingue con riconoscimento dati completo; per riattivarne altre
+    // basta aggiungerne il codice qui sotto
+    const AEGIS_LINGUE_ATTIVE = ["it-IT", "es-ES", "en-US", "en-GB"];
+    const APP_LANGUAGES_TUTTE = [
         { code: 'es-ES', name: 'Español' },
         { code: 'ca-ES', name: 'Català' },
         { code: 'it-IT', name: 'Italiano' }, { code: 'en-US', name: 'English' },
@@ -713,6 +718,10 @@ body {
         { code: 'tg-TJ', name: 'Тоҷикӣ' }, { code: 'ka-GE', name: 'ქართული' }, { code: 'hy-AM', name: 'Հայերեն' },
         { code: 'az-AZ', name: 'Azərbaycan' }
     ];
+    const APP_LANGUAGES = APP_LANGUAGES_TUTTE.filter(function (l) {
+        return AEGIS_LINGUE_ATTIVE.indexOf(l.code) !== -1;
+    });
+
 
     // Ordine dei bottoni lingua secondo l'impostazione del browser: la lingua del
     // computer per prima, poi le piu' usate/vicine nella sua regione, poi il resto
@@ -6227,24 +6236,36 @@ if (recognition) {
      Il modello gira mentre l'utente scrive e il risultato viene messo da parte.
      Al momento dell'invio si usa quello gia' pronto, senza attese. */
   var nerCache = { testo:null, ent:[] };
+  // I nomi trovati dal modello restano NOTI per tutta la sessione: prima
+  // venivano scartati se il testo non combaciava carattere per carattere,
+  // quindi al momento dell'invio andavano quasi sempre persi.
+  var nerNoti = new Set();
 
   function aggiornaNer(testo){
     if(!window.AEGIS_NER || !window.AEGIS_NER.pronto) return;
     if(nerCache.testo === testo) return;
     window.AEGIS_NER.persone(testo).then(function(ent){
       nerCache = { testo: testo, ent: ent||[] };
+      (ent||[]).forEach(function(e){
+        var v=String(e.valore||'').trim();
+        if(v.length>=3) nerNoti.add(v);
+      });
       var i=document.getElementById('user-input');
-      if(i && i.value===testo) anteprima(testo);   // ridisegna con i nomi trovati
+      if(i && i.value===testo) anteprima(testo);
     });
   }
 
   // Applica al testo GIA' mascherato dalle regole i nomi trovati dal modello,
   // saltando quelli che ricadono dentro un codice esistente.
   function fondiNer(testoOriginale, res){
-    if(!nerCache.ent.length || nerCache.testo !== testoOriginale) return res;
+    // si applicano TUTTI i nomi noti che compaiono nel testo, non solo quelli
+    // dell'ultima analisi: cosi' l'invio non perde quanto gia' riconosciuto
+    var candidati = [];
+    if(nerCache.testo === testoOriginale) nerCache.ent.forEach(function(e){ candidati.push(e.valore); });
+    nerNoti.forEach(function(v){ if(candidati.indexOf(v)===-1) candidati.push(v); });
+    if(!candidati.length) return res;
     var extra = [];
-    nerCache.ent.forEach(function(e){
-      var v = e.valore;
+    candidati.forEach(function(v){
       if(!v || v.length<2) return;
       if(res.text.indexOf(v) === -1) return;        // gia' sostituito dalle regole
       if(/^\d+$/.test(v)) return;
@@ -6268,9 +6289,20 @@ if (recognition) {
 
   /* ---------- mascheratura ---------- */
   function maschera(testo, congela){
+    // I codici gia' presenti (es. nella risposta del modello) vanno messi al
+    // riparo prima di rimascherare, altrimenti il motore li scambia per dati
+    // e li incapsula: [[ID_01]] diventerebbe [[[[CODE_01]]]].
+    var scudi = [];
+    var testoPulito = String(testo).replace(/\[\[[A-Z]+_\d+[A-Z]?\]\]/g, function(tk){
+      var i = scudi.length;
+      scudi.push(tk);
+      // segnaposto neutro, lunghezza simile, senza forma di dato personale
+      return '\u0001' + i + '\u0001';
+    });
+
     var r;
-    try{ r=AEGIS.protect(testo,{level:LIVELLO}); }catch(e){ return {testo:testo,voci:[]}; }
-    r = fondiNer(testo, r);
+    try{ r=AEGIS.protect(testoPulito,{level:LIVELLO}); }catch(e){ return {testo:testo,voci:[]}; }
+    r = fondiNer(testoPulito, r);
     var out=r.text, voci=[], tmp={}, usati={}, assegnati=0;
     r.vault.forEach(function(v){
       var chiave=String(v.value).toLowerCase(), tok=null;
@@ -6306,6 +6338,10 @@ if (recognition) {
       assegnati++;
       out=out.split(v.token).join('[['+tok+']]');
       voci.push({tok:tok,col:colorDi.get(tok)||colore(v.token)});
+    });
+    // rimetto al loro posto i codici messi al riparo
+    out = String(out).replace(/\u0001(\d+)\u0001/g, function(m, i){
+      return scudi[Number(i)] !== undefined ? scudi[Number(i)] : m;
     });
     if(congela) salva();
     return {testo:out, voci:voci};
@@ -6467,34 +6503,38 @@ if (recognition) {
   }
   // L'interruttore vale per l'INTERA conversazione: i dati stanno anche nei
   // messaggi dell'utente, che non hanno un pulsante proprio.
-  // UN SOLO EVIDENZIATORE per lo specchio e per la chat. Prima i due lati
-  // avevano interruttori separati che non si parlavano: accendendone uno,
-  // l'altro restava spento. Ora un unico stato comanda entrambi, quindi lo
-  // stesso colore lega il codice a sinistra alla parola vera a destra.
-  var evidenzaAccesa = false;
-  window.setEvidenza=function(on){
-    evidenzaAccesa = !!on;
-    codiciAccesi = evidenzaAccesa;
-    disegna();
-    var inp=document.getElementById('user-input');
-    if(inp) anteprima(inp.value);
-    var zona=document.getElementById('chat-messages') || document.body;
-    if(evidenzaAccesa) window.aegisEvidenzia(zona);
-    else window.aegisTogliEvidenza(zona);
-    document.querySelectorAll('.ag-toggle, #ag-sp-hl').forEach(function(b){
-      b.classList.toggle('on', evidenzaAccesa);
-      var l=b.querySelector('.ag-lbl');
-      if(l) l.textContent = ETICHETTE[lingua()][evidenzaAccesa?0:1];
+  // EVIDENZIATORE PER COPPIA DI MESSAGGI, SPECCHIO INDIPENDENTE.
+  // Ogni pulsante comanda SOLO il proprio messaggio e il messaggio utente che
+  // lo precede: i dati dell'utente non hanno un pulsante proprio, quindi li
+  // comanda la risposta che li segue. Nessuno stato globale, niente catena.
+  function coppiaDi(msg){
+    var out=[msg];
+    var prev=msg.previousElementSibling;
+    if(prev && prev.classList && prev.classList.contains('user-message')) out.push(prev);
+    return out;
+  }
+  function ridipingi(div){
+    window.aegisTogliEvidenza(div);
+    window.aegisEvidenzia(div);
+  }
+  window.aegisToggleHL=function(btn){
+    var msg=btn.closest('.message');
+    if(!msg) return;
+    var on=!btn.classList.contains('on');
+    btn.classList.toggle('on', on);
+    var l=btn.querySelector('.ag-lbl');
+    if(l) l.textContent = ETICHETTE[lingua()][on?0:1];
+    coppiaDi(msg).forEach(function(div){
+      if(on) ridipingi(div); else window.aegisTogliEvidenza(div);
     });
   };
-  window.aegisToggleHL=function(btn){ window.setEvidenza(!evidenzaAccesa); };
-  // se l'evidenziazione e' accesa, i messaggi nuovi la ereditano
+  // Ridipinge SOLO le coppie gia' accese (dopo la fine della scrittura).
+  // Non accende mai nulla di nuovo: ogni coppia resta indipendente.
   window.aegisRiapplica=function(){
-    if(!evidenzaAccesa) return;
-    var zona=document.getElementById('chat-messages');
-    if(!zona) return;
-    window.aegisTogliEvidenza(zona);
-    window.aegisEvidenzia(zona);
+    document.querySelectorAll('.message .ag-toggle.on').forEach(function(b){
+      var msg=b.closest('.message');
+      if(msg) coppiaDi(msg).forEach(ridipingi);
+    });
   };
 
   /* ---------- disegno del pannello ---------- */
@@ -6614,6 +6654,9 @@ if (recognition) {
     scena.appendChild(chat);   // finestra 2: la chat vera, spostata dentro
     chat.classList.add('ag-chat');
     document.body.classList.add('ag-attivo');
+    // Cintura: forza un ricalcolo dopo il primo disegno. Senza, la catena di
+    // altezze si risolveva solo al primo clic nel campo di scrittura.
+    requestAnimationFrame(function(){ void chat.offsetHeight; });
 
     window.addEventListener('aegis-ner', function(ev){
       var el=document.getElementById('ag-ner');
@@ -6649,7 +6692,13 @@ if (recognition) {
     if(spHl){
       spHl.addEventListener('click',function(e){
         e.stopPropagation();
-        window.setEvidenza(!evidenzaAccesa);
+        codiciAccesi = !codiciAccesi;
+        spHl.classList.toggle('on', codiciAccesi);
+        var l=spHl.querySelector('.ag-lbl');
+        if(l) l.textContent = ETICHETTE[lingua()][codiciAccesi?0:1];
+        disegna();
+        var i=document.getElementById('user-input');
+        if(i) anteprima(i.value);
       });
     }
 
