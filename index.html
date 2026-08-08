@@ -39,6 +39,13 @@ body.ag-attivo{overflow:hidden;margin:0}
 .ag-scena > .ag-pannello,
 .ag-scena > .ag-chat{flex:1 1 0;min-width:0;min-height:0;display:flex;flex-direction:column;
   max-width:none!important;width:auto!important;margin:0!important;height:auto!important}
+/* La zona messaggi deve CRESCERE: se resta a zero (chat vuota al
+   ricaricamento) il campo di scrittura risale in cima e la finestra
+   sembra rotta. */
+.ag-scena > .ag-chat > .chat-messages,
+.ag-scena > .ag-chat > #chat-messages{flex:1 1 auto!important;min-height:0!important;
+  overflow-y:auto;height:auto!important;max-height:none!important}
+.ag-scena > .ag-chat > .chat-input-wrapper{flex:none;margin-top:auto}
 
 .ag-pannello{overflow:hidden;background:var(--console-bg);
   border:1px solid var(--hairline);border-radius:14px;font-family:'Inter',sans-serif}
@@ -54,7 +61,9 @@ body.ag-attivo{overflow:hidden;margin:0}
 .ag-ner{font-size:9px;font-weight:700;letter-spacing:.05em;padding:1px 6px;border-radius:8px;
   border:1px solid var(--hairline);color:var(--text-light);white-space:nowrap}
 .ag-ner:empty{display:none}
-.ag-ner.ag-carico{opacity:.55}
+.ag-ner.ag-carico{opacity:.75;border-color:var(--c-date);color:var(--c-date)}
+@keyframes ag-puls{0%,100%{opacity:.45}50%{opacity:1}}
+.ag-ner.ag-carico{animation:ag-puls 1.2s ease-in-out infinite}
 .ag-ner.ag-pronto{border-color:var(--c-addr);color:var(--c-addr)}
 /* interruttore evidenziatore dentro lo specchio */
 .ag-toggle-sp{width:auto;min-width:104px;height:24px;padding:0 10px;font-size:9.5px;flex:none}
@@ -67,6 +76,11 @@ body.ag-attivo{overflow:hidden;margin:0}
   border-top:1px solid var(--hairline);background:var(--primary);border-radius:0 0 14px 14px}
 .ag-legenda span{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text-light)}
 .ag-legenda i{width:9px;height:9px;border-radius:2px;display:block}
+/* gruppi accendibili: clic sul colore = quel dato riappare in chiaro */
+.ag-legenda span{cursor:pointer;user-select:none;padding:2px 5px;border-radius:6px;transition:.15s}
+.ag-legenda span:hover{background:rgba(0,0,0,.05)}
+.ag-legenda span.ag-spento{opacity:.4;text-decoration:line-through}
+.ag-legenda span.ag-spento i{background:var(--hairline)!important}
 /* riga 3: riquadro basso, stessa forma del campo di scrittura a destra */
 .ag-basso{flex:none;padding:14px;background:var(--primary);border-top:1px solid var(--hairline)}
 .ag-anteprima{min-height:56px;max-height:34vh;overflow-y:auto;padding:12px 14px;
@@ -3437,6 +3451,7 @@ body {
                         if (calendlyUrl) { injectCalendlyButton(typingEl, calendlyUrl); autoScroll(cm); }
                         if (demoUrl) { injectDemoButton(typingEl, demoUrl); autoScroll(cm); }
                         if (videoIds && videoIds.length) { injectYouTubeEmbed(typingEl, videoIds); autoScroll(cm); }
+            if (window.aegisRiapplica) window.aegisRiapplica();
                     }
                 }, intervalMs);
                 activeTypingIntervals.push(writeInterval);
@@ -3520,6 +3535,7 @@ body {
                     if (msgCalendlyUrl) { injectCalendlyButton(messageDiv, msgCalendlyUrl); autoScroll(currentCm); }
                     if (msgDemoUrl) { injectDemoButton(messageDiv, msgDemoUrl); autoScroll(currentCm); }
                     if (msgVideoIds && msgVideoIds.length) { injectYouTubeEmbed(messageDiv, msgVideoIds); autoScroll(currentCm); }
+            if (window.aegisRiapplica) window.aegisRiapplica();
                 }
             }, intervalMs);
             activeTypingIntervals.push(typing);
@@ -6070,8 +6086,52 @@ if (recognition) {
     var t = setInterval(function () {
       giri++;
       if (window.__AEGIS_PIPE__) { clearInterval(t); pipe = window.__AEGIS_PIPE__; segnala('pronto'); }
-      else if (window.__AEGIS_PIPE_ERR__ || giri > 600) { clearInterval(t); segnala('fallito'); }
+      else if (window.__AEGIS_PIPE_ERR__ || giri > 900) { clearInterval(t); segnala('fallito'); }
     }, 200);
+  }
+
+  /* Il modello e' "cased": si regge sulle MAIUSCOLE per riconoscere i nomi
+     propri. Su testo tutto minuscolo e' cieco per costruzione. Qui si mette
+     l'iniziale maiuscola a ogni parola prima di passarglielo; le posizioni
+     restano identiche perche' si cambia solo il carattere, non la lunghezza. */
+  var COMUNI = null;
+  function parolecomuni() {
+    if (COMUNI) return COMUNI;
+    COMUNI = new Set();
+    try {
+      var g = (typeof PII_KB !== 'undefined') ? PII_KB.gazetteers : null;
+      if (g) {
+        (g.notNames || []).forEach(function (w) { COMUNI.add(String(w).toLowerCase()); });
+      }
+      if (typeof PII_KB !== 'undefined' && PII_KB.coverStop) {
+        PII_KB.coverStop.forEach(function (w) { COMUNI.add(String(w).toLowerCase()); });
+      }
+    } catch (e) {}
+    // parole funzionali delle tre lingue: non sono mai nomi propri
+    ('il lo la i gli le un uno una di a da in con su per tra fra e o ma se che chi cui non ' +
+     'mi ti si ci vi ne come quando dove perche quale quanto molto poco piu meno ora oggi ' +
+     'ieri domani sempre mai tutto niente cosa ciao salve grazie prego scusa bene male ' +
+     'sono sei siamo siete hanno abbiamo avete essere avere fare dire andare venire stare ' +
+     'el los las un una unos unas de a desde en con sobre por para entre y o pero si que ' +
+     'quien cual cuanto muy poco mas menos ahora hoy ayer manana siempre nunca todo nada ' +
+     'hola gracias por favor perdon bien mal soy eres somos sois son tengo tienes tiene ' +
+     'the a an and or but if that which who whom this these those of to in on at by with ' +
+     'for from as is are was were be been being have has had do does did will would can ' +
+     'hello hi thanks please sorry good bad now today yesterday tomorrow always never all'
+    ).split(' ').forEach(function (w) { if (w) COMUNI.add(w); });
+    return COMUNI;
+  }
+
+  /* Maiuscola SOLO alle parole che non sono termini comuni: mettendola a tutte,
+     il modello scambierebbe "ciao" e "come" per nomi propri. La lunghezza non
+     cambia mai, quindi le posizioni restano valide sul testo originale. */
+  function conMaiuscole(t) {
+    var comuni = parolecomuni();
+    return String(t).replace(/\p{Ll}[\p{L}']*/gu, function (w) {
+      if (comuni.has(w.toLowerCase())) return w;
+      if (w.length < 3) return w;
+      return w.charAt(0).toUpperCase() + w.slice(1);
+    });
   }
 
   /* Ritorna [{valore, inizio, fine}] delle sole PERSONE trovate.
@@ -6079,7 +6139,8 @@ if (recognition) {
   async function persone(testo) {
     if (!pipe || !testo || testo.length < 2) return [];
     try {
-      var out = await pipe(testo);
+      var perModello = conMaiuscole(testo);
+      var out = await pipe(perModello);
       var ent = [], cur = null;
       out.forEach(function (r) {
         var tipo = String(r.entity || '').replace(/^[BI]-/, '');
@@ -6298,7 +6359,7 @@ if (recognition) {
     var protetta = maschera(String(grezzo||''), true).testo;
     righe.push({ruolo:'bot',testo:protetta});
     autoScroll=true; disegna(); salva();
-    setTimeout(function(){ if(window.aegisRiapplica) window.aegisRiapplica(); }, 120);
+    // la riapplicazione avviene a fine scrittura, non dopo 120ms
     return decodifica(grezzo);
   };
   window.aegisDecodifica=decodifica;
@@ -6402,18 +6463,27 @@ if (recognition) {
   }
   // L'interruttore vale per l'INTERA conversazione: i dati stanno anche nei
   // messaggi dell'utente, che non hanno un pulsante proprio.
+  // UN SOLO EVIDENZIATORE per lo specchio e per la chat. Prima i due lati
+  // avevano interruttori separati che non si parlavano: accendendone uno,
+  // l'altro restava spento. Ora un unico stato comanda entrambi, quindi lo
+  // stesso colore lega il codice a sinistra alla parola vera a destra.
   var evidenzaAccesa = false;
-  window.aegisToggleHL=function(btn){
-    evidenzaAccesa = !evidenzaAccesa;
-    var zona = document.getElementById('chat-messages') || document.body;
+  window.setEvidenza=function(on){
+    evidenzaAccesa = !!on;
+    codiciAccesi = evidenzaAccesa;
+    disegna();
+    var inp=document.getElementById('user-input');
+    if(inp) anteprima(inp.value);
+    var zona=document.getElementById('chat-messages') || document.body;
     if(evidenzaAccesa) window.aegisEvidenzia(zona);
     else window.aegisTogliEvidenza(zona);
-    document.querySelectorAll('.ag-toggle').forEach(function(b){
+    document.querySelectorAll('.ag-toggle, #ag-sp-hl').forEach(function(b){
       b.classList.toggle('on', evidenzaAccesa);
       var l=b.querySelector('.ag-lbl');
       if(l) l.textContent = ETICHETTE[lingua()][evidenzaAccesa?0:1];
     });
   };
+  window.aegisToggleHL=function(btn){ window.setEvidenza(!evidenzaAccesa); };
   // se l'evidenziazione e' accesa, i messaggi nuovi la ereditano
   window.aegisRiapplica=function(){
     if(!evidenzaAccesa) return;
@@ -6427,7 +6497,26 @@ if (recognition) {
   var lista, anteprimaEl, badge, vuoto;
 
   var codiciAccesi = true;
+  // Gruppi spenti: il loro dato torna in chiaro nello specchio, tutto il
+  // resto resta censurato. Serve a mostrare quanto contesto si perde.
+  var gruppiSpenti = {};
+  function valoreDi(tok){
+    if(vault.has(tok)) return String(vault.get(tok));
+    var trovato=null;
+    vault.forEach(function(val,k){ if(!trovato && k.split('~')[0]===tok) trovato=String(val); });
+    return trovato;
+  }
+  function applicaGruppi(t){
+    return String(t).replace(/\[\[([A-Z]+)_(\d+)([A-Z]?)\]\]/g,function(full,tipo,num,vr){
+      var tok=tipo+'_'+num+(vr||'');
+      var col=colorDi.get(tok)||colore(full);
+      if(!gruppiSpenti[col]) return full;
+      var v=valoreDi(tok);
+      return v!==null ? v : full;
+    });
+  }
   function coloraToken(t){
+    t = applicaGruppi(t);
     if(!codiciAccesi) return esc(t);
     return esc(t).replace(/\[\[([A-Z]+)_(\d+)([A-Z]?)\]\]/g,function(full,tipo,num,vr){
       var tok=tipo+'_'+num+(vr||'');
@@ -6503,10 +6592,13 @@ if (recognition) {
         '<div class="ag-anteprima" id="ag-anteprima"></div>'+
       '</div>'+
       '<div class="ag-legenda">'+
-        '<span><i class="ag-per"></i>nomi</span><span><i class="ag-addr"></i>indirizzi</span>'+
-        '<span><i class="ag-city"></i>luoghi</span><span><i class="ag-date"></i>date</span>'+
-        '<span><i class="ag-bank"></i>bancari</span><span><i class="ag-mail"></i>contatti</span>'+
-        '<span><i class="ag-id"></i>documenti</span>'+
+        '<span data-g="per"><i class="ag-per"></i>nomi</span>'+
+        '<span data-g="addr"><i class="ag-addr"></i>indirizzi</span>'+
+        '<span data-g="city"><i class="ag-city"></i>luoghi</span>'+
+        '<span data-g="date"><i class="ag-date"></i>date</span>'+
+        '<span data-g="bank"><i class="ag-bank"></i>bancari</span>'+
+        '<span data-g="mail"><i class="ag-mail"></i>contatti</span>'+
+        '<span data-g="id"><i class="ag-id"></i>documenti</span>'+
       '</div>';
 
     scena.appendChild(p);      // finestra 1: lo specchio
@@ -6519,7 +6611,7 @@ if (recognition) {
       if(!el) return;
       var st=ev.detail;
       el.className='ag-ner ag-'+st;
-      el.textContent = st==='carico' ? 'NER…' : (st==='pronto' ? 'NER' : '');
+      el.textContent = st==='carico' ? 'analisi avanzata in preparazione…' : (st==='pronto' ? 'analisi avanzata attiva' : '');
       el.title = st==='pronto' ? 'Riconoscimento avanzato attivo'
         : st==='carico' ? 'Riconoscimento avanzato in preparazione'
         : 'Riconoscimento avanzato non disponibile: restano attive le regole';
@@ -6529,17 +6621,26 @@ if (recognition) {
       }
     });
 
+    // clic su un gruppo della legenda: quel dato riappare in chiaro
+    var leg = p.querySelector('.ag-legenda');
+    if(leg){
+      leg.addEventListener('click', function(ev){
+        var sp = ev.target.closest('span[data-g]');
+        if(!sp) return;
+        var g = sp.getAttribute('data-g');
+        gruppiSpenti[g] = !gruppiSpenti[g];
+        sp.classList.toggle('ag-spento', !!gruppiSpenti[g]);
+        disegna();
+        var i=document.getElementById('user-input');
+        if(i) anteprima(i.value);
+      });
+    }
+
     var spHl=document.getElementById('ag-sp-hl');
     if(spHl){
       spHl.addEventListener('click',function(e){
         e.stopPropagation();
-        codiciAccesi = !codiciAccesi;
-        spHl.classList.toggle('on', codiciAccesi);
-        var l=spHl.querySelector('.ag-lbl');
-        if(l) l.textContent = ETICHETTE[lingua()][codiciAccesi?0:1];
-        disegna();
-        var i=document.getElementById('user-input');
-        if(i) anteprima(i.value);
+        window.setEvidenza(!evidenzaAccesa);
       });
     }
 
