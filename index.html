@@ -6654,9 +6654,28 @@ if (recognition) {
     scena.appendChild(chat);   // finestra 2: la chat vera, spostata dentro
     chat.classList.add('ag-chat');
     document.body.classList.add('ag-attivo');
-    // Cintura: forza un ricalcolo dopo il primo disegno. Senza, la catena di
-    // altezze si risolveva solo al primo clic nel campo di scrittura.
-    requestAnimationFrame(function(){ void chat.offsetHeight; });
+
+    /* Spostare la chat dentro la scena lascia il documento in uno stato che
+       il browser non ridisegna finche' non arriva un evento dell'utente:
+       risultato, schermo vuoto e prodotto che sembra morto. Qui si forza il
+       ricalcolo piu' volte nei primi istanti, e a ogni cambio di dimensione. */
+    function sveglia(){
+      try{
+        void chat.offsetHeight;
+        void scena.offsetHeight;
+        var m=document.getElementById('chat-messages');
+        if(m){ void m.offsetHeight; m.scrollTop = m.scrollHeight; }
+      }catch(e){}
+    }
+    requestAnimationFrame(function(){ sveglia(); requestAnimationFrame(sveglia); });
+    [60, 200, 600, 1500, 3000].forEach(function(ms){ setTimeout(sveglia, ms); });
+    window.addEventListener('resize', sveglia);
+    // ogni volta che arriva un messaggio, risveglia il disegno
+    try{
+      var mo = new MutationObserver(sveglia);
+      var mm = document.getElementById('chat-messages');
+      if(mm) mo.observe(mm, {childList:true, subtree:true});
+    }catch(e){}
 
     window.addEventListener('aegis-ner', function(ev){
       var el=document.getElementById('ag-ner');
