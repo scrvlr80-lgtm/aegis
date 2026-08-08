@@ -1406,6 +1406,16 @@ body {
 
         // Avviamo la lettura del flag GDPR in BACKGROUND (non blocca la UI).
         // gdprFlagReady e' la promise che altri punti possono attendere se serve.
+        // FIX INDICATORE: il primo nodo visibile non deve dipendere dalla rete.
+        // Prima nasceva solo dentro initChatbot(), cioe' DOPO la risposta di
+        // /api/init: con backend freddo la chat restava vuota per decine di
+        // secondi e il prodotto sembrava morto.
+        try {
+            const ui0 = UI_STRINGS[activeLanguageCode] || UI_DEFAULT;
+            currentTypingMsg = ui0.typingMsg || ui0.loadingMsg || 'Procesando...';
+            addMessageToChat(ui0.loadingMsg || 'Cargando...', 'bot-message typing-indicator');
+        } catch (e) {}
+
         gdprFlagReady = fetchGdprFlag().then(() => {
             if (!gdprEnabled) { safeStorage.set('gdpr_accepted', 'true'); }
         });
@@ -1935,6 +1945,7 @@ body {
         const typingIndicator = addMessageToChat(currentTypingMsg, 'bot-message typing-indicator');
         currentAbortController = new AbortController();
         try {
+            if (window.aegisProntoPerInvio) { try { await window.aegisProntoPerInvio(text); } catch(e){} }
             const memoriaCorta = window.aegisMaskHistory ? window.aegisMaskHistory(conversationHistory.slice(-8)) : conversationHistory.slice(-8);
             const response = await fetch('https://chatbot-backend-dev.onrender.com/api/chat', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -3253,6 +3264,7 @@ body {
         const typingIndicator = addMessageToChat(currentTypingMsg, 'bot-message typing-indicator');
         currentAbortController = new AbortController();
         try {
+            if (window.aegisProntoPerInvio) { try { await window.aegisProntoPerInvio(text); } catch(e){} }
             const memoriaCorta = window.aegisMaskHistory ? window.aegisMaskHistory(conversationHistory.slice(-8)) : conversationHistory.slice(-8);
             const response = await fetch('https://chatbot-backend-dev.onrender.com/api/chat', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -4642,7 +4654,11 @@ if (recognition) {
   C('PHONE_NATIONAL', {
     category: 'RECAPITI', sub: 'phone', token: 'PHONE', priority: 640, confidence: 0.82,
     regex: '\\b(?:\\(\\d{2,4}\\)[ .\\-]?)?\\d{2,4}(?:[ .\\-]\\d{2,7}){1,4}\\b',
-    anchors: { left: ['phone', 'tel', 'telephone', 'mobile', 'cell', 'fax', 'movil', 'telefono', 'cellulare', 'whatsapp', 'contact number'], right: [], window: 26 },
+    anchors: { left: ['phone', 'tel', 'telephone', 'mobile', 'cell', 'fax', 'movil', 'telefono', 'cellulare', 'whatsapp', 'contact number',
+      // "il mio numero e 335...": senza queste il telefono finiva nel secchio
+      // generico dei numeri, con categoria e colore sbagliati
+      'numero', 'numero di', 'mio numero', 'number', 'my number', 'chiamami', 'chiamare',
+      'contattami', 'contattare', 'llamame', 'llamar', 'call me', 'reach me', 'recapito'], right: [], window: 26 },
     hint: 'anchorRequired: senza ancora catturerebbe P.IVA, date, importi (bug v1)',
     pos: ['(415) 555-0132', '06 1234 5678', '612 34 56 78'], neg: ['2024 2025']
   });
@@ -4673,7 +4689,10 @@ if (recognition) {
   });
   D('ADDRESS_IT', {
     category: 'INDIRIZZI', sub: 'street_address', token: 'ADDR', priority: 740, locale: ['it'], confidence: 0.88,
-    regex: '\\b(?:Via|V\\.le|Viale|Piazza|P\\.zza|Corso|C\\.so|Largo|Vicolo|Strada|Piazzale|Lungomare|Contrada|Frazione)\\s+(?:[A-ZÀÈÉÌÒÙ]|d(?:e(?:gli|lla|lle|llo|l|i)?|i|a|al)\\b)[A-Za-zÀÈÉÌÒÙàèéìòù\\.\'\\- ]{2,45}?,?\\s*(?:n[.°]?\\s*)?\\d{1,4}[A-Za-z]?(?:\\s*[-,/]?\\s*(?:int\\.?|scala|piano)\\s*[A-Za-z0-9]+)?(?:\\s*,?\\s*\\d{5}\\s+[A-ZÀÈÉÌÒÙ][A-Za-zÀÈÉÌÒÙàèéìòù\\-\' ]{2,30})?',
+    // insensibile al caso: la gente scrive "via garibaldi 42" in minuscolo.
+    // Il civico resta OBBLIGATORIO, cosi' "via libera" non scatta.
+    flags: 'gi',
+    regex: '\\b(?:Via|V\\.le|Viale|Piazza|P\\.zza|Corso|C\\.so|Largo|Vicolo|Strada|Piazzale|Lungomare|Contrada|Frazione)\\s+[A-Za-zÀÈÉÌÒÙàèéìòù][A-Za-zÀÈÉÌÒÙàèéìòù\\.\'\\- ]{2,45}?,?\\s*(?:n[.°]?\\s*)?\\d{1,4}[A-Za-z]?(?:\\s*[-,/]?\\s*(?:int\\.?|scala|piano)\\s*[A-Za-z0-9]+)?(?:\\s*,?\\s*\\d{5})?(?:\\s*,?\\s+[A-Za-zÀÈÉÌÒÙàèéìòù][A-Za-zÀÈÉÌÒÙàèéìòù\\-\' ]{2,30})?',
     pos: ['Via Giuseppe Verdi, 12', 'Piazza Duomo 1', 'Corso Vittorio Emanuele II, 45 int. 3'],
     neg: ['Via libera']
   });
@@ -6121,6 +6140,20 @@ if (recognition) {
       if (typeof PII_KB !== 'undefined' && PII_KB.coverStop) {
         PII_KB.coverStop.forEach(function (w) { COMUNI.add(String(w).toLowerCase()); });
       }
+      // Anche le parole ambigue dei pattern: senza queste, "marco il testo"
+      // diventava "Marco il testo" in pasto al modello, che poteva marcarlo
+      // come persona. Cioe' fabbricavamo i falsi positivi che le liste
+      // servono a impedire.
+      if (typeof PII_KB !== 'undefined' && PII_KB.patterns) {
+        PII_KB.patterns.forEach(function (p) {
+          (p.excludeLower || []).forEach(function (w) { COMUNI.add(String(w).toLowerCase()); });
+        });
+      }
+      if (typeof PII_KB !== 'undefined' && PII_KB.coverAll) {
+        PII_KB.coverAll.forEach(function (p) {
+          (p.excludeLower || []).forEach(function (w) { COMUNI.add(String(w).toLowerCase()); });
+        });
+      }
     } catch (e) {}
     // parole funzionali delle tre lingue: non sono mai nomi propri
     ('il lo la i gli le un uno una di a da in con su per tra fra e o ma se che chi cui non ' +
@@ -6363,6 +6396,34 @@ if (recognition) {
   }
 
   /* ---------- API usata dalla chat ---------- */
+  /* ATTESA DEL SECONDO STRATO — da chiamare PRIMA di mascherare.
+     Il modello NER lavora in modo asincrono mentre si scrive: se l'utente
+     incolla e invia subito, i nomi trovati non sono ancora pronti e uscirebbero
+     in chiaro. Qui si attende, ma con una scadenza: se il modello non e'
+     caricato o tarda, si parte comunque con le sole regole. Meglio una
+     protezione parziale che un invio bloccato. */
+  window.aegisProntoPerInvio = function(testo){
+    return new Promise(function(risolvi){
+      if(!window.AEGIS_NER || !window.AEGIS_NER.pronto){ risolvi(false); return; }
+      if(!testo || !testo.trim()){ risolvi(false); return; }
+      if(nerCache.testo === testo){ risolvi(true); return; }   // gia' analizzato
+      var chiuso=false;
+      var scadenza=setTimeout(function(){
+        if(!chiuso){ chiuso=true; risolvi(false); }
+      }, 1200);
+      window.AEGIS_NER.persone(testo).then(function(ent){
+        nerCache = { testo: testo, ent: ent||[] };
+        (ent||[]).forEach(function(e){
+          var v=String(e.valore||'').trim();
+          if(v.length>=3) nerNoti.add(v);
+        });
+        if(!chiuso){ chiuso=true; clearTimeout(scadenza); risolvi(true); }
+      }).catch(function(){
+        if(!chiuso){ chiuso=true; clearTimeout(scadenza); risolvi(false); }
+      });
+    });
+  };
+
   /* GARANZIA DI PARTENZA — questo e' il punto in cui il testo lascia il
      dispositivo. Non basta mascherare una volta: si ricontrolla il risultato
      e, se il motore trova ancora qualcosa, si maschera di nuovo. Se dopo tre
