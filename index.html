@@ -39,13 +39,14 @@ body.ag-attivo{overflow:hidden;margin:0}
 .ag-scena > .ag-pannello,
 .ag-scena > .ag-chat{flex:1 1 0;min-width:0;min-height:0;display:flex;flex-direction:column;
   max-width:none!important;width:auto!important;margin:0!important;height:auto!important}
-/* La zona messaggi deve CRESCERE: se resta a zero (chat vuota al
-   ricaricamento) il campo di scrittura risale in cima e la finestra
-   sembra rotta. */
-.ag-scena > .ag-chat > .chat-messages,
-.ag-scena > .ag-chat > #chat-messages{flex:1 1 auto!important;min-height:0!important;
+/* I messaggi NON sono figli diretti di .chat-container: in mezzo c'e
+   .chat-main-area. Col combinatore > il selettore non combaciava con
+   nulla e la regola era inerte, cosi il campo di scrittura risaliva
+   in cima a chat vuota. Serve il discendente (spazio). */
+.ag-scena .ag-chat .chat-main-area{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+.ag-scena .ag-chat .chat-messages{flex:1 1 auto!important;min-height:0!important;
   overflow-y:auto;height:auto!important;max-height:none!important}
-.ag-scena > .ag-chat > .chat-input-wrapper{flex:none;margin-top:auto}
+.ag-scena .ag-chat .chat-input-wrapper{flex:none;margin-top:0}
 
 .ag-pannello{overflow:hidden;background:var(--console-bg);
   border:1px solid var(--hairline);border-radius:14px;font-family:'Inter',sans-serif}
@@ -6285,6 +6286,9 @@ if (recognition) {
           tmp[tipo]=(tmp[tipo]||0)+1;
           tok=tipo+'_'+String((contatore[tipo]||0)+tmp[tipo]).padStart(2,'0');
           colorDi.set(tok,colore(v.token));
+          // i token dell'anteprima non entrano nel vault (non sono congelati):
+          // senza questa riga i gruppi non potrebbero mai rivelarne il valore
+          valoriPreview.set(tok, v.value);
         }
       }
       // PROTEZIONE: due persone diverse non possono finire sullo stesso codice.
@@ -6500,8 +6504,10 @@ if (recognition) {
   // Gruppi spenti: il loro dato torna in chiaro nello specchio, tutto il
   // resto resta censurato. Serve a mostrare quanto contesto si perde.
   var gruppiSpenti = {};
+  var valoriPreview = new Map();   // valori dei token temporanei dell'anteprima
   function valoreDi(tok){
     if(vault.has(tok)) return String(vault.get(tok));
+    if(valoriPreview.has(tok)) return String(valoriPreview.get(tok));
     var trovato=null;
     vault.forEach(function(val,k){ if(!trovato && k.split('~')[0]===tok) trovato=String(val); });
     return trovato;
@@ -6509,7 +6515,7 @@ if (recognition) {
   function applicaGruppi(t){
     return String(t).replace(/\[\[([A-Z]+)_(\d+)([A-Z]?)\]\]/g,function(full,tipo,num,vr){
       var tok=tipo+'_'+num+(vr||'');
-      var col=colorDi.get(tok)||colore(full);
+      var col=colorDi.get(tok)||colore(tipo);
       if(!gruppiSpenti[col]) return full;
       var v=valoreDi(tok);
       return v!==null ? v : full;
@@ -6538,6 +6544,7 @@ if (recognition) {
       if(badge){ badge.textContent='0'; badge.classList.remove('att'); }
       return;
     }
+    valoriPreview.clear();
     var r=maschera(testo,false);
     anteprimaEl.innerHTML='<div class="ag-bolla ag-user ag-ghost">'+coloraToken(r.testo)+'</div>';
     if(badge){ badge.textContent=String(r.voci.length); badge.classList.toggle('att', r.voci.length>0); }
@@ -6599,6 +6606,8 @@ if (recognition) {
         '<span data-g="bank"><i class="ag-bank"></i>bancari</span>'+
         '<span data-g="mail"><i class="ag-mail"></i>contatti</span>'+
         '<span data-g="id"><i class="ag-id"></i>documenti</span>'+
+        '<span data-g="tech"><i class="ag-tech"></i>tecnici</span>'+
+        '<span data-g="med"><i class="ag-med"></i>sanitari</span>'+
       '</div>';
 
     scena.appendChild(p);      // finestra 1: lo specchio
