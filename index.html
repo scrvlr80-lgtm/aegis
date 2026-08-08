@@ -6507,10 +6507,16 @@ if (recognition) {
   // Ogni pulsante comanda SOLO il proprio messaggio e il messaggio utente che
   // lo precede: i dati dell'utente non hanno un pulsante proprio, quindi li
   // comanda la risposta che li segue. Nessuno stato globale, niente catena.
-  function coppiaDi(msg){
+  // Ogni pulsante comanda SOLO il proprio messaggio: i messaggi dell'utente
+  // hanno un interruttore proprio, quindi accoppiarli a quello del bot creava
+  // l'asimmetria (il bot trascinava l'utente, l'utente no).
+  // Unica eccezione: i messaggi immagine nascono SENZA pulsante, quindi li
+  // adotta il messaggio che li segue, altrimenti sarebbero irraggiungibili.
+  function bersagliDi(msg){
     var out=[msg];
     var prev=msg.previousElementSibling;
-    if(prev && prev.classList && prev.classList.contains('user-message')) out.push(prev);
+    if(prev && prev.classList && prev.classList.contains('user-message')
+       && !prev.querySelector('.ag-toggle')) out.push(prev);
     return out;
   }
   function ridipingi(div){
@@ -6524,16 +6530,15 @@ if (recognition) {
     btn.classList.toggle('on', on);
     var l=btn.querySelector('.ag-lbl');
     if(l) l.textContent = ETICHETTE[lingua()][on?0:1];
-    coppiaDi(msg).forEach(function(div){
+    bersagliDi(msg).forEach(function(div){
       if(on) ridipingi(div); else window.aegisTogliEvidenza(div);
     });
   };
-  // Ridipinge SOLO le coppie gia' accese (dopo la fine della scrittura).
-  // Non accende mai nulla di nuovo: ogni coppia resta indipendente.
+  // Ridipinge solo i messaggi con interruttore acceso (fine scrittura, restore).
   window.aegisRiapplica=function(){
     document.querySelectorAll('.message .ag-toggle.on').forEach(function(b){
       var msg=b.closest('.message');
-      if(msg) coppiaDi(msg).forEach(ridipingi);
+      if(msg) bersagliDi(msg).forEach(ridipingi);
     });
   };
 
