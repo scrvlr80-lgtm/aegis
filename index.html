@@ -1989,86 +1989,81 @@ body {
     }
 
    async function initChatbot(langCode = 'es-ES') {
+    // 1. Blocco anti-doppia inizializzazione
     if (isInitializing) {
-        const maxWait = 50;
-        for (let i = 0; i < maxWait; i++) { await new Promise(r => setTimeout(r, 100)); if (!isInitializing) break; }
-        if (isInitializing) return;
+        for (let i = 0; i < 50; i++) { 
+            await new Promise(r => setTimeout(r, 100)); 
+            if (!isInitializing) break; 
+        }
+        return;
     }
     isInitializing = true;
+
+    // 2. Setup UI e pulizia
     applyUITranslations(langCode);
     const ui = UI_STRINGS[langCode] || UI_DEFAULT;
     currentTypingMsg = ui.typingMsg || 'Procesando...';
-    const chatMessagesDiv = document.getElementById('chat-messages');
     clearAllTypingIntervals();
-    if (chatMessagesDiv) { const orphanLoading = chatMessagesDiv.querySelector('.typing-indicator'); if (orphanLoading) orphanLoading.remove(); }
-    const cacheKey = 'welcome_msg_' + LOCAL_ID + '_' + langCode;
-    const cachedWelcomeAtStart = safeStorage.get(cacheKey);
     
-    let loadingIndicator = addMessageToChat(ui.loadingMsg || 'Cargando...', 'bot-message typing-indicator');
+    const chatMessagesDiv = document.getElementById('chat-messages');
+    if (chatMessagesDiv) {
+        // Rimuovi eventuali indicatori di caricamento orfani
+        chatMessagesDiv.querySelectorAll('.typing-indicator').forEach(el => el.remove());
+    }
+
+    const cacheKey = `welcome_msg_${LOCAL_ID}_${langCode}`;
+    const cachedWelcome = safeStorage.get(cacheKey);
     let historyRetrieved = false;
-    
+
+    // 3. Tentativo di caricamento Cronologia
     try {
         const historyRes = await fetch(`https://chatbot-backend-dev.onrender.com/api/history?local_id=${encodeURIComponent(LOCAL_ID)}&session_id=${encodeURIComponent(currentSessionId)}`);
         const historyData = await historyRes.json();
+        
         if (historyData.history && historyData.history.length > 0) {
             historyRetrieved = true;
-            
-            // FIX: Rimuovi il loading indicator e renderizza istantaneamente
-            if (loadingIndicator && loadingIndicator.isConnected) loadingIndicator.remove();
-            loadingIndicator = null;
+            conversationHistory = []; 
+            if (window.aegisReset) window.aegisReset();
 
-            const firstMsg = historyData.history[0];
-            let firstText = firstMsg.message;
-            if (firstMsg.role === 'assistant') firstText = firstText.replace(/\[LANG:\s*([a-zA-Z]{2,3}-[a-zA-Z]{2,4})\]/i, '').trim();
-            
-            // Render istantaneo (l'ultimo parametro 'false' disattiva l'animazione typing)
-            addMessageToChat(firstText, firstMsg.role === 'user' ? 'user-message' : 'bot-message', firstMsg.role === 'assistant', false);
-            
-            for (let i = 1; i < historyData.history.length; i++) {
-                const msg = historyData.history[i];
-                let messageText = msg.message;
-                if (msg.role === 'assistant') messageText = messageText.replace(/\[LANG:\s*([a-zA-Z]{2,3}-[a-zA-Z]{2,4})\]/i, '').trim();
-                addMessageToChat(messageText, msg.role === 'user' ? 'user-message' : 'bot-message', msg.role === 'assistant', false);
-            }
-            conversationHistory = []; if(window.aegisReset) window.aegisReset();
-            historyData.history.forEach(msg => conversationHistory.push({ role: msg.role, content: msg.message }));
-            setTimeout(() => { const cm = getChatMessages(); autoScroll(cm); }, 50);
+            // Render istantaneo di tutta la cronologia (animate = false)
+            historyData.history.forEach(msg => {
+                let text = msg.message;
+                if (msg.role === 'assistant') {
+                    text = text.replace(/\[LANG:\s*([a-zA-Z]{2,3}-[a-zA-Z]{2,4})\]/i, '').trim();
+                }
+                addMessageToChat(text, msg.role === 'user' ? 'user-message' : 'bot-message', msg.role === 'assistant', false);
+                conversationHistory.push({ role: msg.role, content: msg.message });
+            });
+
+            setTimeout(() => { 
+                const cm = getChatMessages(); 
+                if (cm) autoScroll(cm); 
+            }, 50);
         }
-    } catch (err) {}
-    
-    if (!historyRetrieved) {
-        // FIX: Rimuovi il loading indicator prima di mostrare il benvenuto
-        if (loadingIndicator && loadingIndicator.isConnected) loadingIndicator.remove();
-        loadingIndicator = null;
+    } catch (err) {
+        console.warn('Errore nel caricamento della cronologia:', err);
+    }
 
+    // 4. Se non c'è cronologia, carica il Messaggio di Benvenuto
+    if (!historyRetrieved) {
+        let serverWelcome = null;
         try {
             const res = await fetch(`https://chatbot-backend-dev.onrender.com/api/init?local_id=${encodeURIComponent(LOCAL_ID)}&lang=${encodeURIComponent(langCode)}`);
             const data = await res.json();
-            const serverWelcome = (data && data.welcomeMessage) ? data.welcomeMessage : null;
-            
-            if (serverWelcome) { 
-                safeStorage.set(cacheKey, serverWelcome); 
-                addMessageToChat(serverWelcome, 'bot-message', true, false); // Istantaneo
-            }
-            else if (cachedWelcomeAtStart) { 
-                addMessageToChat(cachedWelcomeAtStart, 'bot-message', true, false); // Istantaneo
-            }
-            else { 
-                addMessageToChat('...', 'bot-message', true, false); 
+            if (data && data.welcomeMessage) {
+                serverWelcome = data.welcomeMessage;
+                safeStorage.set(cacheKey, serverWelcome);
             }
         } catch (e) {
-            if (cachedWelcomeAtStart) { 
-                addMessageToChat(cachedWelcomeAtStart, 'bot-message', true, false); 
-            }
-            else { 
-                addMessageToChat('Conectando...', 'bot-message', true, false); 
-            }
+            console.warn('Fallback sulla cache per il benvenuto.');
         }
+
+        // Fallback a cascata: Server -> Cache locale -> Messaggio di default
+        const finalMsg = serverWelcome || cachedWelcome || '...';
+        addMessageToChat(finalMsg, 'bot-message', true, false); // Render istantaneo
     }
-    
-    if (loadingIndicator && loadingIndicator.isConnected) { 
-        loadingIndicator.remove(); 
-    }
+
+    // 5. Fine inizializzazione
     isInitializing = false;
 }
 
