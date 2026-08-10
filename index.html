@@ -6184,10 +6184,36 @@ if (recognition) {
      cambia mai, quindi le posizioni restano valide sul testo originale. */
   function conMaiuscole(t) {
     var comuni = parolecomuni();
-    return String(t).replace(/\p{Ll}[\p{L}']*/gu, function (w) {
+    var artificiali = [];   // posizioni delle parole capitalizzate DA NOI
+    // \b obbligatorio: senza, in "Buongiorno" la prima minuscola e' la "u",
+    // e la funzione produceva "BUongiorno" — una non-parola che il modello
+    // leggeva come nome proprio straniero.
+    var text = String(t).replace(/\b\p{Ll}[\p{L}']*/gu, function (w, offset) {
       if (comuni.has(w.toLowerCase())) return w;
       if (w.length < 3) return w;
+      artificiali.push([offset, offset + w.length]);
       return w.charAt(0).toUpperCase() + w.slice(1);
+    });
+    return { text: text, artificiali: artificiali };
+  }
+
+  /* Filtro a valle. Sappiamo ESATTAMENTE quali parole abbiamo capitalizzato
+     noi: se il modello ne marca una, potrebbe averlo fatto solo perche'
+     gliel'abbiamo suggerito con la maiuscola. Per quelle chiediamo una
+     confidenza molto piu' alta. Chiude il circuito che prima era in sola
+     andata: suggerivamo e poi ci fidavamo del nostro stesso suggerimento. */
+  function filtraNer(entities, artificiali) {
+    var SOGLIA_NATURALE = 0.50;      // parola gia' maiuscola nell'originale
+    var SOGLIA_ARTIFICIALE = 0.85;   // parola capitalizzata da noi
+    return (entities || []).filter(function (e) {
+      if (!e || e.entity === 'O') return false;
+      if (typeof e.score !== 'number' || e.score < SOGLIA_NATURALE) return false;
+      var toccata = false;
+      for (var i = 0; i < artificiali.length; i++) {
+        if (e.start < artificiali[i][1] && e.end > artificiali[i][0]) { toccata = true; break; }
+      }
+      if (toccata && e.score < SOGLIA_ARTIFICIALE) return false;
+      return true;
     });
   }
 
@@ -6196,8 +6222,9 @@ if (recognition) {
   async function persone(testo) {
     if (!pipe || !testo || testo.length < 2) return [];
     try {
-      var perModello = conMaiuscole(testo);
-      var out = await pipe(perModello);
+      var preparato = conMaiuscole(testo);
+      var grezze = await pipe(preparato.text);
+      var out = filtraNer(grezze, preparato.artificiali);
       var ent = [], cur = null;
       // Un nome e' fatto di pezzi CONTIGUI. Senza questo controllo, due
       // frammenti lontani venivano uniti e tutto cio' che stava in mezzo
@@ -6212,14 +6239,17 @@ if (recognition) {
         var troppoLungo = cur && (r.end - cur.inizio) > MAX_LUNG;
         if (apre || !cur || staccato || troppoLungo) {
           if (cur) ent.push(cur);
-          cur = { inizio: r.start, fine: r.end };
+          cur = { inizio: r.start, fine: r.end, score: (typeof r.score === 'number' ? r.score : 1) };
         } else {
           cur.fine = r.end;
+          // il minimo, non la media: un pezzo debole in coda non deve essere
+          // salvato da un pezzo forte all'inizio
+          if (typeof r.score === 'number') cur.score = Math.min(cur.score, r.score);
         }
       });
       if (cur) ent.push(cur);
       return ent
-        .map(function (e) { return { valore: testo.slice(e.inizio, e.fine).trim(), inizio: e.inizio, fine: e.fine }; })
+        .map(function (e) { return { valore: testo.slice(e.inizio, e.fine).trim(), inizio: e.inizio, fine: e.fine, score: e.score }; })
         .filter(function (e) {
           if (e.valore.length < 2 || e.valore.length > MAX_LUNG) return false;
           // al massimo quattro parole: oltre non e' un nome, e' una frase
