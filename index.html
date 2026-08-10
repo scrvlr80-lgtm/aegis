@@ -116,9 +116,15 @@ body.ag-attivo{overflow:hidden;margin:0}
   .ag-legenda{display:none}
   .ag-anteprima{min-height:44px;max-height:22vh}
 }
-/* --- chips eliminate del tutto --- */
+/* --- chips eliminate --- */
+/* NIENTE selettore jolly [class*=chip]: prendeva anche #chat-messages,
+   che porta la classe chips-open, e lo nascondeva finche l utente non
+   cliccava nel campo di scrittura. Solo classi esplicite. */
 .chips-container,.chips-wrapper,.suggested-chips,.chip,.chip-item,
-.chips-row,.chips-scroll,.chip-nav,.chip-arrow,[class*="chip"]{display:none!important}
+.chips-row,.chips-scroll,.chip-nav,.chip-arrow,.chips-bar,
+.suggested-questions,.quick-replies{display:none!important}
+/* il contenitore dei messaggi deve restare visibile SEMPRE */
+.chat-messages,#chat-messages{display:flex!important}
 /* --- interfaccia --- */
 .gdpr-overlay,.img-disclaimer-overlay{background-color:rgba(0,0,0,.35)!important}
 .gdpr-modal,.img-disclaimer-modal{background-color:var(--primary)!important}
@@ -1406,10 +1412,6 @@ body {
 
         // Avviamo la lettura del flag GDPR in BACKGROUND (non blocca la UI).
         // gdprFlagReady e' la promise che altri punti possono attendere se serve.
-        // FIX INDICATORE: il primo nodo visibile non deve dipendere dalla rete.
-        // Prima nasceva solo dentro initChatbot(), cioe' DOPO la risposta di
-        // /api/init: con backend freddo la chat restava vuota per decine di
-        // secondi e il prodotto sembrava morto.
         try {
             const ui0 = UI_STRINGS[activeLanguageCode] || UI_DEFAULT;
             currentTypingMsg = ui0.typingMsg || ui0.loadingMsg || 'Procesando...';
@@ -2000,11 +2002,6 @@ body {
         currentTypingMsg = ui.typingMsg || 'Procesando...';
         const chatMessagesDiv = document.getElementById('chat-messages');
         clearAllTypingIntervals();
-        // FIX LAMPEGGIO: riusa l'indicatore precoce se c'e' gia', invece di
-        // rimuoverlo e ricrearlo. Prima veniva cancellato appena initChatbot
-        // partiva, e la scritta spariva dopo meno di un secondo.
-        // Se ne crea uno nuovo solo quando manca davvero (es. startNewChat,
-        // che ha appena svuotato la chat).
         const cacheKey = 'welcome_msg_' + LOCAL_ID + '_' + langCode;
         const cachedWelcomeAtStart = safeStorage.get(cacheKey);
         let loadingIndicator =
@@ -3432,16 +3429,8 @@ body {
             else {
                 clearInterval(deleteInterval); activeTypingIntervals = activeTypingIntervals.filter(id => id !== deleteInterval);
                 typingEl.classList.remove('typing-indicator');
-                // Forza il ridisegno nel momento giusto (fine scrittura), non
-                // a intervalli fissi: il contenuto veniva prodotto ma non
-                // dipinto, e compariva solo al primo clic dell'utente.
                 requestAnimationFrame(function () {
-                    try {
-                        const st = typingEl.style;
-                        st.display = 'none';
-                        void typingEl.offsetHeight;
-                        st.display = '';
-                    } catch (e) {}
+                    try { const st = typingEl.style; st.display='none'; void typingEl.offsetHeight; st.display=''; } catch (e) {}
                 });
                 if (isUserStyle) { typingEl.classList.remove('bot-message'); typingEl.classList.add('user-message'); }
                 textSpan.innerHTML = '';
@@ -6207,17 +6196,33 @@ if (recognition) {
       var perModello = conMaiuscole(testo);
       var out = await pipe(perModello);
       var ent = [], cur = null;
+      // Un nome e' fatto di pezzi CONTIGUI. Senza questo controllo, due
+      // frammenti lontani venivano uniti e tutto cio' che stava in mezzo
+      // finiva dentro: una frase intera diventava un solo nome.
+      var MAX_BUCO = 2;      // spazio o trattino fra un pezzo e il successivo
+      var MAX_LUNG = 60;     // nessun nome di persona e' piu' lungo di cosi'
       out.forEach(function (r) {
         var tipo = String(r.entity || '').replace(/^[BI]-/, '');
         var apre = String(r.entity || '').indexOf('B-') === 0;
         if (tipo !== 'PER') { if (cur) { ent.push(cur); cur = null; } return; }
-        if (apre || !cur) { if (cur) ent.push(cur); cur = { inizio: r.start, fine: r.end }; }
-        else { cur.fine = r.end; }
+        var staccato = cur && (r.start - cur.fine) > MAX_BUCO;
+        var troppoLungo = cur && (r.end - cur.inizio) > MAX_LUNG;
+        if (apre || !cur || staccato || troppoLungo) {
+          if (cur) ent.push(cur);
+          cur = { inizio: r.start, fine: r.end };
+        } else {
+          cur.fine = r.end;
+        }
       });
       if (cur) ent.push(cur);
       return ent
         .map(function (e) { return { valore: testo.slice(e.inizio, e.fine).trim(), inizio: e.inizio, fine: e.fine }; })
-        .filter(function (e) { return e.valore.length > 1; });
+        .filter(function (e) {
+          if (e.valore.length < 2 || e.valore.length > MAX_LUNG) return false;
+          // al massimo quattro parole: oltre non e' un nome, e' una frase
+          if (e.valore.split(/\s+/).length > 4) return false;
+          return true;
+        });
     } catch (e) {
       return [];
     }
@@ -6322,6 +6327,12 @@ if (recognition) {
     var extra = [];
     candidati.forEach(function(v){
       if(!v || v.length<2) return;
+      // Rete di sicurezza: un nome non puo' coprire mezza frase. Se il modello
+      // sbaglia e restituisce un blocco enorme, si scarta invece di mascherare
+      // tutto: meglio un dato scoperto che un testo reso illeggibile.
+      if(v.length > 60) return;
+      if(v.split(/\s+/).length > 4) return;
+      if(testoOriginale.length > 20 && v.length > testoOriginale.length * 0.5) return;
       if(res.text.indexOf(v) === -1) return;        // gia' sostituito dalle regole
       if(/^\d+$/.test(v)) return;
       var doppio = res.vault.some(function(x){
