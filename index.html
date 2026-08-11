@@ -6219,43 +6219,61 @@ if (recognition) {
 
   /* Ritorna [{valore, inizio, fine}] delle sole PERSONE trovate.
      Non lancia mai: in caso di problema torna elenco vuoto. */
+  /* Ricostruisce i nomi dai FRAMMENTI restituiti dal modello e poi li CERCA
+     nel testo, invece di fidarsi delle posizioni start/end.
+     Motivo: con questo modello quelle posizioni non corrispondono al testo e
+     producevano tagli sballati come "i[[NER_01]] reale" o "[[NER_01]]nggo".
+     Il testo del frammento invece e' sempre corretto. */
+  function pezzo(r) {
+    var w = String(r.word || '');
+    if (w.indexOf('##') === 0) return { testo: w.slice(2), attaccato: true };
+    return { testo: w, attaccato: false };
+  }
+
   async function persone(testo) {
     if (!pipe || !testo || testo.length < 2) return [];
     try {
       var preparato = conMaiuscole(testo);
       var grezze = await pipe(preparato.text);
       var out = filtraNer(grezze, preparato.artificiali);
-      var ent = [], cur = null;
-      // Un nome e' fatto di pezzi CONTIGUI. Senza questo controllo, due
-      // frammenti lontani venivano uniti e tutto cio' che stava in mezzo
-      // finiva dentro: una frase intera diventava un solo nome.
-      var MAX_BUCO = 2;      // spazio o trattino fra un pezzo e il successivo
-      var MAX_LUNG = 60;     // nessun nome di persona e' piu' lungo di cosi'
+
+      // 1) raggruppo i frammenti ricostruendo il TESTO del nome
+      var nomi = [], cur = null;
       out.forEach(function (r) {
         var tipo = String(r.entity || '').replace(/^[BI]-/, '');
         var apre = String(r.entity || '').indexOf('B-') === 0;
-        if (tipo !== 'PER') { if (cur) { ent.push(cur); cur = null; } return; }
-        var staccato = cur && (r.start - cur.fine) > MAX_BUCO;
-        var troppoLungo = cur && (r.end - cur.inizio) > MAX_LUNG;
-        if (apre || !cur || staccato || troppoLungo) {
-          if (cur) ent.push(cur);
-          cur = { inizio: r.start, fine: r.end, score: (typeof r.score === 'number' ? r.score : 1) };
+        if (tipo !== 'PER') { if (cur) { nomi.push(cur); cur = null; } return; }
+        var p = pezzo(r);
+        var sc = (typeof r.score === 'number') ? r.score : 1;
+        if (apre || !cur) {
+          if (cur) nomi.push(cur);
+          cur = { testo: p.testo, score: sc };
         } else {
-          cur.fine = r.end;
-          // il minimo, non la media: un pezzo debole in coda non deve essere
-          // salvato da un pezzo forte all'inizio
-          if (typeof r.score === 'number') cur.score = Math.min(cur.score, r.score);
+          cur.testo += (p.attaccato ? '' : ' ') + p.testo;
+          cur.score = Math.min(cur.score, sc);
         }
       });
-      if (cur) ent.push(cur);
-      return ent
-        .map(function (e) { return { valore: testo.slice(e.inizio, e.fine).trim(), inizio: e.inizio, fine: e.fine, score: e.score }; })
-        .filter(function (e) {
-          if (e.valore.length < 2 || e.valore.length > MAX_LUNG) return false;
-          // al massimo quattro parole: oltre non e' un nome, e' una frase
-          if (e.valore.split(/\s+/).length > 4) return false;
-          return true;
-        });
+      if (cur) nomi.push(cur);
+
+      // 2) cerco ogni nome nel testo VERO; se non lo trovo, lo scarto
+      var trovati = [], usati = [];
+      nomi.forEach(function (n) {
+        var v = String(n.testo || '').trim().replace(/\s+/g, ' ');
+        if (v.length < 2 || v.length > 60) return;
+        if (v.split(' ').length > 4) return;
+        var basso = testo.toLowerCase(), ago = v.toLowerCase();
+        var i = basso.indexOf(ago);
+        while (i !== -1) {
+          var libero = usati.every(function (u) { return i >= u[1] || (i + v.length) <= u[0]; });
+          if (libero) {
+            usati.push([i, i + v.length]);
+            trovati.push({ valore: testo.slice(i, i + v.length), inizio: i, fine: i + v.length, score: n.score });
+            return;
+          }
+          i = basso.indexOf(ago, i + 1);
+        }
+      });
+      return trovati;
     } catch (e) {
       return [];
     }
@@ -6268,6 +6286,7 @@ if (recognition) {
     get pronto() { return stato === 'pronto'; }
   };
 })();
+
 
 
 </script>
@@ -6372,6 +6391,13 @@ if (recognition) {
       if(v.length > 60) return;
       if(v.split(/\s+/).length > 4) return;
       if(testoOriginale.length > 20 && v.length > testoOriginale.length * 0.5) return;
+      // deve essere una parola INTERA: senza questo controllo un nome poteva
+      // tagliare a meta' una parola vicina ("[[NER_01]]nggo")
+      var pos = testoOriginale.indexOf(v);
+      if(pos === -1) return;
+      var prima = pos > 0 ? testoOriginale[pos-1] : ' ';
+      var dopo  = (pos+v.length) < testoOriginale.length ? testoOriginale[pos+v.length] : ' ';
+      if(/[\p{L}\p{N}]/u.test(prima) || /[\p{L}\p{N}]/u.test(dopo)) return;
       if(res.text.indexOf(v) === -1) return;        // gia' sostituito dalle regole
       if(/^\d+$/.test(v)) return;
       var doppio = res.vault.some(function(x){
