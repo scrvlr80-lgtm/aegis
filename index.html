@@ -68,6 +68,30 @@ body.ag-attivo{overflow:hidden;margin:0}
 @keyframes ag-puls{0%,100%{opacity:.45}50%{opacity:1}}
 .ag-ner.ag-carico{animation:ag-puls 1.2s ease-in-out infinite}
 .ag-ner.ag-pronto{border-color:var(--c-addr);color:var(--c-addr)}
+/* Estensione Qwen: riquadro con spiegazione e pulsante. Un utente non apre
+   mai una console: se una funzione richiede il terminale, non esiste. */
+.ag-invito{flex:none;display:flex;align-items:center;gap:12px;margin:0 14px 10px;
+  padding:11px 13px;border:1px solid var(--hairline);border-radius:12px;
+  background:var(--primary)}
+.ag-invito-testo{flex:1 1 auto;min-width:0;font-family:'Inter',sans-serif;
+  font-size:11px;line-height:1.55;color:var(--text-light)}
+.ag-invito-testo strong{display:block;font-size:11px;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--text-main);margin-bottom:3px}
+.ag-invito.ag-pronto{border-color:var(--c-addr);background:rgba(48,164,108,.05)}
+.ag-invito.ag-carico{border-color:var(--c-date);background:rgba(245,165,36,.05)}
+.ag-invito.ag-fallito{opacity:.7}
+@media(max-width:820px){.ag-invito{flex-direction:column;align-items:stretch;gap:8px}
+  .ag-invito .ag-ia{width:100%}}
+.ag-ia{flex:none;font-size:10px;font-weight:700;letter-spacing:.04em;padding:7px 14px;
+  border-radius:9px;border:1px solid var(--accent);background:transparent;
+  color:var(--accent);cursor:pointer;white-space:nowrap;transition:.18s;
+  font-family:'Inter',sans-serif}
+.ag-ia:hover:not(:disabled){background:rgba(0,113,227,.08)}
+.ag-ia.ag-carico{border-color:var(--c-date);color:var(--c-date);cursor:default}
+.ag-ia.ag-pronto{border-color:var(--c-addr);color:var(--c-addr);cursor:default}
+.ag-ia.ag-fallito{border-color:var(--hairline);color:var(--text-light)}
+.ag-ia:disabled{opacity:.8}
+@media(max-width:820px){.ag-ia{font-size:9px;padding:2px 6px}}
 /* interruttore evidenziatore dentro lo specchio */
 .ag-toggle-sp{width:auto;min-width:104px;height:24px;padding:0 10px;font-size:9.5px;flex:none}
 /* riga 2: la conversazione, si allunga a riempire */
@@ -119,6 +143,16 @@ body.ag-attivo{overflow:hidden;margin:0}
   .ag-legenda{display:none}
   .ag-anteprima{min-height:44px;max-height:22vh}
 }
+/* --- CARICAMENTO IMMAGINI DISATTIVATO ---
+   Quella via manda il file e la domanda al server SENZA mascheratura: e' la
+   falla piu' grave possibile su un prodotto che promette il contrario.
+   Nascosto qui, e chiuso anche lato server (noVision nel tenant).
+   Per riattivarlo servira' prima la lettura del documento NEL BROWSER. */
+.img-btn, #img-btn, #img-file-input, .img-preview-bar { display:none !important; }
+/* --- CRONOLOGIA DISATTIVATA ---
+   Legge da chat_logs, e questo tenant non ci scrive piu' nulla: il pulsante
+   aprirebbe sempre una lista vuota. */
+#history-btn { display:none !important; }
 /* --- chips eliminate --- */
 /* NIENTE selettore jolly [class*=chip]: prendeva anche #chat-messages,
    che porta la classe chips-open, e lo nascondeva finche l utente non
@@ -897,10 +931,10 @@ body {
     const GDPR_EMAIL = '[EMAIL DE CONTACTO]';
     // Informativa RGPD (art. 13), ombrello per il playground; fallback en-US.
     const GDPR_STRINGS = {
-        "es-ES": { title: "PRIVACIDAD Y CONDICIONES", intro: "Antes de empezar, lee esta información sobre el tratamiento de tus datos.", lblScope: "Ámbito:", txtScope: "esta información cubre el asistente Shaq-OS y las demás demostraciones y servicios del entorno Shaq-OS (lo que en la web se denomina «playground») que no dispongan de un aviso de privacidad propio, como la demostración de asistente para hoteles. Los servicios que sí cuentan con su propio aviso —como el agente de voz— se rigen por el suyo.", lblWho: "Responsable:", txtWho: "{EMP} — contacto: {MAIL}.", lblData: "Datos tratados:", txtData: "los mensajes que escribes o dictas por voz, las imágenes que subes (no se conservan), tu email y los datos de contacto que facilites, y los datos comerciales derivados de tu interés (lo que llamamos «leads»).", lblPurpose: "Finalidades:", txtPurpose: "responder a tus consultas, gestionar tu solicitud comercial y el contacto posterior, guardar tu historial de conversaciones, mejorar y entrenar el servicio, y garantizar la seguridad y los límites de uso.", lblLegal: "Base jurídica:", txtLegal: "tu consentimiento (art. 6.1.a RGPD) y el interés legítimo en la seguridad del servicio y en la gestión de contactos comerciales (art. 6.1.f RGPD).", lblRetention: "Conservación:", txtRetention: "las conversaciones, tu email y tus datos de contacto se conservan y pueden usarse para mejorar y entrenar el servicio, hasta que solicites su supresión.", lblRec: "Destinatarios:", txtRec: "proveedores tecnológicos que actúan como encargados del tratamiento (proveedor externo de IA, alojamiento y base de datos), algunos fuera de la UE con las garantías del art. 46 RGPD. No vendemos tus datos.", lblRights: "Tus derechos:", txtRights: "acceso, rectificación, supresión, limitación, portabilidad, oposición y retirada del consentimiento en cualquier momento, escribiendo a {MAIL}. También puedes reclamar ante la autoridad de control (en España, la AEPD: aepd.es).", txtAI: "Estás hablando con un asistente de inteligencia artificial, no con una persona. Sus respuestas pueden contener errores.", txtAge: "Servicio no dirigido a menores de 14 años.", labelTerms: "Acepto los Términos y Condiciones.", labelGdpr: "He leído la información y consiento el tratamiento de mis datos.", badgeReq: "OBLIGATORIO", btnAccept: "ACCEDER" },
+        "es-ES": { title: "PRIVACIDAD Y CONDICIONES", intro: "Este asistente esta construido para no recibir tus datos personales. Lee como funciona antes de empezar.", lblScope: "Ambito:", txtScope: "esta informacion cubre este asistente y la demostracion del sistema de proteccion de datos. No cubre otros servicios.", lblWho: "Responsable:", txtWho: "{EMP} — contacto: {MAIL}.", lblData: "Datos tratados:", txtData: "EL CONTENIDO DE LAS CONVERSACIONES NO SE CONSERVA. Nombres, direcciones, fechas, telefonos, correos, IBAN y documentos se sustituyen por codigos en tu dispositivo, en el navegador, ANTES de que el mensaje salga: al servidor y al modelo solo llegan los codigos. Solo tratamos tu email, si decides dejarlo para acceder, y los datos tecnicos minimos necesarios para la seguridad (direccion IP para los limites de uso). La subida de imagenes y documentos esta desactivada.", lblPurpose: "Finalidades:", txtPurpose: "responder a tus consultas, gestionar el contacto comercial si lo deseas, y garantizar la seguridad y los limites de uso. Las conversaciones NO se usan para entrenar ni mejorar ningun modelo, porque no se conservan.", lblLegal: "Base juridica:", txtLegal: "tu consentimiento para el email y el contacto (art. 6.1.a RGPD); el interes legitimo en la seguridad del servicio (art. 6.1.f RGPD).", lblRetention: "Conservacion:", txtRetention: "las conversaciones no se conservan: no estan en una base de datos ni en los registros del servidor, y la correspondencia entre codigo y dato real vive solo en tu navegador y desaparece al cerrar la pestana. Tu email se conserva hasta que solicites su supresion.", lblRec: "Destinatarios:", txtRec: "el texto protegido —es decir, con codigos en lugar de los datos— se envia a un proveedor externo de inteligencia artificial que genera la respuesta, y pasa por alojamiento y base de datos como encargados del tratamiento, algunos fuera de la UE con las garantias del art. 46 RGPD. No vendemos tus datos.", lblRights: "Tus derechos:", txtRights: "acceso, rectificacion, supresion, limitacion, portabilidad, oposicion y retirada del consentimiento en cualquier momento, escribiendo a {MAIL}. Tambien puedes reclamar ante la autoridad de control (en Espana, la AEPD: aepd.es).", txtAI: "Estas hablando con un asistente de inteligencia artificial, no con una persona. Sus respuestas pueden contener errores. La proteccion reduce el riesgo, no lo elimina: mira el recuadro junto al chat antes de enviar algo delicado.", txtAge: "Servicio no dirigido a menores de 14 anos.", labelTerms: "Acepto los Terminos y Condiciones.", labelGdpr: "He leido la informacion y consiento el tratamiento de mis datos.", badgeReq: "OBLIGATORIO", btnAccept: "ACCEDER" },
         "ca-ES": { title: "PRIVADESA I CONDICIONS", intro: "Abans de començar, llegeix aquesta informació sobre el tractament de les teves dades.", lblScope: "Àmbit:", txtScope: "aquesta informació cobreix l'assistent Shaq-OS i la resta de demostracions i serveis de l'entorn Shaq-OS (allò que al web s'anomena «playground») que no disposin d'un avís de privadesa propi, com la demostració d'assistent per a hotels. Els serveis que sí que tenen el seu propi avís —com l'agent de veu— es regeixen pel seu.", lblWho: "Responsable:", txtWho: "{EMP} — contacte: {MAIL}.", lblData: "Dades tractades:", txtData: "els missatges que escrius o dictes per veu, les imatges que puges (no es conserven), el teu email i les dades de contacte que facilitis, i les dades comercials derivades del teu interès (allò que anomenem «leads»).", lblPurpose: "Finalitats:", txtPurpose: "respondre les teves consultes, gestionar la teva sol·licitud comercial i el contacte posterior, guardar el teu historial de converses, millorar i entrenar el servei, i garantir la seguretat i els límits d'ús.", lblLegal: "Base jurídica:", txtLegal: "el teu consentiment (art. 6.1.a RGPD) i l'interès legítim en la seguretat del servei i en la gestió de contactes comercials (art. 6.1.f RGPD).", lblRetention: "Conservació:", txtRetention: "les converses, el teu email i les teves dades de contacte es conserven i poden usar-se per millorar i entrenar el servei, fins que en sol·licitis la supressió.", lblRec: "Destinataris:", txtRec: "proveïdors tecnològics que actuen com a encarregats del tractament (proveïdor extern d'IA, allotjament i base de dades), alguns fora de la UE amb les garanties de l'art. 46 RGPD. No venem les teves dades.", lblRights: "Els teus drets:", txtRights: "accés, rectificació, supressió, limitació, portabilitat, oposició i retirada del consentiment en qualsevol moment, escrivint a {MAIL}. També pots reclamar davant l'autoritat de control (a Espanya, l'AEPD: aepd.es).", txtAI: "Estàs parlant amb un assistent d'intel·ligència artificial, no amb una persona. Les seves respostes poden contenir errors.", txtAge: "Servei no adreçat a menors de 14 anys.", labelTerms: "Accepto els Termes i Condicions.", labelGdpr: "He llegit la informació i consento el tractament de les meves dades.", badgeReq: "OBLIGATORI", btnAccept: "ACCEDIR" },
-        "en-US": { title: "PRIVACY & TERMS", intro: "Before you start, please read this information about how we process your data.", lblScope: "Scope:", txtScope: "this notice covers the Shaq-OS assistant and the other demos and services of the Shaq-OS environment (what the website calls the «playground») that do not have their own privacy notice, such as the hotel-assistant demo. Services that do have their own notice —such as the voice agent— are governed by theirs.", lblWho: "Data controller:", txtWho: "{EMP} — contact: {MAIL}.", lblData: "Data processed:", txtData: "the messages you type or dictate by voice, the images you upload (not stored), your email and any contact details you provide, and the commercial data arising from your interest (what we call «leads»).", lblPurpose: "Purposes:", txtPurpose: "answering your queries, handling your commercial request and follow-up contact, keeping your conversation history, improving and training the service, and ensuring security and usage limits.", lblLegal: "Legal basis:", txtLegal: "your consent (Art. 6.1.a GDPR) and our legitimate interest in the security of the service and in managing commercial contacts (Art. 6.1.f GDPR).", lblRetention: "Retention:", txtRetention: "conversations, your email and your contact details are kept and may be used to improve and train the service, until you request their deletion.", lblRec: "Recipients:", txtRec: "technology providers acting as processors (external AI provider, hosting and database), some outside the EU with the safeguards of Art. 46 GDPR. We do not sell your data.", lblRights: "Your rights:", txtRights: "access, rectification, erasure, restriction, portability, objection and withdrawal of consent at any time, by writing to {MAIL}. You may also lodge a complaint with a supervisory authority (in Spain, the AEPD: aepd.es).", txtAI: "You are talking to an artificial-intelligence assistant, not a person. Its answers may contain errors.", txtAge: "This service is not intended for children under 14.", labelTerms: "I accept the Terms and Conditions.", labelGdpr: "I have read the information and consent to the processing of my data.", badgeReq: "REQUIRED", btnAccept: "ENTER" },
-        "it-IT": { title: "PRIVACY E CONDIZIONI", intro: "Prima di iniziare, leggi questa informativa sul trattamento dei tuoi dati.", lblScope: "Ambito:", txtScope: "questa informativa copre l'assistente Shaq-OS e le altre dimostrazioni e servizi dell'ambiente Shaq-OS (ciò che nel sito è chiamato «playground») che non dispongono di un'informativa propria, come la dimostrazione di assistente per hotel. I servizi che hanno una propria informativa —come l'agente vocale— sono regolati dalla loro.", lblWho: "Titolare:", txtWho: "{EMP} — contatto: {MAIL}.", lblData: "Dati trattati:", txtData: "i messaggi che scrivi o detti a voce, le immagini che carichi (non conservate), la tua email e i dati di contatto che fornisci, e i dati commerciali derivati dal tuo interesse (ciò che chiamiamo «leads»).", lblPurpose: "Finalità:", txtPurpose: "rispondere alle tue richieste, gestire la tua richiesta commerciale e il contatto successivo, salvare la cronologia delle conversazioni, migliorare e addestrare il servizio, garantire la sicurezza e i limiti d'uso.", lblLegal: "Base giuridica:", txtLegal: "il tuo consenso (art. 6.1.a GDPR) e il legittimo interesse alla sicurezza del servizio e alla gestione dei contatti commerciali (art. 6.1.f GDPR).", lblRetention: "Conservazione:", txtRetention: "le conversazioni, la tua email e i tuoi dati di contatto si conservano e possono essere usati per migliorare e addestrare il servizio, finché non ne chiedi la cancellazione.", lblRec: "Destinatari:", txtRec: "fornitori tecnologici che agiscono come responsabili del trattamento (fornitore esterno di IA, hosting e database), alcuni fuori dall'UE con le garanzie dell'art. 46 GDPR. Non vendiamo i tuoi dati.", lblRights: "I tuoi diritti:", txtRights: "accesso, rettifica, cancellazione, limitazione, portabilità, opposizione e revoca del consenso in qualsiasi momento, scrivendo a {MAIL}. Puoi anche presentare reclamo all'autorità di controllo (in Spagna, l'AEPD: aepd.es).", txtAI: "Stai parlando con un assistente di intelligenza artificiale, non con una persona. Le sue risposte possono contenere errori.", txtAge: "Servizio non destinato a minori di 14 anni.", labelTerms: "Accetto i Termini e Condizioni.", labelGdpr: "Ho letto l'informativa e acconsento al trattamento dei miei dati.", badgeReq: "OBBLIGATORIO", btnAccept: "ACCEDI" },
+        "en-US": { title: "PRIVACY & TERMS", intro: "This assistant is built so that your personal data never reaches it. Please read how it works before you start.", lblScope: "Scope:", txtScope: "this notice covers this assistant and the demonstration of the data-protection system. It does not cover other services.", lblWho: "Data controller:", txtWho: "{EMP} — contact: {MAIL}.", lblData: "Data processed:", txtData: "CONVERSATION CONTENT IS NOT RETAINED. Names, addresses, dates, phone numbers, emails, IBANs and identity documents are replaced with codes on your device, in the browser, BEFORE the message is sent: the server and the model receive only the codes. We process only your email, if you choose to provide it to enter, and the minimum technical data needed for security (IP address for usage limits). Image and document upload is disabled.", lblPurpose: "Purposes:", txtPurpose: "answering your queries, handling your commercial enquiry if you want one, and ensuring security and usage limits. Conversations are NOT used to train or improve any model, because they are not retained.", lblLegal: "Legal basis:", txtLegal: "your consent for the email and follow-up contact (Art. 6.1.a GDPR); our legitimate interest in the security of the service (Art. 6.1.f GDPR).", lblRetention: "Retention:", txtRetention: "conversations are not retained: they are not in a database or in server logs, and the mapping between code and real value lives only in your browser and disappears when you close the tab. Your email is kept until you ask us to delete it.", lblRec: "Recipients:", txtRec: "the protected text — that is, with codes in place of the data — is sent to an external artificial-intelligence provider that generates the reply, and passes through hosting and database providers acting as processors, some outside the EU with the safeguards of Art. 46 GDPR. We do not sell your data.", lblRights: "Your rights:", txtRights: "access, rectification, erasure, restriction, portability, objection and withdrawal of consent at any time, by writing to {MAIL}. You may also lodge a complaint with a supervisory authority (in Spain, the AEPD: aepd.es).", txtAI: "You are talking to an artificial-intelligence assistant, not a person. Its answers may contain errors. The protection reduces the risk, it does not remove it: check the panel next to the chat before sending anything sensitive.", txtAge: "This service is not intended for children under 14.", labelTerms: "I accept the Terms and Conditions.", labelGdpr: "I have read the information and consent to the processing of my data.", badgeReq: "REQUIRED", btnAccept: "ENTER" },
+        "it-IT": { title: "PRIVACY E CONDIZIONI", intro: "Questo assistente e' costruito per non ricevere i tuoi dati personali. Leggi come funziona prima di iniziare.", lblScope: "Ambito:", txtScope: "questa informativa copre questo assistente e la dimostrazione del sistema di protezione dei dati. Non copre altri servizi.", lblWho: "Titolare:", txtWho: "{EMP} — contatto: {MAIL}.", lblData: "Dati trattati:", txtData: "IL CONTENUTO DELLE CONVERSAZIONI NON VIENE CONSERVATO. Nomi, indirizzi, date, telefoni, email, IBAN e documenti vengono sostituiti da codici sul tuo dispositivo, nel browser, PRIMA che il messaggio parta: al server e al modello arrivano solo i codici. Trattiamo soltanto la tua email, se scegli di lasciarla per accedere, e i dati tecnici minimi necessari alla sicurezza (indirizzo IP per i limiti d'uso). Il caricamento di immagini e documenti e' disattivato.", lblPurpose: "Finalita':", txtPurpose: "rispondere alle tue richieste, gestire il contatto commerciale se lo desideri, garantire la sicurezza e i limiti d'uso del servizio. Le conversazioni NON vengono usate per addestrare o migliorare alcun modello, perche' non vengono conservate.", lblLegal: "Base giuridica:", txtLegal: "il tuo consenso per l'email e il contatto (art. 6.1.a GDPR); il legittimo interesse alla sicurezza del servizio (art. 6.1.f GDPR).", lblRetention: "Conservazione:", txtRetention: "le conversazioni non vengono conservate: non sono in un database ne' nei log del server, e la corrispondenza fra codice e dato reale vive solo nel tuo browser e sparisce quando chiudi la scheda. La tua email si conserva finche' non ne chiedi la cancellazione.", lblRec: "Destinatari:", txtRec: "il testo protetto — cioe' con i codici al posto dei dati — viene inviato a un fornitore esterno di intelligenza artificiale che genera la risposta, e transita da hosting e database in qualita' di responsabili del trattamento, alcuni fuori dall'UE con le garanzie dell'art. 46 GDPR. Non vendiamo i tuoi dati.", lblRights: "I tuoi diritti:", txtRights: "accesso, rettifica, cancellazione, limitazione, portabilita', opposizione e revoca del consenso in qualsiasi momento, scrivendo a {MAIL}. Puoi anche presentare reclamo all'autorita' di controllo (in Spagna, l'AEPD: aepd.es).", txtAI: "Stai parlando con un assistente di intelligenza artificiale, non con una persona. Le sue risposte possono contenere errori. La protezione riduce il rischio, non lo azzera: guarda il riquadro accanto alla chat prima di inviare qualcosa di delicato.", txtAge: "Servizio non destinato a minori di 14 anni.", labelTerms: "Accetto i Termini e Condizioni.", labelGdpr: "Ho letto l'informativa e acconsento al trattamento dei miei dati.", badgeReq: "OBBLIGATORIO", btnAccept: "ACCEDI" },
         "fr-FR": { title: "CONFIDENTIALITÉ ET CONDITIONS", intro: "Avant de commencer, lisez ces informations sur le traitement de vos données.", lblScope: "Champ d'application :", txtScope: "cette information couvre l'assistant Shaq-OS et les autres démonstrations et services de l'environnement Shaq-OS (ce que le site appelle le «playground») qui ne disposent pas de leur propre avis de confidentialité, comme la démonstration d'assistant pour hôtels. Les services disposant de leur propre avis —comme l'agent vocal— sont régis par le leur.", lblWho: "Responsable :", txtWho: "{EMP} — contact : {MAIL}.", lblData: "Données traitées :", txtData: "les messages que vous écrivez ou dictez à la voix, les images que vous téléversez (non conservées), votre email et les coordonnées que vous fournissez, et les données commerciales issues de votre intérêt (ce que nous appelons «leads»).", lblPurpose: "Finalités :", txtPurpose: "répondre à vos demandes, gérer votre demande commerciale et le contact ultérieur, conserver votre historique de conversations, améliorer et entraîner le service, et garantir la sécurité et les limites d'utilisation.", lblLegal: "Base juridique :", txtLegal: "votre consentement (art. 6.1.a RGPD) et l'intérêt légitime à la sécurité du service et à la gestion des contacts commerciaux (art. 6.1.f RGPD).", lblRetention: "Conservation :", txtRetention: "les conversations, votre email et vos coordonnées sont conservés et peuvent être utilisés pour améliorer et entraîner le service, jusqu'à ce que vous demandiez leur suppression.", lblRec: "Destinataires :", txtRec: "prestataires technologiques agissant comme sous-traitants (fournisseur externe d'IA, hébergement et base de données), certains hors UE avec les garanties de l'art. 46 RGPD. Nous ne vendons pas vos données.", lblRights: "Vos droits :", txtRights: "accès, rectification, effacement, limitation, portabilité, opposition et retrait du consentement à tout moment, en écrivant à {MAIL}. Vous pouvez aussi saisir une autorité de contrôle (en Espagne, l'AEPD : aepd.es).", txtAI: "Vous parlez avec un assistant d'intelligence artificielle, pas avec une personne. Ses réponses peuvent contenir des erreurs.", txtAge: "Service non destiné aux mineurs de moins de 14 ans.", labelTerms: "J'accepte les Conditions Générales.", labelGdpr: "J'ai lu les informations et je consens au traitement de mes données.", badgeReq: "OBLIGATOIRE", btnAccept: "ACCÉDER" },
         "de-DE": { title: "DATENSCHUTZ & BEDINGUNGEN", intro: "Bevor du beginnst, lies bitte diese Informationen zur Verarbeitung deiner Daten.", lblScope: "Geltungsbereich:", txtScope: "diese Information gilt für den Shaq-OS-Assistenten und die übrigen Demos und Dienste der Shaq-OS-Umgebung (auf der Website «playground» genannt), die keine eigene Datenschutzerklärung haben, etwa die Hotel-Assistenten-Demo. Dienste mit eigener Erklärung —wie der Sprachagent— unterliegen ihrer eigenen.", lblWho: "Verantwortlicher:", txtWho: "{EMP} — Kontakt: {MAIL}.", lblData: "Verarbeitete Daten:", txtData: "die Nachrichten, die du schreibst oder per Sprache diktierst, die Bilder, die du hochlädst (werden nicht gespeichert), deine E-Mail und angegebene Kontaktdaten sowie die aus deinem Interesse entstehenden geschäftlichen Daten (sogenannte «Leads»).", lblPurpose: "Zwecke:", txtPurpose: "Beantwortung deiner Anfragen, Bearbeitung deiner geschäftlichen Anfrage und Folgekontakt, Speicherung deines Gesprächsverlaufs, Verbesserung und Training des Dienstes sowie Sicherheit und Nutzungsgrenzen.", lblLegal: "Rechtsgrundlage:", txtLegal: "deine Einwilligung (Art. 6 Abs. 1 lit. a DSGVO) und das berechtigte Interesse an der Sicherheit des Dienstes und an der Verwaltung geschäftlicher Kontakte (Art. 6 Abs. 1 lit. f DSGVO).", lblRetention: "Speicherdauer:", txtRetention: "Gespräche, deine E-Mail und deine Kontaktdaten werden gespeichert und können zur Verbesserung und zum Training des Dienstes verwendet werden, bis du ihre Löschung verlangst.", lblRec: "Empfänger:", txtRec: "Technologieanbieter als Auftragsverarbeiter (externer KI-Anbieter, Hosting und Datenbank), teils außerhalb der EU mit den Garantien des Art. 46 DSGVO. Wir verkaufen deine Daten nicht.", lblRights: "Deine Rechte:", txtRights: "Auskunft, Berichtigung, Löschung, Einschränkung, Übertragbarkeit, Widerspruch und jederzeitiger Widerruf der Einwilligung per E-Mail an {MAIL}. Du kannst dich auch bei einer Aufsichtsbehörde beschweren (in Spanien: AEPD, aepd.es).", txtAI: "Du sprichst mit einem KI-Assistenten, nicht mit einem Menschen. Seine Antworten können Fehler enthalten.", txtAge: "Dieser Dienst richtet sich nicht an Personen unter 14 Jahren.", labelTerms: "Ich akzeptiere die AGB.", labelGdpr: "Ich habe die Informationen gelesen und willige in die Verarbeitung meiner Daten ein.", badgeReq: "ERFORDERLICH", btnAccept: "ZUGANG" },
         "pt-PT": { title: "PRIVACIDADE E CONDIÇÕES", intro: "Antes de começar, lê esta informação sobre o tratamento dos teus dados.", lblScope: "Âmbito:", txtScope: "esta informação cobre o assistente Shaq-OS e as restantes demonstrações e serviços do ambiente Shaq-OS (o que no site se chama «playground») que não disponham de um aviso de privacidade próprio, como a demonstração de assistente para hotéis. Os serviços que têm o seu próprio aviso —como o agente de voz— regem-se pelo seu.", lblWho: "Responsável:", txtWho: "{EMP} — contacto: {MAIL}.", lblData: "Dados tratados:", txtData: "as mensagens que escreves ou ditas por voz, as imagens que carregas (não são conservadas), o teu email e os dados de contacto que fornecas, e os dados comerciais derivados do teu interesse (o que chamamos «leads»).", lblPurpose: "Finalidades:", txtPurpose: "responder às tuas consultas, gerir o teu pedido comercial e o contacto posterior, guardar o teu histórico de conversas, melhorar e treinar o serviço, e garantir a segurança e os limites de utilização.", lblLegal: "Base jurídica:", txtLegal: "o teu consentimento (art. 6.1.a RGPD) e o interesse legítimo na segurança do serviço e na gestão de contactos comerciais (art. 6.1.f RGPD).", lblRetention: "Conservação:", txtRetention: "as conversas, o teu email e os teus dados de contacto são conservados e podem ser usados para melhorar e treinar o serviço, até que solicites a sua eliminação.", lblRec: "Destinatários:", txtRec: "fornecedores tecnológicos que atuam como subcontratantes (fornecedor externo de IA, alojamento e base de dados), alguns fora da UE com as garantias do art. 46 RGPD. Não vendemos os teus dados.", lblRights: "Os teus direitos:", txtRights: "acesso, retificação, apagamento, limitação, portabilidade, oposição e retirada do consentimento a qualquer momento, escrevendo para {MAIL}. Podes também reclamar junto da autoridade de controlo (em Espanha, a AEPD: aepd.es).", txtAI: "Estás a falar com um assistente de inteligência artificial, não com uma pessoa. As suas respostas podem conter erros.", txtAge: "Serviço não dirigido a menores de 14 anos.", labelTerms: "Aceito os Termos e Condições.", labelGdpr: "Li a informação e consinto o tratamento dos meus dados.", badgeReq: "OBRIGATÓRIO", btnAccept: "ACEDER" },
@@ -2048,8 +2082,6 @@ body {
             transformTypingIntoMessage(loadingIndicator, benvenutoAegis(langCode), true, false);
             loadingIndicator = null;
         }
-        // Ripiego: se per qualsiasi motivo l'indicatore fosse ancora li',
-        // mostra il benvenuto e non un '...' che sembra un errore.
         if (loadingIndicator && loadingIndicator.isConnected) { transformTypingIntoMessage(loadingIndicator, benvenutoAegis(langCode), true, false); loadingIndicator = null; }
         isInitializing = false;
     }
@@ -6122,6 +6154,8 @@ if (recognition) {
 
 </script>
 <script>
+
+
 /* =============================================================================
    AEGIS — secondo strato: riconoscimento dei nomi propri sconosciuti
    Le regole restano il fondamento (checksum, struttura): questo modello guarda
@@ -6142,7 +6176,17 @@ if (recognition) {
     try { window.dispatchEvent(new CustomEvent('aegis-ner', { detail: s })); } catch (e) {}
   }
 
+  /* INTERRUTTORE: il NER e' SPENTO di default.
+     Su testo informale produceva risultati incoerenti (la stessa parola
+     mascherata o no a seconda di cosa la seguiva) e mascherava da solo invece
+     di proporre. Resta nel file come opzione: per riaccenderlo, da console
+     scrivere  AEGIS_NER.abilita()  e ricaricare la pagina, oppure mettere
+     ATTIVO a true qui sotto. */
+  var ATTIVO = false;
+  try { if (localStorage.getItem('aegis_ner_attivo') === '1') ATTIVO = true; } catch (e) {}
+
   function carica() {
+    if (!ATTIVO) { segnala('spento'); return; }
     if (avviato) return;
     avviato = true;
     segnala('carico');
@@ -6248,6 +6292,9 @@ if (recognition) {
   }
 
   window.AEGIS_NER = {
+    abilita: function () { try { localStorage.setItem('aegis_ner_attivo', '1'); } catch (e) {} ATTIVO = true; },
+    disabilita: function () { try { localStorage.removeItem('aegis_ner_attivo'); } catch (e) {} ATTIVO = false; },
+    get attivo() { return ATTIVO; },
     carica: carica,
     persone: persone,
     get stato() { return stato; },
@@ -6258,8 +6305,176 @@ if (recognition) {
 
 
 
+
+
+
 </script>
 <script>
+/* =============================================================================
+   AEGIS — modello generativo locale (terzo strato, opzionale)
+
+   Cosa fa: legge il testo e ELENCA i nomi di persona che vi compaiono.
+   A differenza del NER non restituisce posizioni ma parole: ogni parola viene
+   poi CERCATA nel testo, e se non c'e' viene scartata. Cosi' un'invenzione del
+   modello non puo' finire nel documento.
+
+   Gira nel browser con WebGPU. Nessun dato lascia il dispositivo.
+   Se WebGPU manca o il caricamento fallisce, Aegis continua con le regole.
+   ============================================================================= */
+(function () {
+  'use strict';
+
+  // Modello generativo piccolo, istruito, multilingue, in ONNX per il browser.
+  var MODELLO = 'onnx-community/Qwen2.5-0.5B-Instruct';
+  var DTYPE = 'q4f16';          // ~400 MB: il compromesso che regge in un browser
+
+  var gen = null;
+  var avviato = false;
+  var stato = 'spento';         // spento | carico | pronto | fallito
+  var ATTIVO = false;
+  try { if (localStorage.getItem('aegis_ia_attiva') === '1') ATTIVO = true; } catch (e) {}
+
+  function segnala(s, extra) {
+    stato = s;
+    try {
+      window.dispatchEvent(new CustomEvent('aegis-ia', { detail: { stato: s, extra: extra || '' } }));
+    } catch (e) {}
+  }
+
+  function carica() {
+    if (!ATTIVO || avviato) return;
+    avviato = true;
+    segnala('carico', 'avvio');
+
+    var s = document.createElement('script');
+    s.type = 'module';
+    s.textContent =
+      "import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.5';\n" +
+      "env.allowLocalModels = false;\n" +
+      "(async () => {\n" +
+      "  try {\n" +
+      "    if (!navigator.gpu) { window.__AEGIS_IA_ERR__ = 'WebGPU non disponibile'; return; }\n" +
+      "    const p = await pipeline('text-generation', '" + MODELLO + "', {\n" +
+      "      dtype: '" + DTYPE + "', device: 'webgpu',\n" +
+      "      progress_callback: (d) => { window.__AEGIS_IA_PROG__ = d; }\n" +
+      "    });\n" +
+      "    window.__AEGIS_IA__ = p;\n" +
+      "  } catch (e) { window.__AEGIS_IA_ERR__ = String(e && e.message || e); }\n" +
+      "})();";
+    s.onerror = function () { segnala('fallito', 'script'); };
+    document.head.appendChild(s);
+
+    var giri = 0;
+    var t = setInterval(function () {
+      giri++;
+      if (window.__AEGIS_IA__) {
+        clearInterval(t);
+        gen = window.__AEGIS_IA__;
+        segnala('pronto');
+      } else if (window.__AEGIS_IA_ERR__) {
+        clearInterval(t);
+        segnala('fallito', window.__AEGIS_IA_ERR__);
+      } else if (giri > 1800) {                 // 6 minuti: primo scaricamento
+        clearInterval(t);
+        segnala('fallito', 'tempo scaduto');
+      } else {
+        var p = window.__AEGIS_IA_PROG__;
+        if (p && p.status === 'progress' && typeof p.progress === 'number') {
+          segnala('carico', Math.round(p.progress) + '%');
+        }
+      }
+    }, 200);
+  }
+
+  /* Istruzione al modello: deve rispondere SOLO con l'elenco, una riga per
+     nome. Qualsiasi altra cosa scriva viene ignorata dal filtro successivo. */
+  function istruzione(testo) {
+    return [
+      { role: 'system', content:
+        'Sei un estrattore di nomi di persona. Ricevi un testo e rispondi SOLO con ' +
+        'i nomi propri di persona che vi compaiono, uno per riga, copiati ESATTAMENTE ' +
+        'come sono scritti nel testo. Nessuna spiegazione, nessuna numerazione, nessun ' +
+        'altro tipo di entita\u0027 (non aziende, non luoghi, non prodotti, non marchi). ' +
+        'Se non ci sono nomi di persona, rispondi con la sola parola NESSUNO.' },
+      { role: 'user', content: testo }
+    ];
+  }
+
+  /* Ritorna [{valore, inizio, fine}] delle persone trovate.
+     Ogni nome proposto dal modello viene VERIFICATO nel testo: se non c'e'
+     alla lettera, si scarta. Un modello generativo puo' inventare, e questa
+     e' la rete che impedisce alle invenzioni di arrivare al documento. */
+  async function persone(testo) {
+    if (!gen || !testo || testo.length < 2) return [];
+    try {
+      var out = await gen(istruzione(testo), {
+        max_new_tokens: 96,
+        do_sample: false,        // deterministico: stesso testo, stessa risposta
+        temperature: 0,
+        return_full_text: false
+      });
+
+      var risposta = '';
+      if (Array.isArray(out) && out[0]) {
+        var g = out[0].generated_text;
+        risposta = Array.isArray(g) ? String(g[g.length - 1].content || '') : String(g || '');
+      }
+      if (!risposta || /^\s*NESSUNO\s*$/i.test(risposta)) return [];
+
+      var righe = risposta.split(/[\n;,]+/)
+        .map(function (r) { return r.replace(/^[\s\-*\u2022\d.)\]]+/, '').trim(); })
+        .filter(Boolean);
+
+      var trovati = [], usati = [];
+      righe.forEach(function (v) {
+        if (v.length < 2 || v.length > 60) return;
+        if (v.split(/\s+/).length > 4) return;
+        if (/^(nessuno|none|ninguno|nomi|names|persona|persone)$/i.test(v)) return;
+        var basso = testo.toLowerCase(), ago = v.toLowerCase();
+        var i = basso.indexOf(ago);
+        while (i !== -1) {
+          // confine di parola: niente tagli dentro un'altra parola
+          var pre = i > 0 ? testo[i - 1] : ' ';
+          var post = (i + v.length) < testo.length ? testo[i + v.length] : ' ';
+          var confine = !/[\p{L}\p{N}]/u.test(pre) && !/[\p{L}\p{N}]/u.test(post);
+          var libero = usati.every(function (u) { return i >= u[1] || (i + v.length) <= u[0]; });
+          if (confine && libero) {
+            usati.push([i, i + v.length]);
+            trovati.push({ valore: testo.slice(i, i + v.length), inizio: i, fine: i + v.length });
+            return;
+          }
+          i = basso.indexOf(ago, i + 1);
+        }
+      });
+      return trovati;
+    } catch (e) {
+      return [];
+    }
+  }
+
+  window.AEGIS_IA = {
+    abilita: function () {
+      try { localStorage.setItem('aegis_ia_attiva', '1'); } catch (e) {}
+      ATTIVO = true;
+    },
+    disabilita: function () {
+      try { localStorage.removeItem('aegis_ia_attiva'); } catch (e) {}
+      ATTIVO = false;
+    },
+    get attiva() { return ATTIVO; },
+    get stato() { return stato; },
+    get pronto() { return stato === 'pronto'; },
+    carica: carica,
+    persone: persone
+  };
+})();
+
+</script>
+<script>
+
+
+
+
 /* =============================================================================
    AEGIS — pannello integrato (una sola pagina, niente iframe)
    Sinistra/sopra: quello che riceve il modello.  Destra/sotto: la chat vera.
@@ -6328,10 +6543,18 @@ if (recognition) {
   // quindi al momento dell'invio andavano quasi sempre persi.
   var nerNoti = new Set();
 
+  // Chi analizza: il modello generativo se e' pronto, altrimenti il NER.
+  function analizzatore(){
+    if(window.AEGIS_IA && window.AEGIS_IA.pronto) return window.AEGIS_IA;
+    if(window.AEGIS_NER && window.AEGIS_NER.pronto) return window.AEGIS_NER;
+    return null;
+  }
+
   function aggiornaNer(testo){
-    if(!window.AEGIS_NER || !window.AEGIS_NER.pronto) return;
+    var mot = analizzatore();
+    if(!mot) return;
     if(nerCache.testo === testo) return;
-    window.AEGIS_NER.persone(testo).then(function(ent){
+    mot.persone(testo).then(function(ent){
       nerCache = { testo: testo, ent: ent||[] };
       (ent||[]).forEach(function(e){
         var v=String(e.valore||'').trim();
@@ -6472,14 +6695,17 @@ if (recognition) {
      protezione parziale che un invio bloccato. */
   window.aegisProntoPerInvio = function(testo){
     return new Promise(function(risolvi){
-      if(!window.AEGIS_NER || !window.AEGIS_NER.pronto){ risolvi(false); return; }
+      var mot = analizzatore();
+      if(!mot){ risolvi(false); return; }
       if(!testo || !testo.trim()){ risolvi(false); return; }
       if(nerCache.testo === testo){ risolvi(true); return; }   // gia' analizzato
       var chiuso=false;
+      // il modello generativo e' piu' lento: gli si concede piu' tempo
+      var attesa = (window.AEGIS_IA && window.AEGIS_IA.pronto) ? 9000 : 1200;
       var scadenza=setTimeout(function(){
         if(!chiuso){ chiuso=true; risolvi(false); }
-      }, 1200);
-      window.AEGIS_NER.persone(testo).then(function(ent){
+      }, attesa);
+      mot.persone(testo).then(function(ent){
         nerCache = { testo: testo, ent: ent||[] };
         (ent||[]).forEach(function(e){
           var v=String(e.valore||'').trim();
@@ -6782,7 +7008,7 @@ if (recognition) {
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'+
         '<span class="ag-tit">Quello che riceve il modello</span>'+
         '<span class="ag-badge" id="ag-badge">0</span>'+
-        '<span class="ag-ner" id="ag-ner" title="Riconoscimento avanzato dei nomi"></span>'+'<button class="ag-toggle ag-toggle-sp on" id="ag-sp-hl" title="Evidenzia i codici"><span class="ag-dot"></span><span class="ag-lbl"></span></button>'+
+        '<span class="ag-ner" id="ag-ner" title="Riconoscimento avanzato dei nomi"></span>'+'<button class="ag-ia" id="ag-ia" type="button"></button>'+'<button class="ag-toggle ag-toggle-sp on" id="ag-sp-hl" title="Evidenzia i codici"><span class="ag-dot"></span><span class="ag-lbl"></span></button>'+
       '</div>'+
       '<div class="ag-corpo">'+
         '<div class="ag-lista" id="ag-lista"></div>'+
@@ -6829,12 +7055,30 @@ if (recognition) {
       if(mm) mo.observe(mm, {childList:true, subtree:true});
     }catch(e){}
 
+    window.addEventListener('aegis-ia', function(ev){
+      var el=document.getElementById('ag-ner');
+      if(!el) return;
+      var d=ev.detail||{}, st=d.stato;
+      el.className='ag-ner ag-'+st;
+      if(st==='carico') el.textContent='modello locale ' + (d.extra||'') + '…';
+      else if(st==='pronto') el.textContent='modello locale attivo';
+      else el.textContent='';
+      el.title = st==='pronto' ? 'Il modello gira sul tuo dispositivo: nessun dato esce'
+        : st==='carico' ? 'Scaricamento del modello, una volta sola'
+        : (d.extra ? 'Modello non disponibile: '+d.extra : '');
+      if(st==='pronto'){
+        var i=document.getElementById('user-input');
+        if(i && i.value) aggiornaNer(i.value);
+      }
+    });
+
     window.addEventListener('aegis-ner', function(ev){
       var el=document.getElementById('ag-ner');
       if(!el) return;
       var st=ev.detail;
       el.className='ag-ner ag-'+st;
       el.textContent = st==='carico' ? 'analisi avanzata in preparazione…' : (st==='pronto' ? 'analisi avanzata attiva' : '');
+      if(st==='spento') el.textContent='';
       el.title = st==='pronto' ? 'Riconoscimento avanzato attivo'
         : st==='carico' ? 'Riconoscimento avanzato in preparazione'
         : 'Riconoscimento avanzato non disponibile: restano attive le regole';
@@ -6856,6 +7100,79 @@ if (recognition) {
         disegna();
         var i=document.getElementById('user-input');
         if(i) anteprima(i.value);
+      });
+    }
+
+    /* Pulsante del modello locale. Un utente non apre mai una console: se una
+       funzione richiede il terminale, quella funzione non esiste. */
+    var bIa = document.getElementById('ag-ia');
+    var invito = document.getElementById('ag-invito');
+    var desc = document.getElementById('ag-invito-desc');
+    function testoIa(){
+      if(!window.AEGIS_IA) return '';
+      var st = window.AEGIS_IA.stato;
+      if(st === 'carico')  return 'Scaricamento…';
+      if(st === 'pronto')  return 'Spegni';
+      if(st === 'fallito') return 'Non disponibile';
+      return 'Analisi profonda';
+    }
+    var DESCR = {
+      spento:  'Le regole riconoscono i dati con una forma verificabile. L\u0027estensione '+
+               'Qwen aggiunge un modello che trova anche i nomi non presenti negli elenchi. '+
+               'Si scarica una volta (circa 400 MB) e resta sul tuo dispositivo: nessun dato '+
+               'esce dal browser.',
+      carico:  'Scaricamento in corso. Avviene una volta sola: alla prossima visita '+
+               'l\u0027estensione sar\u00e0 gi\u00e0 pronta. Puoi continuare a scrivere, le '+
+               'regole stanno gi\u00e0 proteggendo il testo.',
+      pronto:  'Estensione attiva. Oltre alle regole, un modello sul tuo dispositivo '+
+               'riconosce i nomi che gli elenchi non contengono. Nessun dato esce dal '+
+               'browser. Puoi spegnerla per tornare alle sole regole.',
+      fallito: 'Il tuo browser non supporta l\u0027estensione. Restano attive le regole '+
+               'e un riconoscimento leggero dei nomi, che non richiede scaricamenti.'
+    };
+    function aggiornaIa(extra){
+      if(!bIa || !window.AEGIS_IA) return;
+      var st = window.AEGIS_IA.stato;
+      bIa.textContent = (st === 'carico' && extra) ? extra : testoIa();
+      bIa.className = 'ag-ia ag-' + st;
+      bIa.disabled = (st === 'carico');
+      if(desc) desc.textContent = DESCR[st] || DESCR.spento;
+      if(invito) invito.className = 'ag-invito ag-' + st;
+    }
+    if(bIa){
+      aggiornaIa();
+      bIa.addEventListener('click', function(e){
+        e.stopPropagation();
+        if(!window.AEGIS_IA) return;
+        // Da attiva: si spegne. Serve per confronto e per chi preferisce
+        // il comportamento deterministico delle sole regole.
+        if(window.AEGIS_IA.stato === 'pronto'){
+          window.AEGIS_IA.disabilita();
+          location.reload();
+          return;
+        }
+        if(window.AEGIS_IA.stato === 'fallito'){ window.AEGIS_IA.disabilita(); aggiornaIa(); return; }
+        var ok = confirm(
+          'Scaricare il modello di analisi profonda?\n\n' +
+          '\u2022 circa 400 MB, una volta sola\n' +
+          '\u2022 resta sul tuo dispositivo, non serve installare nulla\n' +
+          '\u2022 riconosce nomi che gli elenchi non contengono\n' +
+          '\u2022 nessun dato esce dal browser\n\n' +
+          'Su connessione lenta pu\u00f2 richiedere qualche minuto.');
+        if(!ok) return;
+        window.AEGIS_IA.abilita();
+        window.AEGIS_IA.carica();
+        aggiornaIa();
+      });
+      window.addEventListener('aegis-ia', function(ev){
+        var d = ev.detail || {};
+        aggiornaIa(d.extra);
+        // Ripiego: se il modello non parte, il NER torna utile — imperfetto,
+        // ma meglio delle sole regole su un nome sconosciuto.
+        if(d.stato === 'fallito' && window.AEGIS_NER && !window.AEGIS_NER.attivo){
+          window.AEGIS_NER.abilita();
+          window.AEGIS_NER.carica();
+        }
       });
     }
 
@@ -6911,6 +7228,7 @@ if (recognition) {
         },100);
       });
       input.addEventListener('focus',function(){
+        if(window.AEGIS_IA) window.AEGIS_IA.carica();
         if(window.AEGIS_NER) window.AEGIS_NER.carica();
       },{once:true});
     }
@@ -6934,6 +7252,11 @@ if (recognition) {
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',avvia);
   else avvia();
 })();
+
+
+
+
+
 
 
 </script>
