@@ -2048,8 +2048,9 @@ body {
             transformTypingIntoMessage(loadingIndicator, benvenutoAegis(langCode), true, false);
             loadingIndicator = null;
         }
-        }
-        if (loadingIndicator && loadingIndicator.isConnected) { transformTypingIntoMessage(loadingIndicator, '...', true, false); loadingIndicator = null; }
+        // Ripiego: se per qualsiasi motivo l'indicatore fosse ancora li',
+        // mostra il benvenuto e non un '...' che sembra un errore.
+        if (loadingIndicator && loadingIndicator.isConnected) { transformTypingIntoMessage(loadingIndicator, benvenutoAegis(langCode), true, false); loadingIndicator = null; }
         isInitializing = false;
     }
 
