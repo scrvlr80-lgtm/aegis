@@ -1088,6 +1088,21 @@ body {
     }
 
     const LOCAL_ID = "aegis";
+    // Benvenuto FISSO: non viene dal backend e non passa dal modello, che
+    // lo riscriveva a modo suo ogni volta.
+    const AEGIS_BENVENUTO = {"it": "Questa piattaforma protegge automaticamente i tuoi dati sensibili: nomi, indirizzi, date, telefoni, email e documenti vengono sostituiti da codici sul tuo dispositivo prima che il messaggio mi raggiunga, e ricompaiono al loro posto nella risposta. Io non vedo mai i dati originali e non devo anonimizzare nulla. Per il resto rispondo normalmente, come qualsiasi assistente: dimmi pure di cosa hai bisogno.", "es": "Esta plataforma protege automáticamente tus datos sensibles: nombres, direcciones, fechas, teléfonos, correos y documentos se sustituyen por códigos en tu dispositivo antes de que el mensaje me llegue, y vuelven a su sitio en la respuesta. Yo nunca veo los datos originales y no tengo que anonimizar nada. Por lo demás respondo con normalidad, como cualquier asistente: dime qué necesitas.", "en": "This platform automatically protects your sensitive data: names, addresses, dates, phone numbers, emails and documents are replaced with codes on your device before the message reaches me, and they reappear in place in the reply. I never see the original data and I don't have to anonymise anything. Otherwise I answer normally, like any assistant — tell me what you need."};
+    function benvenutoAegis(lang){
+        var l=String(lang||'it').slice(0,2).toLowerCase();
+        return AEGIS_BENVENUTO[l] || AEGIS_BENVENUTO.en;
+    }
+    // Cancella i benvenuti vecchi rimasti nella memoria del browser.
+    try {
+        for (var _i = localStorage.length - 1; _i >= 0; _i--) {
+            var _k = localStorage.key(_i);
+            if (_k && _k.indexOf('welcome_msg_') === 0) localStorage.removeItem(_k);
+        }
+    } catch (e) {}
+
     function MODELO_ACTUAL(){var s=document.getElementById("ag-model");return (s&&s.value)?s.value:"deepseek-chat";}
     const MODELO_IA = "gpt-5.5";
     function detectBrowserLang() {
@@ -2030,17 +2045,9 @@ body {
             }
         } catch (err) {}
         if (!historyRetrieved) {
-            try {
-                const res = await fetch(`https://chatbot-backend-dev.onrender.com/api/init?local_id=${encodeURIComponent(LOCAL_ID)}&lang=${encodeURIComponent(langCode)}`);
-                const data = await res.json();
-                const serverWelcome = (data && data.welcomeMessage) ? data.welcomeMessage : null;
-                if (serverWelcome) { safeStorage.set(cacheKey, serverWelcome); transformTypingIntoMessage(loadingIndicator, serverWelcome, true, false); loadingIndicator = null; }
-                else if (cachedWelcomeAtStart) { transformTypingIntoMessage(loadingIndicator, cachedWelcomeAtStart, true, false); loadingIndicator = null; }
-                else { transformTypingIntoMessage(loadingIndicator, '...', true, false); loadingIndicator = null; }
-            } catch (e) {
-                if (cachedWelcomeAtStart) { transformTypingIntoMessage(loadingIndicator, cachedWelcomeAtStart, true, false); loadingIndicator = null; }
-                else { transformTypingIntoMessage(loadingIndicator, 'Conectando...', true, false); loadingIndicator = null; }
-            }
+            transformTypingIntoMessage(loadingIndicator, benvenutoAegis(langCode), true, false);
+            loadingIndicator = null;
+        }
         }
         if (loadingIndicator && loadingIndicator.isConnected) { transformTypingIntoMessage(loadingIndicator, '...', true, false); loadingIndicator = null; }
         isInitializing = false;
