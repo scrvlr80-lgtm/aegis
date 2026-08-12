@@ -5593,7 +5593,7 @@ if (recognition) {
       if (!value) return;
       if ((p.exclude.stop || []).some(s => s.toLowerCase() === value.toLowerCase())) return;
       // voci che in minuscolo sono parole comuni (es. "como", "prato")
-      if (p.excludeLower && value === value.toLowerCase() &&
+      if (!PROFONDO && p.excludeLower && value === value.toLowerCase() &&
           p.excludeLower.indexOf(value.toLowerCase()) !== -1) return;
       if ((p.exclude.regex || []).some(r => new RegExp(r).test(value))) return;
 
@@ -5658,7 +5658,7 @@ if (recognition) {
         // ATTENZIONE: solo per le SEQUENZE di piu' parole. Il pattern dei nomi
         // singoli passa di qui ma lavora anche sul minuscolo ("peppino"), e
         // pretendere la maiuscola lo spegnerebbe del tutto.
-        if (!p.gazetteer.single) {
+        if (!p.gazetteer.single && !PROFONDO) {
           const formaNome = words.every(w => /^[A-Z\u00C0-\u00DE][^A-Z\u00C0-\u00DE]*$/.test(w));
           if (!formaNome) return;
         }
@@ -5732,7 +5732,7 @@ if (recognition) {
         // "Rosa") non basta a fare una persona, nemmeno con la maiuscola: a
         // inizio frase ce l'hanno tutte. In coppia ("Rosa Bianchi") o dopo
         // un'etichetta la prendono gli altri pattern.
-        if (GSET.ambig.has(lw)) return;
+        if (!PROFONDO && GSET.ambig.has(lw)) return;
         if (GSET.not.has(lw) || GSET.notFold.has(lw.normalize('NFD').replace(/[\u0300-\u036f]/g,''))) return;
         push({ 0: tk.w, index: tk.s }, 0);
       });
@@ -5751,7 +5751,7 @@ if (recognition) {
           // Un nome che e' anche parola comune ("marco", "rossi", "rosa"),
           // scritto in minuscolo e da solo, NON si maschera: senza contesto e'
           // la parola. Con la maiuscola o in coppia lo prendono altri pattern.
-          if (GSET.ambig.has(lw)) return;
+          if (!PROFONDO && GSET.ambig.has(lw)) return;
           if (GSET.not.has(lw) || GSET.notFold.has(lw.normalize('NFD').replace(/[\u0300-\u036f]/g,''))) return;
           push({ 0: tk.w, index: tk.s }, 0);
         });
@@ -6008,8 +6008,17 @@ if (recognition) {
   }
 
   /* ---------------- API: protect ------------------------------------ */
+  // Modalita' PROFONDA. Nella passata normale i nomi che sono anche parole
+  // comuni ("rosa", "franco", "piccone", "marco") NON si mascherano da soli in
+  // minuscolo, altrimenti si distrugge il testo. In profonda si mascherano
+  // comunque: serve a chi preferisce coprire troppo che lasciare scoperto.
+  // Vale solo per la singola scansione richiesta, non cambia il comportamento
+  // di default.
+  let PROFONDO = false;
+
   function protect(rawText, opts) {
     opts = opts || {};
+    PROFONDO = !!opts.profondo;
     const level = KB.levels[opts.level || 'standard'];
     const disabled = new Set(opts.disabledPatterns || []);
     const excluded = new Set((opts.excludedValues || []).map(v => v.toLowerCase()));
@@ -6210,335 +6219,15 @@ if (recognition) {
 })(typeof window !== 'undefined' ? window : globalThis);
 
 </script>
-<script>
+<!-- I due modelli locali (NER distilbert e Qwen2.5-0.5B) sono stati RIMOSSI.
+     Provati sul campo: il NER dava risultati incoerenti sullo stesso testo,
+     Qwen rispondeva con sillabe attaccate ('of an algorithm of an algorithm')
+     e i modelli piu' grandi non si caricano nel browser. Costavano 400 MB di
+     scaricamento e 3 secondi a messaggio per peggiorare il risultato.
+     Il loro compito - i nomi che le regole non conoscono - lo fa ora il
+     gazetteer da 195.000 voci, in zero millisecondi e senza scaricare nulla. -->
 
 
-/* =============================================================================
-   AEGIS — secondo strato: riconoscimento dei nomi propri sconosciuti
-   Le regole restano il fondamento (checksum, struttura): questo modello guarda
-   SOLO le parole che le regole non hanno rivendicato, e solo per i nomi di
-   persona. Se non si carica, Aegis continua a funzionare com'e': questo file
-   non deve mai bloccare né rallentare nulla.
-   ============================================================================= */
-(function () {
-  'use strict';
-
-  var MODELLO = 'Xenova/distilbert-base-multilingual-cased-ner-hrl';
-  var pipe = null;          // pipeline pronta
-  var avviato = false;
-  var stato = 'spento';     // spento | carico | pronto | fallito
-
-  function segnala(s) {
-    stato = s;
-    try { window.dispatchEvent(new CustomEvent('aegis-ner', { detail: s })); } catch (e) {}
-  }
-
-  /* INTERRUTTORE: il NER e' SPENTO di default.
-     Su testo informale produceva risultati incoerenti (la stessa parola
-     mascherata o no a seconda di cosa la seguiva) e mascherava da solo invece
-     di proporre. Resta nel file come opzione: per riaccenderlo, da console
-     scrivere  AEGIS_NER.abilita()  e ricaricare la pagina, oppure mettere
-     ATTIVO a true qui sotto. */
-  var ATTIVO = false;
-  try { if (localStorage.getItem('aegis_ner_attivo') === '1') ATTIVO = true; } catch (e) {}
-
-  function carica() {
-    if (!ATTIVO) { segnala('spento'); return; }
-    if (avviato) return;
-    avviato = true;
-    segnala('carico');
-
-    // Su una pagina web il caricamento da CDN e' consentito (a differenza di
-    // un'estensione, dove le regole di Chrome vietano il codice remoto).
-    var s = document.createElement('script');
-    s.type = 'module';
-    s.textContent =
-      "import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.2';\n" +
-      "env.allowLocalModels = false;\n" +
-      "env.backends.onnx.wasm.numThreads = 1;\n" +
-      "pipeline('token-classification', '" + MODELLO + "', { dtype: 'q8' })\n" +
-      "  .then(p => { window.__AEGIS_PIPE__ = p; })\n" +
-      "  .catch(e => { window.__AEGIS_PIPE_ERR__ = e; });";
-    s.onerror = function () { segnala('fallito'); };
-    document.head.appendChild(s);
-
-    var giri = 0;
-    var t = setInterval(function () {
-      giri++;
-      if (window.__AEGIS_PIPE__) { clearInterval(t); pipe = window.__AEGIS_PIPE__; segnala('pronto'); }
-      else if (window.__AEGIS_PIPE_ERR__ || giri > 900) { clearInterval(t); segnala('fallito'); }
-    }, 200);
-  }
-
-  /* Il modello e' "cased": si regge sulle MAIUSCOLE per riconoscere i nomi
-     propri. Su testo tutto minuscolo e' cieco per costruzione. Qui si mette
-     l'iniziale maiuscola a ogni parola prima di passarglielo; le posizioni
-     restano identiche perche' si cambia solo il carattere, non la lunghezza. */
-  /* Filtro sulle entita' del modello. Ora che il testo non viene alterato,
-     la confidenza torna a significare qualcosa: una sola soglia. */
-  function filtraNer(entities) {
-    var SOGLIA = 0.60;
-    return (entities || []).filter(function (e) {
-      if (!e || e.entity === 'O') return false;
-      if (typeof e.score !== 'number') return true;   // se manca, non scartare
-      return e.score >= SOGLIA;
-    });
-  }
-
-  /* Ricostruisce i nomi dai FRAMMENTI restituiti dal modello e poi li CERCA
-     nel testo, invece di fidarsi delle posizioni start/end.
-     Motivo: con questo modello quelle posizioni non corrispondono al testo e
-     producevano tagli sballati come "i[[NER_01]] reale" o "[[NER_01]]nggo".
-     Il testo del frammento invece e' sempre corretto. */
-  function pezzo(r) {
-    var w = String(r.word || '');
-    if (w.indexOf('##') === 0) return { testo: w.slice(2), attaccato: true };
-    return { testo: w, attaccato: false };
-  }
-
-  async function persone(testo) {
-    if (!pipe || !testo || testo.length < 2) return [];
-    try {
-      // NIENTE pre-capitalizzazione: capitalizzare le parole "sospette" e poi
-      // fidarsi della conferma del modello e' un ragionamento circolare —
-      // suggerivamo noi la risposta e prendevamo per buona l'eco. Il modello
-      // vede il testo come l'utente l'ha scritto.
-      var grezze = await pipe(testo);
-      var out = filtraNer(grezze);
-
-      // 1) raggruppo i frammenti ricostruendo il TESTO del nome
-      var nomi = [], cur = null;
-      out.forEach(function (r) {
-        var tipo = String(r.entity || '').replace(/^[BI]-/, '');
-        var apre = String(r.entity || '').indexOf('B-') === 0;
-        if (tipo !== 'PER') { if (cur) { nomi.push(cur); cur = null; } return; }
-        var p = pezzo(r);
-        var sc = (typeof r.score === 'number') ? r.score : 1;
-        if (apre || !cur) {
-          if (cur) nomi.push(cur);
-          cur = { testo: p.testo, score: sc };
-        } else {
-          cur.testo += (p.attaccato ? '' : ' ') + p.testo;
-          cur.score = Math.min(cur.score, sc);
-        }
-      });
-      if (cur) nomi.push(cur);
-
-      // 2) cerco ogni nome nel testo VERO; se non lo trovo, lo scarto
-      var trovati = [], usati = [];
-      nomi.forEach(function (n) {
-        var v = String(n.testo || '').trim().replace(/\s+/g, ' ');
-        if (v.length < 2 || v.length > 60) return;
-        if (v.split(' ').length > 4) return;
-        var basso = testo.toLowerCase(), ago = v.toLowerCase();
-        var i = basso.indexOf(ago);
-        while (i !== -1) {
-          var libero = usati.every(function (u) { return i >= u[1] || (i + v.length) <= u[0]; });
-          if (libero) {
-            usati.push([i, i + v.length]);
-            trovati.push({ valore: testo.slice(i, i + v.length), inizio: i, fine: i + v.length, score: n.score });
-            return;
-          }
-          i = basso.indexOf(ago, i + 1);
-        }
-      });
-      return trovati;
-    } catch (e) {
-      return [];
-    }
-  }
-
-  window.AEGIS_NER = {
-    abilita: function () { try { localStorage.setItem('aegis_ner_attivo', '1'); } catch (e) {} ATTIVO = true; },
-    disabilita: function () { try { localStorage.removeItem('aegis_ner_attivo'); } catch (e) {} ATTIVO = false; },
-    get attivo() { return ATTIVO; },
-    carica: carica,
-    persone: persone,
-    get stato() { return stato; },
-    get pronto() { return stato === 'pronto'; }
-  };
-})();
-
-
-
-
-
-
-
-</script>
-<script>
-/* =============================================================================
-   AEGIS — modello generativo locale (terzo strato, opzionale)
-
-   Cosa fa: legge il testo e ELENCA i nomi di persona che vi compaiono.
-   A differenza del NER non restituisce posizioni ma parole: ogni parola viene
-   poi CERCATA nel testo, e se non c'e' viene scartata. Cosi' un'invenzione del
-   modello non puo' finire nel documento.
-
-   Gira nel browser con WebGPU. Nessun dato lascia il dispositivo.
-   Se WebGPU manca o il caricamento fallisce, Aegis continua con le regole.
-   ============================================================================= */
-(function () {
-  'use strict';
-
-  // Modello generativo piccolo, istruito, multilingue, in ONNX per il browser.
-  var MODELLO = 'onnx-community/Qwen2.5-0.5B-Instruct';
-  var DTYPE = 'q4f16';          // ~400 MB: il compromesso che regge in un browser
-
-  var gen = null;
-  var avviato = false;
-  var stato = 'spento';         // spento | carico | pronto | fallito
-  var ATTIVO = false;
-  try { if (localStorage.getItem('aegis_ia_attiva') === '1') ATTIVO = true; } catch (e) {}
-
-  function segnala(s, extra) {
-    stato = s;
-    try {
-      window.dispatchEvent(new CustomEvent('aegis-ia', { detail: { stato: s, extra: extra || '' } }));
-    } catch (e) {}
-  }
-
-  function carica() {
-    if (!ATTIVO || avviato) return;
-    avviato = true;
-    segnala('carico', 'avvio');
-
-    var s = document.createElement('script');
-    s.type = 'module';
-    s.textContent =
-      "import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.5';\n" +
-      "env.allowLocalModels = false;\n" +
-      "(async () => {\n" +
-      "  try {\n" +
-      "    if (!navigator.gpu) { window.__AEGIS_IA_ERR__ = 'WebGPU non disponibile'; return; }\n" +
-      "    const p = await pipeline('text-generation', '" + MODELLO + "', {\n" +
-      "      dtype: '" + DTYPE + "', device: 'webgpu',\n" +
-      "      progress_callback: (d) => { window.__AEGIS_IA_PROG__ = d; }\n" +
-      "    });\n" +
-      "    window.__AEGIS_IA__ = p;\n" +
-      "  } catch (e) { window.__AEGIS_IA_ERR__ = String(e && e.message || e); }\n" +
-      "})();";
-    s.onerror = function () { segnala('fallito', 'script'); };
-    document.head.appendChild(s);
-
-    var giri = 0;
-    var t = setInterval(function () {
-      giri++;
-      if (window.__AEGIS_IA__) {
-        clearInterval(t);
-        gen = window.__AEGIS_IA__;
-        segnala('pronto');
-      } else if (window.__AEGIS_IA_ERR__) {
-        clearInterval(t);
-        segnala('fallito', window.__AEGIS_IA_ERR__);
-      } else if (giri > 1800) {                 // 6 minuti: primo scaricamento
-        clearInterval(t);
-        segnala('fallito', 'tempo scaduto');
-      } else {
-        var p = window.__AEGIS_IA_PROG__;
-        if (p && p.status === 'progress' && typeof p.progress === 'number') {
-          segnala('carico', Math.round(p.progress) + '%');
-        }
-      }
-    }, 200);
-  }
-
-  /* Istruzione al modello: deve rispondere SOLO con l'elenco, una riga per
-     nome. Qualsiasi altra cosa scriva viene ignorata dal filtro successivo. */
-  function istruzione(testo) {
-    return [
-      { role: 'system', content:
-        'Sei un estrattore di nomi di persona. Ricevi un testo e rispondi SOLO con ' +
-        'i nomi propri di persona che vi compaiono, uno per riga, copiati ESATTAMENTE ' +
-        'come sono scritti nel testo. Nessuna spiegazione, nessuna numerazione, nessun ' +
-        'altro tipo di entita\u0027 (non aziende, non luoghi, non prodotti, non marchi). ' +
-        'Se non ci sono nomi di persona, rispondi con la sola parola NESSUNO.' },
-      { role: 'user', content: testo }
-    ];
-  }
-
-  /* Ritorna [{valore, inizio, fine}] delle persone trovate.
-     Ogni nome proposto dal modello viene VERIFICATO nel testo: se non c'e'
-     alla lettera, si scarta. Un modello generativo puo' inventare, e questa
-     e' la rete che impedisce alle invenzioni di arrivare al documento. */
-  async function persone(testo) {
-    if (!gen || !testo || testo.length < 2) return [];
-    try {
-      var out = await gen(istruzione(testo), {
-        max_new_tokens: 96,
-        do_sample: false,        // deterministico: stesso testo, stessa risposta
-        temperature: 0,
-        return_full_text: false
-      });
-
-      var risposta = '';
-      if (Array.isArray(out) && out[0]) {
-        var g = out[0].generated_text;
-        risposta = Array.isArray(g) ? String(g[g.length - 1].content || '') : String(g || '');
-      }
-      if (!risposta || /^\s*NESSUNO\s*$/i.test(risposta)) return [];
-
-      var righe = risposta.split(/[\n;,]+/)
-        .map(function (r) { return r.replace(/^[\s\-*\u2022\d.)\]]+/, '').trim(); })
-        .filter(Boolean);
-
-      var trovati = [], usati = [];
-      righe.forEach(function (v) {
-        if (v.length < 2 || v.length > 60) return;
-        if (v.split(/\s+/).length > 4) return;
-        if (/^(nessuno|none|ninguno|nomi|names|persona|persone)$/i.test(v)) return;
-        var basso = testo.toLowerCase(), ago = v.toLowerCase();
-        var i = basso.indexOf(ago);
-        while (i !== -1) {
-          // confine di parola: niente tagli dentro un'altra parola
-          var pre = i > 0 ? testo[i - 1] : ' ';
-          var post = (i + v.length) < testo.length ? testo[i + v.length] : ' ';
-          var confine = !/[\p{L}\p{N}]/u.test(pre) && !/[\p{L}\p{N}]/u.test(post);
-          var libero = usati.every(function (u) { return i >= u[1] || (i + v.length) <= u[0]; });
-          if (confine && libero) {
-            usati.push([i, i + v.length]);
-            trovati.push({ valore: testo.slice(i, i + v.length), inizio: i, fine: i + v.length });
-            return;
-          }
-          i = basso.indexOf(ago, i + 1);
-        }
-      });
-      return trovati;
-    } catch (e) {
-      return [];
-    }
-  }
-
-  window.AEGIS_IA = {
-    abilita: function () {
-      try { localStorage.setItem('aegis_ia_attiva', '1'); } catch (e) {}
-      ATTIVO = true;
-    },
-    disabilita: function () {
-      try { localStorage.removeItem('aegis_ia_attiva'); } catch (e) {}
-      ATTIVO = false;
-    },
-    // Spegnimento SENZA ricaricare la pagina. Prima l'unico modo per fermare il
-    // modello era location.reload(), che cancellava il testo che l'utente aveva
-    // scritto: se stavi incollando un documento lungo, lo perdevi. Il modello
-    // resta in memoria (scaricarlo non si puo' disfare) ma smette di essere
-    // interrogato: 'spento' basta perche' nessuno lo consulti piu'.
-    spegni: function () {
-      try { localStorage.removeItem('aegis_ia_attiva'); } catch (e) {}
-      ATTIVO = false;
-      avviato = false;
-      gen = null;
-      segnala('spento');
-    },
-    get attiva() { return ATTIVO; },
-    get stato() { return stato; },
-    get pronto() { return stato === 'pronto'; },
-    carica: carica,
-    persone: persone
-  };
-})();
-
-</script>
 <script>
 
 
@@ -6558,6 +6247,16 @@ if (recognition) {
      Standard prende i dati verificabili e quelli con contesto chiaro, e
      lascia stare il resto. */
   var LIVELLO='standard';
+  // ANALISI PROFONDA: non e' piu' un modello da scaricare, e' una seconda
+  // passata delle stesse regole con i freni tolti. Copre anche i nomi scritti
+  // in minuscolo che coincidono con parole comuni ("rosa", "franco", "piccone")
+  // e le righe tutte maiuscole. Copre di piu' e sbaglia di piu': per questo
+  // e' una scelta dell'utente e non il comportamento di partenza.
+  var PROFONDA=false;
+  try{ if(localStorage.getItem('aegis_profonda')==='1') PROFONDA=true; }catch(e){}
+  function opzioni(){
+    return PROFONDA ? {level:'paranoid', profondo:true} : {level:LIVELLO};
+  }
   var vault=new Map(), colorDi=new Map(), contatore={};
   var righe=[], autoScroll=true;
 
@@ -6699,7 +6398,7 @@ if (recognition) {
     });
 
     var r;
-    try{ r=AEGIS.protect(testoPulito,{level:LIVELLO}); }catch(e){ return {testo:testo,voci:[]}; }
+    try{ r=AEGIS.protect(testoPulito,opzioni()); }catch(e){ return {testo:testo,voci:[]}; }
     r = fondiNer(testoPulito, r);
     var out=r.text, voci=[], tmp={}, usati={}, assegnati=0;
     r.vault.forEach(function(v){
@@ -6797,7 +6496,7 @@ if (recognition) {
       // I codici gia' inseriti vanno tolti prima del controllo, altrimenti
       // il motore li riconosce come dati e il controllo non finisce mai.
       var pulito = String(t).replace(/\[\[[A-Z]+_\d+[A-Z]?\]\]/g,' ');
-      var r=AEGIS.protect(pulito,{level:LIVELLO});
+      var r=AEGIS.protect(pulito,opzioni());
       return r.vault.length > 0;
     }catch(e){ return false; }
   }
@@ -6851,7 +6550,7 @@ if (recognition) {
   function trovaSegmenti(testo){
     var segs=[];
     try{
-      var r=AEGIS.protect(String(testo),{level:LIVELLO});
+      var r=AEGIS.protect(String(testo),opzioni());
       var hay=fold2(testo);
       r.vault.forEach(function(v){
         var val=String(v.value);
@@ -7174,75 +6873,41 @@ if (recognition) {
 
     /* Pulsante del modello locale. Un utente non apre mai una console: se una
        funzione richiede il terminale, quella funzione non esiste. */
+    // ---- PULSANTE ANALISI PROFONDA ----------------------------------------
+    // Non scarica piu' niente: era un modello da 400 MB che rispondeva peggio
+    // delle regole. Ora e' un interruttore sulle stesse regole, con i freni
+    // tolti. Effetto immediato, niente attesa, niente ricaricamento della
+    // pagina (che cancellava il testo gia' scritto).
     var bIa = document.getElementById('ag-ia');
-    var invito = document.getElementById('ag-invito');
-    var desc = document.getElementById('ag-invito-desc');
-    function testoIa(){
-      if(!window.AEGIS_IA) return '';
-      var st = window.AEGIS_IA.stato;
-      if(st === 'carico')  return 'Scaricamento…';
-      if(st === 'pronto')  return 'Spegni';
-      if(st === 'fallito') return 'Non disponibile';
-      return 'Analisi profonda';
-    }
-    var DESCR = {
-      spento:  'Le regole riconoscono i dati con una forma verificabile. L\u0027estensione '+
-               'Qwen aggiunge un modello che trova anche i nomi non presenti negli elenchi. '+
-               'Si scarica una volta (circa 400 MB) e resta sul tuo dispositivo: nessun dato '+
-               'esce dal browser.',
-      carico:  'Scaricamento in corso. Avviene una volta sola: alla prossima visita '+
-               'l\u0027estensione sar\u00e0 gi\u00e0 pronta. Puoi continuare a scrivere, le '+
-               'regole stanno gi\u00e0 proteggendo il testo.',
-      pronto:  'Estensione attiva. Oltre alle regole, un modello sul tuo dispositivo '+
-               'riconosce i nomi che gli elenchi non contengono. Nessun dato esce dal '+
-               'browser. Puoi spegnerla per tornare alle sole regole.',
-      fallito: 'Il tuo browser non supporta l\u0027estensione. Restano attive le regole '+
-               'e un riconoscimento leggero dei nomi, che non richiede scaricamenti.'
-    };
-    function aggiornaIa(extra){
-      if(!bIa || !window.AEGIS_IA) return;
-      var st = window.AEGIS_IA.stato;
-      bIa.textContent = (st === 'carico' && extra) ? extra : testoIa();
-      bIa.className = 'ag-ia ag-' + st;
-      bIa.disabled = (st === 'carico');
-      if(desc) desc.textContent = DESCR[st] || DESCR.spento;
-      if(invito) invito.className = 'ag-invito ag-' + st;
+    function aggiornaIa(){
+      if(!bIa) return;
+      bIa.textContent = PROFONDA ? 'Profonda: ON' : 'Analisi profonda';
+      bIa.className = 'ag-ia' + (PROFONDA ? ' ag-pronto' : '');
+      bIa.disabled = false;
+      bIa.title = PROFONDA
+        ? 'Copre anche i nomi in minuscolo che sono parole comuni e le righe tutte maiuscole. Copre di piu\u0027, sbaglia di piu\u0027. Premi per tornare alla passata normale.'
+        : 'Seconda passata delle stesse regole, senza freni: prende anche i nomi in minuscolo che coincidono con parole comuni (rosa, franco, piccone). Nessuno scaricamento, effetto immediato.';
+      var et = document.getElementById('ag-ner');
+      if(et){
+        et.className = 'ag-ner' + (PROFONDA ? ' ag-pronto' : '');
+        et.textContent = PROFONDA ? 'analisi profonda attiva' : '';
+      }
     }
     if(bIa){
       aggiornaIa();
       bIa.addEventListener('click', function(e){
         e.stopPropagation();
-        if(!window.AEGIS_IA) return;
-        // Da attiva: si spegne. Serve per confronto e per chi preferisce
-        // il comportamento deterministico delle sole regole.
-        if(window.AEGIS_IA.stato === 'pronto'){
-          // MAI location.reload() qui: cancellerebbe il testo scritto.
-          window.AEGIS_IA.spegni();
-          aggiornaIa();
-          return;
-        }
-        if(window.AEGIS_IA.stato === 'fallito'){ window.AEGIS_IA.disabilita(); aggiornaIa(); return; }
-        var ok = confirm(
-          'Scaricare il modello di analisi profonda?\n\n' +
-          '\u2022 circa 400 MB, una volta sola\n' +
-          '\u2022 resta sul tuo dispositivo, non serve installare nulla\n' +
-          '\u2022 riconosce nomi che gli elenchi non contengono\n' +
-          '\u2022 nessun dato esce dal browser\n\n' +
-          'Su connessione lenta pu\u00f2 richiedere qualche minuto.');
-        if(!ok) return;
-        window.AEGIS_IA.abilita();
-        window.AEGIS_IA.carica();
+        PROFONDA = !PROFONDA;
+        try{
+          if(PROFONDA) localStorage.setItem('aegis_profonda','1');
+          else localStorage.removeItem('aegis_profonda');
+        }catch(err){}
         aggiornaIa();
-      });
-      window.addEventListener('aegis-ia', function(ev){
-        var d = ev.detail || {};
-        aggiornaIa(d.extra);
-        // Ripiego: se il modello non parte, il NER torna utile — imperfetto,
-        // ma meglio delle sole regole su un nome sconosciuto.
-        if(d.stato === 'fallito' && window.AEGIS_NER && !window.AEGIS_NER.attivo){
-          window.AEGIS_NER.abilita();
-          window.AEGIS_NER.carica();
-        }
+        // ridisegno subito: lo specchio deve rispecchiare la scelta all'istante
+        disegna();
+        var inp = document.getElementById('user-input');
+        if(inp) anteprima(inp.value);
+        if(window.aegisRiapplica) window.aegisRiapplica();
       });
     }
 
