@@ -4931,7 +4931,15 @@ if (recognition) {
       'nombre y apellidos', 'nombre completo', 'nombre:', 'apellidos:',
       'me llamo', 'mi nombre es',
       'full name', 'first name', 'last name', 'surname', 'name:',
-      'my name is', 'i am called'
+      'my name is', 'i am called',
+      // Titoli: dopo "don", "signor", "dottor" viene un nome per definizione,
+      // anche se e' minuscolo, inventato o coincide con una parola comune
+      // ("don piccone"). Lo spazio finale e' obbligatorio: senza, l'ancora
+      // "don" aggancerebbe dentro "abbandono" e taglierebbe a meta' la parola.
+      'signor ', 'signora ', 'signorina ', 'dottor ', 'dottoressa ',
+      'don ', 'sig. ', 'sig.ra ', 'dott. ', 'dott.ssa ', 'avv. ', 'ing. ',
+      'prof. ', 'egregio ', 'gentile ', 'caro ', 'cara ',
+      'senor ', 'senora ', 'doctor ', 'doctora ', 'mr. ', 'mrs. ', 'ms. ', 'dr. '
     ], right: [], window: 46 },
     exclude: { regex: ['^(?:si|no|yes|non|not|null|none|nessuno|ninguno|test|prova|me|te|se|ci|vi|lo|la|li|le|gli|mi|ti|io|tu|lui|lei|noi|voi|loro|yo|el|ella|nosotros|vosotros|ellos|usted|ustedes|i|you|he|she|it|we|they|him|her|us|them|my|your|his|its|our|their)$'], stop: LABELWORD },
     hint: 'etichetta esplicita: il caso del testo non conta',
@@ -5640,9 +5648,20 @@ if (recognition) {
         // ("Mario Rossi"), non in TUTTO MAIUSCOLO e senza un'etichetta che lo
         // introduca: quel caso lo prende PERSON_ALLCAPS_LABEL, che l'ancora
         // ce l'ha per costruzione.
-        const tuttiAmbigui = words.every(w => GSET.ambig.has(w.toLowerCase()));
-        const formaNome = words.every(w => /^[A-Z\u00C0-\u00DE][^A-Z\u00C0-\u00DE]*$/.test(w));
-        if (tuttiAmbigui && !formaNome) return;
+        // Questo pattern non ha ancore: si regge solo sugli elenchi. Con 150.000
+        // cognomi dentro, quasi ogni parola risulta un cognome ("Dio" e "Porco"
+        // sono cognomi italiani veri), e una riga TUTTA MAIUSCOLA diventava
+        // quattro persone. Senza un'etichetta che lo introduca, un nome si
+        // accetta SOLO nella forma "Mario Rossi": iniziale maiuscola e resto
+        // minuscolo. Il tutto-maiuscolo dei moduli ("NOME: MARIO ROSSI") lo
+        // prende PERSON_ALLCAPS_LABEL, che l'ancora ce l'ha per costruzione.
+        // ATTENZIONE: solo per le SEQUENZE di piu' parole. Il pattern dei nomi
+        // singoli passa di qui ma lavora anche sul minuscolo ("peppino"), e
+        // pretendere la maiuscola lo spegnerebbe del tutto.
+        if (!p.gazetteer.single) {
+          const formaNome = words.every(w => /^[A-Z\u00C0-\u00DE][^A-Z\u00C0-\u00DE]*$/.test(w));
+          if (!formaNome) return;
+        }
         conf += KB.modifiers.inGazetteer * Math.min(1, known.length / words.length);
       }
       if (p.category === 'PERSONA') {
@@ -5709,6 +5728,11 @@ if (recognition) {
       cache.toks.forEach(tk => {
         const lw = tk.w.toLowerCase();
         if (!GSET.given.has(lw) && !GSET.family.has(lw)) return;
+        // Una parola sola che e' anche parola comune ("Paziente", "Referto",
+        // "Rosa") non basta a fare una persona, nemmeno con la maiuscola: a
+        // inizio frase ce l'hanno tutte. In coppia ("Rosa Bianchi") o dopo
+        // un'etichetta la prendono gli altri pattern.
+        if (GSET.ambig.has(lw)) return;
         if (GSET.not.has(lw) || GSET.notFold.has(lw.normalize('NFD').replace(/[\u0300-\u036f]/g,''))) return;
         push({ 0: tk.w, index: tk.s }, 0);
       });
@@ -6494,6 +6518,18 @@ if (recognition) {
       try { localStorage.removeItem('aegis_ia_attiva'); } catch (e) {}
       ATTIVO = false;
     },
+    // Spegnimento SENZA ricaricare la pagina. Prima l'unico modo per fermare il
+    // modello era location.reload(), che cancellava il testo che l'utente aveva
+    // scritto: se stavi incollando un documento lungo, lo perdevi. Il modello
+    // resta in memoria (scaricarlo non si puo' disfare) ma smette di essere
+    // interrogato: 'spento' basta perche' nessuno lo consulti piu'.
+    spegni: function () {
+      try { localStorage.removeItem('aegis_ia_attiva'); } catch (e) {}
+      ATTIVO = false;
+      avviato = false;
+      gen = null;
+      segnala('spento');
+    },
     get attiva() { return ATTIVO; },
     get stato() { return stato; },
     get pronto() { return stato === 'pronto'; },
@@ -7180,8 +7216,9 @@ if (recognition) {
         // Da attiva: si spegne. Serve per confronto e per chi preferisce
         // il comportamento deterministico delle sole regole.
         if(window.AEGIS_IA.stato === 'pronto'){
-          window.AEGIS_IA.disabilita();
-          location.reload();
+          // MAI location.reload() qui: cancellerebbe il testo scritto.
+          window.AEGIS_IA.spegni();
+          aggiornaIa();
           return;
         }
         if(window.AEGIS_IA.stato === 'fallito'){ window.AEGIS_IA.disabilita(); aggiornaIa(); return; }
