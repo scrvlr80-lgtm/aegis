@@ -4926,7 +4926,8 @@ if (recognition) {
     flags: 'gu', anchorAdjacent: true,
     anchors: { left: [
       'nome e cognome', 'nome completo', 'nome:', 'cognome:', 'nominativo:',
-      'mi chiamo', 'il mio nome e', 'sono il sig', 'sono la sig',
+      'mi chiamo', 'il mio nome e', 'sono il sig.', 'sono la sig.',
+      'sono il signor', 'sono la signora', 'sono il dottor', 'sono la dottoressa',
       'nombre y apellidos', 'nombre completo', 'nombre:', 'apellidos:',
       'me llamo', 'mi nombre es',
       'full name', 'first name', 'last name', 'surname', 'name:',
@@ -5500,7 +5501,19 @@ if (recognition) {
   }
 
   /* ---------------- gazetteer set ----------------------------------- */
-  const GSET = { given: new Set(), family: new Set(), not: new Set() };
+  const GSET = { given: new Set(), family: new Set(), not: new Set(), ambig: new Set(), tech: new Set() };
+  // Prodotti, tecnologie e marchi che negli elenchi anagrafici risultano nomi
+  // o cognomi: senza questo elenco un CV tecnico diventa illeggibile.
+  ('spring boot docker compose kubernetes jenkins maven gradle jira confluence ' +
+   'trello slack teams excel word power point access outlook azure amazon google ' +
+   'apple oracle adobe visual studio code intellij eclipse android windows linux ' +
+   'ubuntu debian redis kafka rabbit mongo postgres mysql python java ruby ' +
+   'rust swift kotlin scala node react angular vue django flask laravel symfony ' +
+   'wordpress shopify magento salesforce hubspot tableau grafana kibana nginx ' +
+   'apache tomcat unity unreal blender figma sketch canva notion asana monday ' +
+   'zoom skype telegram signal discord twitch spotify netflix uber tesla intel ' +
+   'nvidia cisco dell lenovo asus acer samsung huawei xiaomi sony canon epson')
+    .split(' ').forEach(w => GSET.tech.add(w));
   (function () {
     const g = KB.gazetteers;
     // le particelle ("de", "la", "van") non sono nomi: entrerebbero nel
@@ -5519,6 +5532,7 @@ if (recognition) {
 
   // sostituibile a runtime con i dataset ufficiali (ISTAT / INE / Census)
   function loadGazetteer(kind, words) {
+    if (!GSET[kind]) GSET[kind] = new Set();
     words.forEach(w => GSET[kind].add(String(w).toLowerCase()));
   }
 
@@ -5614,6 +5628,21 @@ if (recognition) {
         const words = value.split(/\s+/).filter(w => w.length > 2 && /^[A-Za-z\u00C0-\u024F]/.test(w));
         const known = words.filter(w => GSET.given.has(w.toLowerCase()) || GSET.family.has(w.toLowerCase()));
         if (!known.length) return;
+        // Non si distingue "Mario Rossi" da "Spring Boot" con una regola
+        // strutturale: entrambi sono nome + cognome negli elenchi. Fra i due
+        // errori si sceglie il meno grave: meglio mascherare una tecnologia che
+        // lasciare in chiaro il nome piu' comune d'Italia. I termini tecnici
+        // veri li toglie l'elenco GSET.tech.
+        if (words.every(w => GSET.tech.has(w.toLowerCase()))) return;
+        // Con 150.000 cognomi in elenco, quasi ogni parola risulta un cognome:
+        // "PORCO DIO" sono due cognomi italiani veri. Se TUTTE le parole sono
+        // anche parole comuni, il match si accetta solo in forma di nome
+        // ("Mario Rossi"), non in TUTTO MAIUSCOLO e senza un'etichetta che lo
+        // introduca: quel caso lo prende PERSON_ALLCAPS_LABEL, che l'ancora
+        // ce l'ha per costruzione.
+        const tuttiAmbigui = words.every(w => GSET.ambig.has(w.toLowerCase()));
+        const formaNome = words.every(w => /^[A-Z\u00C0-\u00DE][^A-Z\u00C0-\u00DE]*$/.test(w));
+        if (tuttiAmbigui && !formaNome) return;
         conf += KB.modifiers.inGazetteer * Math.min(1, known.length / words.length);
       }
       if (p.category === 'PERSONA') {
@@ -5695,6 +5724,10 @@ if (recognition) {
           const lw = tk.w.toLowerCase();
           if (tk.w !== lw) return;                       // gia' visto sopra
           if (!GSET.given.has(lw) && !GSET.family.has(lw)) return;
+          // Un nome che e' anche parola comune ("marco", "rossi", "rosa"),
+          // scritto in minuscolo e da solo, NON si maschera: senza contesto e'
+          // la parola. Con la maiuscola o in coppia lo prendono altri pattern.
+          if (GSET.ambig.has(lw)) return;
           if (GSET.not.has(lw) || GSET.notFold.has(lw.normalize('NFD').replace(/[\u0300-\u036f]/g,''))) return;
           push({ 0: tk.w, index: tk.s }, 0);
         });
@@ -7260,5 +7293,10 @@ if (recognition) {
 
 
 </script>
+<!-- Gazetteer esteso: 45.000 nomi e 150.000 cognomi da fonti pubbliche.
+     File a parte perche' pesa 1,6 MB (541 KB compressi dal server): dentro
+     index.html raddoppierebbe il peso della pagina. Va caricato DOPO il motore,
+     si installa da solo. Se manca, Aegis funziona con gli elenchi minimi. -->
+<script src="gazetteer.js"></script>
 </body>
 </html>
