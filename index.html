@@ -3340,6 +3340,14 @@ body {
         } catch (error) {
             conversationHistory.pop();
             if (error.name === 'AbortError') { transformTypingIntoMessage(typingIndicator, '⛔ Generación interrumpida.', false, false); }
+            // Il blocco di sicurezza NON e' un errore di rete: dirlo all'utente
+            // com'e'. Prima mostrava "verifica la connessione" e lo mandava a
+            // cercare un guasto che non esisteva.
+            else if (error && error.message === 'AEGIS_RESIDUI') {
+                transformTypingIntoMessage(typingIndicator,
+                  '🛡️ Non ho inviato il messaggio: contiene dati che non sono riuscito a proteggere del tutto. Non e\u0027 un problema di rete. Prova ad accorciare il testo o ad attivare l\u0027analisi profonda.',
+                  false, false);
+            }
             else { transformTypingIntoMessage(typingIndicator, ((UI_STRINGS[activeLanguageCode] || UI_DEFAULT).errConexion || '⚠️ Error de conexión. Verifica tu conexión y pulsa el icono ↻ sobre tu mensaje para reintentar.'), false, false); }
         } finally {
             currentAbortController = null;
@@ -5819,6 +5827,17 @@ if (recognition) {
         keep.push(m);
         return;
       }
+      // Un candidato puo' scalzare quello gia' accettato SOLO se comincia nello
+      // stesso punto o prima. Senza questo vincolo, una sequenza spazzatura che
+      // inizia piu' avanti ("E FRANCO SONO ZZZ") sostituiva il nome buono
+      // ("ROSA E FRANCO") solo perche' piu' lunga, e il dato restava in chiaro.
+      // Un candidato che comincia PIU' AVANTI puo' scalzare quello gia' accettato
+      // solo se e' di categoria piu' forte. Senza il vincolo di priorita', una
+      // sequenza spazzatura piu' lunga ("E FRANCO SONO ZZZ") scalzava il nome
+      // buono; con un vincolo troppo rigido, invece, un'email veniva scartata
+      // perche' un nome ("wei") cominciava un carattere prima, e l'indirizzo
+      // finiva spezzato a meta'.
+      if (m.start > prev.start && m.priority <= prev.priority) return;
       const better =
         (m.priority > prev.priority) ||
         (m.priority === prev.priority && (m.end - m.start) > (prev.end - prev.start)) ||
@@ -6506,9 +6525,22 @@ if (recognition) {
       if(!m||!m.content) return m;
       var t=String(m.content);
       var giri=0;
-      while(esistonoResidui(t) && giri<3){ t = maschera(t,true).testo; giri++; }
+      // Passate normali. Su un testo lungo con molti dati la convergenza puo'
+      // richiedere piu' di tre giri: prima ci si fermava a tre e si bloccava
+      // l'invio, e l'utente vedeva "errore di connessione" senza capire niente.
+      while(esistonoResidui(t) && giri<6){ t = maschera(t,true).testo; giri++; }
+      // Se resiste ancora qualcosa, si alza il livello invece di arrendersi:
+      // meglio coprire troppo che non far partire il messaggio.
       if(esistonoResidui(t)){
-        console.error('[Aegis] residui dopo 3 passate: invio bloccato');
+        var salvo=PROFONDA;
+        PROFONDA=true;
+        try{
+          var g2=0;
+          while(esistonoResidui(t) && g2<4){ t = maschera(t,true).testo; g2++; }
+        } finally { PROFONDA=salvo; }
+      }
+      if(esistonoResidui(t)){
+        console.error('[Aegis] dati non protetti anche dopo la passata profonda: invio bloccato');
         throw new Error('AEGIS_RESIDUI');
       }
       return { role:m.role, content:t };
