@@ -1197,7 +1197,10 @@ body {
     function autoScroll(el) {
         if (!el) return;
         if (!followBottom) return;            // utente in controllo: non toccare
+        // marcatore: il prossimo evento 'scroll' e' nostro, non dell'utente
+        el.__ag_auto = true;
         el.scrollTop = el.scrollHeight;
+        setTimeout(function () { el.__ag_auto = false; }, 0);
     }
     (function attachScrollControl() {
         const cm = document.getElementById('chat-messages');
@@ -1210,6 +1213,13 @@ body {
         cm.addEventListener('mousedown',  release, { passive: true });
         cm.addEventListener('wheel',      release, { passive: true });
         cm.addEventListener('keydown',    release, { passive: true });
+        // Un clic semplice basta a fermare l'inseguimento: prima serviva
+        // trascinare, e su desktop non era ovvio.
+        cm.addEventListener('click',      release, { passive: true });
+        cm.addEventListener('scroll',     function () {
+          // scorrimento non dovuto all'inseguimento: e' l'utente
+          if (!cm.__ag_auto) followBottom = false;
+        }, { passive: true });
     })();
     // Riattiva il follow e porta in fondo (freccia giù / nuovo turno).
     function resetScrollControl() { followBottom = true; }
@@ -7094,7 +7104,18 @@ if (recognition) {
         void chat.offsetHeight;
         void scena.offsetHeight;
         var m=document.getElementById('chat-messages');
-        if(m){ void m.offsetHeight; m.scrollTop = m.scrollHeight; }
+        if(m){
+          void m.offsetHeight;
+          // NON si forza mai lo scorrimento se l'utente ha preso il controllo.
+          // Questa riga girava a ogni modifica della chat, quindi a ogni
+          // carattere scritto dal modello, e ributtava la vista in fondo dieci
+          // volte al secondo: chi provava a trascinare in su vedeva la pagina
+          // sobbalzare. followBottom diventa false al primo tocco o clic
+          // sull'area dei messaggi e ci resta fino al messaggio successivo.
+          if (typeof followBottom === 'undefined' || followBottom) {
+            m.scrollTop = m.scrollHeight;
+          }
+        }
       }catch(e){}
     }
     requestAnimationFrame(function(){ sveglia(); requestAnimationFrame(sveglia); });
