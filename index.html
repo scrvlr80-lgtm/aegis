@@ -6520,6 +6520,42 @@ if (recognition) {
     }catch(e){ return false; }
   }
 
+  // Copre i residui sostituendo il testo alla lettera. Registra i valori nel
+  // vault come tutti gli altri, cosi' la risposta del modello viene ricostruita
+  // correttamente. Ultima difesa: si usa solo se tutto il resto ha fallito.
+  function copriPerForza(t){
+    var out=String(t);
+    for(var giro=0; giro<3; giro++){
+      var pulito=out.replace(/\[\[[A-Z]+_\d+[A-Z]?\]\]/g,' ');
+      var r;
+      try{ r=AEGIS.protect(pulito,opzioni()); }catch(e){ return out; }
+      if(!r.vault.length) return out;
+      var valori=r.vault.map(function(v){ return {val:String(v.value), tok:v.token}; })
+        .sort(function(a,b){ return b.val.length-a.val.length; });
+      var mosso=false;
+      valori.forEach(function(v){
+        if(!v.val || v.val.length<2) return;
+        if(out.indexOf(v.val)===-1) return;
+        var tipo=v.tok.replace(/[\[\]]/g,'').split('_')[0];
+        var tok=null;
+        vault.forEach(function(val,k){
+          if(!tok && String(val)===v.val) tok=k.split('~')[0];
+        });
+        if(!tok){
+          contatore[tipo]=(contatore[tipo]||0)+1;
+          tok=tipo+'_'+String(contatore[tipo]).padStart(2,'0');
+          vault.set(tok, v.val);
+          colorDi.set(tok, colore(v.tok));
+        }
+        out=out.split(v.val).join('[['+tok+']]');
+        mosso=true;
+      });
+      if(!mosso) return out;
+    }
+    salva();
+    return out;
+  }
+
   window.aegisMaskHistory=function(msgs){
     return msgs.map(function(m){
       if(!m||!m.content) return m;
@@ -6539,8 +6575,17 @@ if (recognition) {
           while(esistonoResidui(t) && g2<4){ t = maschera(t,true).testo; g2++; }
         } finally { PROFONDA=salvo; }
       }
+      // ULTIMA RETE. Puo' capitare che il controllo veda un dato e la
+      // mascheratura non riesca a coprirlo: succede quando due regole si
+      // contendono lo stesso pezzo di testo (es. "Dr. Wei Zhang", dove viene
+      // preso "Dr" e il nome resta fuori). In quel caso il ciclo non finirebbe
+      // mai e l'invio verrebbe bloccato per sempre. Qui i residui si coprono
+      // per sostituzione diretta: brutale, ma nessun dato esce in chiaro.
       if(esistonoResidui(t)){
-        console.error('[Aegis] dati non protetti anche dopo la passata profonda: invio bloccato');
+        t = copriPerForza(t);
+      }
+      if(esistonoResidui(t)){
+        console.error('[Aegis] dati non protetti nemmeno per sostituzione diretta: invio bloccato');
         throw new Error('AEGIS_RESIDUI');
       }
       return { role:m.role, content:t };
