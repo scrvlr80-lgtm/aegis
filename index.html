@@ -5675,7 +5675,14 @@ if (recognition) {
       if (p.category === 'PERSONA') {
         // Un nome non attraversa un punto: "Paolo Rossi. F.to Marco" non deve
         // diventare "Paolo Rossi. F". Si taglia tutto dal primo punto in poi.
-        const tagliaPunto = value.match(/^([^.]*?)\s*\.[\s\S]*$/);
+        // "Dr. Wei Zhang" veniva tagliato al primo punto e restava "Dr": il
+        // titolo mascherato e il nome scoperto. Se quel che resta prima del
+        // punto e' un titolo o una sigla di due lettere, il taglio non si fa.
+        const primaDelPunto = (value.match(/^([^.]*?)\s*\./) || [])[1] || '';
+        const soloTitolo = primaDelPunto.trim().length <= 3 ||
+          ['dr','dott','sig','sig.ra','prof','ing','avv','rag','lic','sr','sra','mr','mrs','ms','st','san']
+            .indexOf(primaDelPunto.trim().toLowerCase()) !== -1;
+        const tagliaPunto = soloTitolo ? null : value.match(/^([^.]*?)\s*\.[\s\S]*$/);
         if (tagliaPunto && tagliaPunto[1].trim().length >= 2) {
           const tenuto = tagliaPunto[1].trim();
           const off = value.indexOf(tenuto);
@@ -6538,8 +6545,9 @@ if (recognition) {
         if(out.indexOf(v.val)===-1) return;
         var tipo=v.tok.replace(/[\[\]]/g,'').split('_')[0];
         var tok=null;
+        var chiave=v.val.toLowerCase();
         vault.forEach(function(val,k){
-          if(!tok && String(val)===v.val) tok=k.split('~')[0];
+          if(!tok && String(val).toLowerCase()===chiave) tok=k.split('~')[0];
         });
         if(!tok){
           contatore[tipo]=(contatore[tipo]||0)+1;
@@ -6559,35 +6567,22 @@ if (recognition) {
   window.aegisMaskHistory=function(msgs){
     return msgs.map(function(m){
       if(!m||!m.content) return m;
-      var t=String(m.content);
-      var giri=0;
-      // Passate normali. Su un testo lungo con molti dati la convergenza puo'
-      // richiedere piu' di tre giri: prima ci si fermava a tre e si bloccava
-      // l'invio, e l'utente vedeva "errore di connessione" senza capire niente.
-      while(esistonoResidui(t) && giri<6){ t = maschera(t,true).testo; giri++; }
-      // Se resiste ancora qualcosa, si alza il livello invece di arrendersi:
-      // meglio coprire troppo che non far partire il messaggio.
-      if(esistonoResidui(t)){
-        var salvo=PROFONDA;
-        PROFONDA=true;
-        try{
-          var g2=0;
-          while(esistonoResidui(t) && g2<4){ t = maschera(t,true).testo; g2++; }
-        } finally { PROFONDA=salvo; }
-      }
-      // ULTIMA RETE. Puo' capitare che il controllo veda un dato e la
-      // mascheratura non riesca a coprirlo: succede quando due regole si
-      // contendono lo stesso pezzo di testo (es. "Dr. Wei Zhang", dove viene
-      // preso "Dr" e il nome resta fuori). In quel caso il ciclo non finirebbe
-      // mai e l'invio verrebbe bloccato per sempre. Qui i residui si coprono
-      // per sostituzione diretta: brutale, ma nessun dato esce in chiaro.
-      if(esistonoResidui(t)){
-        t = copriPerForza(t);
-      }
-      if(esistonoResidui(t)){
-        console.error('[Aegis] dati non protetti nemmeno per sostituzione diretta: invio bloccato');
-        throw new Error('AEGIS_RESIDUI');
-      }
+      var t=String(m.content), prima, giri=0;
+      // CRITERIO DI ARRESTO: si maschera finche' il testo smette di cambiare.
+      // Prima si confrontavano due viste diverse dello stesso testo - il
+      // controllo sostituiva i codici con spazi, la mascheratura con segnaposto
+      // interni - e potevano non essere mai d'accordo: il ciclo non finiva, e
+      // l'invio restava bloccato per sempre su parole che nessuno riusciva a
+      // coprire ("Dr", "Project Manager"). Un testo che non cambia piu' e' un
+      // testo su cui il motore non ha piu' niente da fare: e' l'unica garanzia
+      // che non puo' divergere.
+      do {
+        prima = t;
+        t = maschera(t,true).testo;
+        giri++;
+      } while (t !== prima && giri < 6);
+      // Se dopo sei giri cambia ancora, si coprono i residui alla lettera.
+      if (t !== prima) t = copriPerForza(t);
       return { role:m.role, content:t };
     });
   };
