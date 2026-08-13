@@ -6456,6 +6456,13 @@ if (recognition) {
     if (!RIEMPIMENTO) return nudo;
     var manca = String(valore || '').length - nudo.length;
     if (manca <= 0) return nudo;                 // parola piu' corta del codice
+    // TETTO AL RIEMPIMENTO. Su un valore lungo (una diagnosi, un indirizzo
+    // completo) il codice diventerebbe un blocco di cento caratteri, e il
+    // modello lo sbriciola: nella risposta torna spezzato e il ripristino
+    // fallisce. Oltre questa soglia si rinuncia a pareggiare la lunghezza:
+    // su un blocco lungo lo spostamento del testo si nota molto meno che su
+    // una parola corta, che era il caso da risolvere.
+    if (manca > 12) manca = 12;
     var sinistra = Math.floor(manca / 2);
     var pieno = riempi(tok, manca);
     return pieno.slice(0, sinistra) + nudo + pieno.slice(sinistra);
