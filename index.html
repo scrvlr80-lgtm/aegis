@@ -149,10 +149,9 @@ body.ag-attivo{overflow:hidden;margin:0}
    Nascosto qui, e chiuso anche lato server (noVision nel tenant).
    Per riattivarlo servira' prima la lettura del documento NEL BROWSER. */
 .img-btn, #img-btn, #img-file-input, .img-preview-bar { display:none !important; }
-/* --- CRONOLOGIA DISATTIVATA ---
-   Legge da chat_logs, e questo tenant non ci scrive piu' nulla: il pulsante
-   aprirebbe sempre una lista vuota. */
-#history-btn { display:none !important; }
+/* --- CRONOLOGIA LOCALE ---
+   Non legge piu' da chat_logs (dove non scriviamo piu' nulla): le conversazioni
+   restano nel browser dell'utente. Il pulsante torna visibile. */
 /* --- chips eliminate --- */
 /* NIENTE selettore jolly [class*=chip]: prendeva anche #chat-messages,
    che porta la classe chips-open, e lo nascondeva finche l utente non
@@ -7414,6 +7413,237 @@ if (recognition) {
   else avvia();
 
   window.AEGIS_DOC = { monta: monta, estrai: estrai };
+})();
+</script>
+<script>
+/* =============================================================================
+   AEGIS — CRONOLOGIA LOCALE
+   Le conversazioni non vengono piu' salvate sul server: qui restano nel
+   browser dell'utente, esattamente come la corrispondenza fra codice e dato
+   reale. Contengono il testo VERO, in chiaro, e va bene: e' il dispositivo di
+   chi le ha scritte. Non escono da qui, non passano da nessuna rete.
+
+   Si cancellano svuotando i dati del browser, oppure una per una dal menu a
+   tre puntini. Se lo spazio si esaurisce, le piu' vecchie vengono buttate.
+   ============================================================================= */
+(function () {
+  'use strict';
+
+  var CHIAVE = 'aegis_cronologia_v1';
+  var MAX_CHAT = 30;              // oltre, si buttano le piu' vecchie
+  var MAX_BYTE = 3 * 1024 * 1024; // tetto prudente: localStorage sta sui 5 MB
+
+  function leggi() {
+    try { return JSON.parse(localStorage.getItem(CHIAVE) || '[]') || []; }
+    catch (e) { return []; }
+  }
+  function scrivi(lista) {
+    try {
+      while (lista.length > MAX_CHAT) lista.pop();
+      var dati = JSON.stringify(lista);
+      while (dati.length > MAX_BYTE && lista.length > 1) {
+        lista.pop();
+        dati = JSON.stringify(lista);
+      }
+      localStorage.setItem(CHIAVE, dati);
+    } catch (e) {
+      // spazio esaurito: si butta la meta' piu' vecchia e si riprova una volta
+      try {
+        lista.splice(Math.ceil(lista.length / 2));
+        localStorage.setItem(CHIAVE, JSON.stringify(lista));
+      } catch (e2) {}
+    }
+  }
+
+  function titoloDa(testo) {
+    var t = String(testo || '').replace(/\s+/g, ' ').trim();
+    if (t.length > 60) t = t.slice(0, 60).replace(/\s\S*$/, '') + '…';
+    return t || 'Conversazione';
+  }
+
+  function salvaTurno(ruolo, testo) {
+    if (!testo || !String(testo).trim()) return;
+    var lista = leggi();
+    var i = -1, k;
+    for (k = 0; k < lista.length; k++) {
+      if (lista[k].id === currentSessionId) { i = k; break; }
+    }
+    var chat;
+    if (i === -1) {
+      chat = { id: currentSessionId, data: Date.now(), titolo: '', messaggi: [] };
+      lista.unshift(chat);
+    } else {
+      chat = lista.splice(i, 1)[0];   // la piu' recente va in cima
+      lista.unshift(chat);
+    }
+    chat.messaggi.push({ role: ruolo, content: String(testo) });
+    chat.data = Date.now();
+    if (!chat.titolo && ruolo === 'user') chat.titolo = titoloDa(testo);
+    scrivi(lista);
+  }
+
+  /* ---------- aggancio: si salva quello che passa dallo specchio ---------- */
+  function aggancia() {
+    if (!window.aegisUtente || !window.aegisModello) return false;
+    if (aggancia._fatto) return true;
+    var u = window.aegisUtente, m = window.aegisModello;
+    window.aegisUtente = function (testo) { salvaTurno('user', testo); return u.apply(this, arguments); };
+    window.aegisModello = function (grezzo) {
+      var r = m.apply(this, arguments);
+      salvaTurno('assistant', r);      // r e' la risposta gia' ricostruita
+      return r;
+    };
+    aggancia._fatto = true;
+    return true;
+  }
+
+  /* ---------- pannello ---------- */
+  function apri() {
+    var overlay = document.getElementById('history-overlay');
+    var messaggi = document.getElementById('chat-messages');
+    var input = document.getElementById('chat-input-wrapper');
+    var freccia = document.getElementById('scroll-bottom-btn');
+    if (!overlay) return;
+
+    if (overlay.style.display === 'flex') {
+      overlay.style.display = 'none';
+      if (messaggi) messaggi.style.display = 'flex';
+      if (input) input.style.display = 'flex';
+      return;
+    }
+    var lingue = document.getElementById('lang-overlay');
+    if (lingue && lingue.style.display === 'flex') lingue.style.display = 'none';
+    if (messaggi) messaggi.style.display = 'none';
+    if (input) input.style.display = 'none';
+    if (freccia) freccia.classList.remove('visible');
+    overlay.style.display = 'flex';
+
+    var L = (typeof UI_STRINGS !== 'undefined' && UI_STRINGS[activeLanguageCode]) || {};
+    var tit = document.getElementById('history-modal-title');
+    if (tit) tit.innerText = L.historyTitle || 'CRONOLOGIA CHAT';
+
+    var griglia = document.getElementById('history-grid-main');
+    if (!griglia) return;
+    griglia.innerHTML = '';
+
+    var lista = leggi().filter(function (c) { return c.messaggi && c.messaggi.length; });
+    if (!lista.length) {
+      var vuoto = document.createElement('div');
+      vuoto.className = 'history-status-box';
+      vuoto.innerText = L.historyEmpty || 'Nessuna conversazione trovata.';
+      griglia.appendChild(vuoto);
+      return;
+    }
+
+    var nota = document.createElement('div');
+    nota.style.cssText = 'font-size:11px;color:var(--text-light);text-align:center;' +
+      'margin-bottom:14px;line-height:1.5;font-family:Inter,sans-serif';
+    nota.textContent = 'Queste conversazioni sono salvate solo su questo dispositivo, '
+      + 'in questo browser. Non sono mai state inviate a nessun server.';
+    griglia.appendChild(nota);
+
+    lista.forEach(function (chat) {
+      var riga = document.createElement('div');
+      riga.className = 'history-row';
+
+      var b = document.createElement('button');
+      b.className = 'history-btn-main';
+      var d = new Date(chat.data || Date.now());
+      var quando = d.toLocaleDateString(activeLanguageCode || 'it-IT',
+          { day: '2-digit', month: '2-digit', year: 'numeric' })
+        + ' ' + d.toLocaleTimeString(activeLanguageCode || 'it-IT',
+          { hour: '2-digit', minute: '2-digit' });
+      var s1 = document.createElement('span'); s1.className = 'history-btn-date'; s1.textContent = quando;
+      var s2 = document.createElement('span'); s2.className = 'history-btn-title';
+      s2.textContent = chat.titolo || 'Conversazione';
+      b.appendChild(s1); b.appendChild(s2);
+      b.onclick = function () { carica(chat); };
+
+      var punti = document.createElement('button');
+      punti.className = 'history-dots'; punti.type = 'button';
+      punti.innerHTML = '&#8942;';
+      var menu = document.createElement('div');
+      menu.className = 'history-menu';
+      menu.innerHTML =
+        '<button type="button" data-a="rinomina">✏️ ' + (L.histRename || 'Rinomina') + '</button>' +
+        '<button type="button" data-a="copia">📋 ' + (L.histCopy || 'Copia') + '</button>' +
+        '<button type="button" class="danger" data-a="elimina">🗑️ ' + (L.histDelete || 'Elimina') + '</button>';
+      punti.onclick = function (e) {
+        e.stopPropagation();
+        document.querySelectorAll('.history-menu.open').forEach(function (x) { if (x !== menu) x.classList.remove('open'); });
+        menu.classList.toggle('open');
+      };
+      menu.querySelector('[data-a="rinomina"]').onclick = function (e) {
+        e.stopPropagation(); menu.classList.remove('open');
+        var nuovo = prompt('Nuovo nome della conversazione:', chat.titolo || '');
+        if (nuovo === null) return;
+        var l = leggi();
+        l.forEach(function (c) { if (c.id === chat.id) c.titolo = nuovo.trim().slice(0, 80) || c.titolo; });
+        scrivi(l); apri(); apri();
+      };
+      menu.querySelector('[data-a="copia"]').onclick = function (e) {
+        e.stopPropagation(); menu.classList.remove('open');
+        var txt = (chat.messaggi || []).map(function (m) {
+          return (m.role === 'user' ? '👤 ' : '🤖 ') + m.content;
+        }).join('\n\n');
+        try { navigator.clipboard.writeText(txt); } catch (err) {}
+      };
+      menu.querySelector('[data-a="elimina"]').onclick = function (e) {
+        e.stopPropagation(); menu.classList.remove('open');
+        if (!confirm(L.histDeleteConfirm || 'Eliminare questa conversazione?')) return;
+        scrivi(leggi().filter(function (c) { return c.id !== chat.id; }));
+        riga.remove();
+      };
+
+      riga.appendChild(b); riga.appendChild(punti); riga.appendChild(menu);
+      griglia.appendChild(riga);
+    });
+  }
+
+  /* ---------- riapertura di una conversazione ---------- */
+  function carica(chat) {
+    var overlay = document.getElementById('history-overlay');
+    var messaggi = document.getElementById('chat-messages');
+    var input = document.getElementById('chat-input-wrapper');
+    if (overlay) overlay.style.display = 'none';
+    if (messaggi) messaggi.style.display = 'flex';
+    if (input) input.style.display = 'flex';
+
+    currentSessionId = chat.id;
+    try { safeStorage.set('chat_session_id', currentSessionId); } catch (e) {}
+
+    conversationHistory = [];
+    if (window.aegisReset) window.aegisReset();
+    if (messaggi) messaggi.innerHTML = '';
+
+    (chat.messaggi || []).forEach(function (m) {
+      addMessageToChat(m.content, m.role === 'user' ? 'user-message' : 'bot-message',
+                       m.role === 'assistant', false);
+      conversationHistory.push({ role: m.role, content: m.content });
+      // lo specchio si ricostruisce mascherando di nuovo, cosi' i codici
+      // tornano quelli giusti anche in una conversazione ripresa
+      if (m.role === 'user' && window.aegisUtente) window.aegisUtente(m.content);
+      else if (window.aegisModello) window.aegisModello(m.content);
+    });
+    setTimeout(function () {
+      var cm = document.getElementById('chat-messages');
+      if (cm) cm.scrollTop = cm.scrollHeight;
+    }, 60);
+  }
+
+  /* ---------- sostituzione delle funzioni del server ---------- */
+  function installa() {
+    if (!aggancia()) return false;
+    window.openHistoryPanel = apri;
+    return true;
+  }
+  function avvia() { if (!installa()) setTimeout(avvia, 400); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', avvia);
+  else avvia();
+
+  window.AEGIS_CRONOLOGIA = { leggi: leggi, svuota: function () {
+    try { localStorage.removeItem(CHIAVE); } catch (e) {}
+  } };
 })();
 </script>
 <script src="gazetteer.js"></script>
