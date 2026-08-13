@@ -4661,6 +4661,17 @@ if (recognition) {
     anchors: { left: ['partita iva', 'p. iva', 'p.iva', 'piva', 'vat', 'partita i.v.a.'], right: [], window: 30 },
     pos: ['00743110157', '12345678903'], neg: ['12345678901', '00000000000']
   });
+  C('IT_CF_ETICHETTATO', {
+    category: 'ID_STATALE', sub: 'codice_fiscale', token: 'CF', priority: 890, locale: ['it'],
+    regex: '\\b[A-Za-z]{6}[0-9A-Za-z]{2}[A-Za-z][0-9A-Za-z]{2}[A-Za-z][0-9A-Za-z]{3}[A-Za-z]\\b',
+    confidence: 0.92,
+    anchors: { left: ['codice fiscale', 'c.f.', 'cod. fisc', 'cod.fisc', 'cf:', 'cf ', 'codice fisc'], right: [], window: 34 },
+    hint: 'SENZA validatore, apposta. Un codice fiscale sbagliato di una cifra resta ' +
+          'un dato personale: se qualcuno scrive "CODICE FISCALE: ..." si copre, ' +
+          'punto. Quelli corretti li prende IT_CF, che ha priorita maggiore.',
+    pos: ['CODICE FISCALE: CSTFNC87C54E506X', 'C.F. BNCLCU80A01G702H'],
+    neg: ['CODICE PRODOTTO: ABCDEFGH']
+  });
   C('IT_CIE', {
     category: 'ID_STATALE', sub: 'carta_identita', token: 'DOCID', priority: 800, locale: ['it'],
     regex: '\\b[A-Z]{2}\\d{5}[A-Z]{2}\\b', confidence: 0.88,
@@ -6404,11 +6415,22 @@ if (recognition) {
     var len = String(valore || '').length;
     if (len && len < lungo.length) {
       var stretto = '@' + sigla(tok).charAt(0) + num + coda + '@';
-      if (stretto.length <= len || stretto.length < lungo.length) return stretto;
+      // COLLISIONI. Nella forma stretta resta una lettera sola: "pe" (persona)
+      // ed "et" (eta') diventano entrambe "e", "pe" e "pi" (partita iva)
+      // entrambe "p". Due dati diversi finirebbero sullo stesso codice, e al
+      // ripristino uno prenderebbe il valore dell'altro: e' l'errore piu' grave
+      // che questo sistema possa fare. Il codice stretto si assegna una volta
+      // sola: chi arriva dopo si tiene quello lungo.
+      var padrone = cortiUsati.get(stretto);
+      if (padrone === undefined) { cortiUsati.set(stretto, tok); return stretto; }
+      if (padrone === tok) return stretto;
+      return lungo;
     }
     return lungo;
   }
   // Riconosce il codice compatto, con o senza riempimento intorno.
+  // registro dei codici stretti gia' assegnati: corto -> chiave del vault
+  var cortiUsati = new Map();
   var RX_NUDO = /@[a-z]{1,3}\d{1,3}[a-z]?@/g;
   // Regex che comprende ANCHE il riempimento: serve ovunque il codice vada
   // tolto o messo al riparo, altrimenti restano in giro sillabe che il motore
@@ -6455,6 +6477,10 @@ if (recognition) {
       var d=JSON.parse(sessionStorage.getItem(CHIAVE)||'null');
       if(!d) return;
       (d.v||[]).forEach(function(p){ vault.set(p[0],p[1]); });
+      // riassegno i codici stretti nello stesso ordine in cui erano nati,
+      // altrimenti dopo un ricaricamento potrebbero cambiare padrone
+      cortiUsati.clear();
+      (d.v||[]).forEach(function(p){ nudoDi(p[0].split('~')[0], p[1]); });
       (d.c||[]).forEach(function(p){ colorDi.set(p[0],p[1]); });
       contatore=d.n||{}; righe=d.r||[];
     }catch(e){}
@@ -6767,7 +6793,7 @@ if (recognition) {
   };
   window.aegisDecodifica=decodifica;
   window.aegisReset=function(){
-    vault.clear(); colorDi.clear(); contatore={}; righe=[]; scorda();
+    vault.clear(); colorDi.clear(); cortiUsati.clear(); contatore={}; righe=[]; scorda();
     disegna(); anteprima('');
   };
 
