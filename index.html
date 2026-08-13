@@ -6334,6 +6334,52 @@ if (recognition) {
     return PROFONDA ? {level:'paranoid', profondo:true} : {level:LIVELLO};
   }
   var vault=new Map(), colorDi=new Map(), contatore={};
+  // ===== SEGNAPOSTO DELLA STESSA LUNGHEZZA DELL'ORIGINALE =====
+  // "Saverio Boretti" (15 caratteri) non diventa "[[PER_01]]" (10) ma
+  // "k7f2[[PER_01]]h3x" (15). Le doppie parentesi quadre fanno da marcatori:
+  // tutto il codice che gia' le riconosce continua a funzionare, il
+  // riempimento sta fuori e viene tolto al ripristino.
+  //
+  // Perche': la lunghezza del segnaposto rivela qualcosa. Un nome di trenta
+  // caratteri si distingue da uno di cinque, e in un modulo o in una tabella
+  // la differenza di larghezza fa intuire di che dato si tratta. Col
+  // riempimento quell'informazione sparisce e l'impaginazione resta intatta.
+  //
+  // Il riempimento e' DERIVATO dal codice, non casuale: lo stesso codice
+  // produce sempre lo stesso riempimento. Se cambiasse a ogni occorrenza, il
+  // modello non capirebbe piu' che si tratta della stessa persona, e quella e'
+  // la regola numero uno del sistema.
+  var RIEMPIMENTO = true;    // per tornare ai codici nudi: false
+  var ALFABETO = 'abcdefghijkmnopqrstuvwxyz23456789';   // niente l/1/0/o: si confondono
+  // Regex che comprende ANCHE il riempimento: serve ovunque il codice vada
+  // tolto o messo al riparo, altrimenti restano in giro sillabe che il motore
+  // scambia per parole sconosciute.
+  var RX_PIENO = /[A-Za-z0-9]{0,40}\[\[[A-Z]+_\d+[A-Z]?\]\][A-Za-z0-9]{0,40}/g;
+
+  function semino(str){
+    var h = 2166136261;
+    for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return h >>> 0;
+  }
+  function riempi(tok, quanti){
+    var out = '', h = semino(tok);
+    for (var i = 0; i < quanti; i++) {
+      h = (Math.imul(h, 1103515245) + 12345) >>> 0;
+      out += ALFABETO[h % ALFABETO.length];
+    }
+    return out;
+  }
+  // Costruisce il segnaposto vestito, lungo quanto il valore originale.
+  function vesti(tok, valore){
+    var nudo = '[[' + tok + ']]';
+    if (!RIEMPIMENTO) return nudo;
+    var manca = String(valore || '').length - nudo.length;
+    if (manca <= 0) return nudo;                 // parola piu' corta del codice
+    var sinistra = Math.floor(manca / 2);
+    var pieno = riempi(tok, manca);
+    return pieno.slice(0, sinistra) + nudo + pieno.slice(sinistra);
+  }
+
   var righe=[], autoScroll=true;
 
   /* ---------- memoria di sessione ---------- */
@@ -6466,7 +6512,8 @@ if (recognition) {
     // riparo prima di rimascherare, altrimenti il motore li scambia per dati
     // e li incapsula: [[ID_01]] diventerebbe [[[[CODE_01]]]].
     var scudi = [];
-    var testoPulito = String(testo).replace(/\[\[[A-Z]+_\d+[A-Z]?\]\]/g, function(tk){
+    RX_PIENO.lastIndex = 0;
+    var testoPulito = String(testo).replace(RX_PIENO, function(tk){
       var i = scudi.length;
       scudi.push(tk);
       // segnaposto neutro, lunghezza simile, senza forma di dato personale
@@ -6509,7 +6556,8 @@ if (recognition) {
       }
       usati[tok] = v.value;
       assegnati++;
-      out=out.split(v.token).join('[['+tok+']]');
+      // il segnaposto prende la lunghezza del valore che sostituisce
+      out=out.split(v.token).join(vesti(tok, v.value));
       voci.push({tok:tok,col:colorDi.get(tok)||colore(v.token)});
     });
     // rimetto al loro posto i codici messi al riparo
@@ -6525,7 +6573,11 @@ if (recognition) {
     vault.forEach(function(val,k){ lista.push({k:k.split('~')[0], val:val}); });
     lista.sort(function(a,b){ return String(b.k).length-String(a.k).length; });
     lista.forEach(function(p){
-      try{ out=out.replace(new RegExp('\\[\\['+rx(p.k)+'\\]\\]','g'), p.val); }catch(e){}
+      try{
+        // Si mangia anche il riempimento attaccato al codice, altrimenti
+        // resterebbero sillabe casuali appiccicate al dato ripristinato.
+        out=out.replace(new RegExp('[A-Za-z0-9]{0,40}\\[\\['+rx(p.k)+'\\]\\][A-Za-z0-9]{0,40}','g'), p.val);
+      }catch(e){}
     });
     return out;
   }
@@ -6571,7 +6623,8 @@ if (recognition) {
     try{
       // I codici gia' inseriti vanno tolti prima del controllo, altrimenti
       // il motore li riconosce come dati e il controllo non finisce mai.
-      var pulito = String(t).replace(/\[\[[A-Z]+_\d+[A-Z]?\]\]/g,' ');
+      RX_PIENO.lastIndex = 0;
+      var pulito = String(t).replace(RX_PIENO,' ');
       var r=AEGIS.protect(pulito,opzioni());
       return r.vault.length > 0;
     }catch(e){ return false; }
@@ -6583,7 +6636,8 @@ if (recognition) {
   function copriPerForza(t){
     var out=String(t);
     for(var giro=0; giro<3; giro++){
-      var pulito=out.replace(/\[\[[A-Z]+_\d+[A-Z]?\]\]/g,' ');
+      RX_PIENO.lastIndex = 0;
+      var pulito=out.replace(RX_PIENO,' ');
       var r;
       try{ r=AEGIS.protect(pulito,opzioni()); }catch(e){ return out; }
       if(!r.vault.length) return out;
@@ -6817,7 +6871,7 @@ if (recognition) {
     return trovato;
   }
   function applicaGruppi(t){
-    return String(t).replace(/\[\[([A-Z]+)_(\d+)([A-Z]?)\]\]/g,function(full,tipo,num,vr){
+    return String(t).replace(/[A-Za-z0-9]{0,40}\[\[([A-Z]+)_(\d+)([A-Z]?)\]\][A-Za-z0-9]{0,40}/g,function(full,tipo,num,vr){
       var tok=tipo+'_'+num+(vr||'');
       var col=colorDi.get(tok)||colore(tipo);
       if(!gruppiSpenti[col]) return full;
@@ -6828,7 +6882,7 @@ if (recognition) {
   function coloraToken(t){
     t = applicaGruppi(t);
     if(!codiciAccesi) return esc(t);
-    return esc(t).replace(/\[\[([A-Z]+)_(\d+)([A-Z]?)\]\]/g,function(full,tipo,num,vr){
+    return esc(t).replace(/[A-Za-z0-9]{0,40}\[\[([A-Z]+)_(\d+)([A-Z]?)\]\][A-Za-z0-9]{0,40}/g,function(full,tipo,num,vr){
       var tok=tipo+'_'+num+(vr||'');
       // I codici NER sono PROPOSTE del modello, non certezze verificate:
       // vanno distinti a vista da quelli prodotti dalle regole.
