@@ -6930,16 +6930,30 @@ if (recognition) {
     return trovato;
   }
   function applicaGruppi(t){
+    try { return applicaGruppiInterno(t); }
+    catch (e) { console.error('[Aegis] gruppi in errore:', e && e.message); return String(t); }
+  }
+  function applicaGruppiInterno(t){
     return String(t).replace(/[A-Za-z0-9]{0,40}@([a-z]{1,3})(\d{1,3})([a-z]?)@[A-Za-z0-9]{0,40}/g,function(full,sg,num,vr){
       var tok=tokenDaSigla(sg,num,vr);
       if(!tok) return full;
-      var col=colorDi.get(tok)||colore(tipo);
+      var col=colorDi.get(tok)||colore(tok);
       if(!gruppiSpenti[col]) return full;
       var v=valoreDi(tok);
       return v!==null ? v : full;
     });
   }
   function coloraToken(t){
+    try { return coloraTokenInterno(t); }
+    catch (e) {
+      // Un errore nel disegno dello specchio non puo' fermare la protezione:
+      // meglio uno specchio senza colori che un invio bloccato. E' successo:
+      // una variabile rimasta indietro ha buttato giu' tutto.
+      console.error('[Aegis] disegno dello specchio in errore:', e && e.message);
+      return esc(applicaGruppi(t));
+    }
+  }
+  function coloraTokenInterno(t){
     t = applicaGruppi(t);
     if(!codiciAccesi) return esc(t);
     return esc(t).replace(/[A-Za-z0-9]{0,40}@([a-z]{1,3})(\d{1,3})([a-z]?)@[A-Za-z0-9]{0,40}/g,function(full,sg,num,vr){
@@ -6947,9 +6961,9 @@ if (recognition) {
       if(!tok) return full;
       // I codici NER sono PROPOSTE del modello, non certezze verificate:
       // vanno distinti a vista da quelli prodotti dalle regole.
-      var extra = (tipo === 'NER') ? ' ag-proposta' : '';
+      var extra = (String(tok).split('_')[0] === 'NER') ? ' ag-proposta' : '';
       var titolo = extra ? ' title="Proposto dal riconoscimento avanzato: da rivedere"' : '';
-      return '<span class="ag-t ag-'+(colorDi.get(tok)||colore(full))+extra+'"'+titolo+'>'+full+'</span>';
+      return '<span class="ag-t ag-'+(colorDi.get(tok)||colore(tok))+extra+'"'+titolo+'>'+full+'</span>';
     });
   }
   function disegna(){
