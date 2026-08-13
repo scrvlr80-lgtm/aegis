@@ -5530,6 +5530,13 @@ if (recognition) {
    'zoom skype telegram signal discord twitch spotify netflix uber tesla intel ' +
    'nvidia cisco dell lenovo asus acer samsung huawei xiaomi sony canon epson')
     .split(' ').forEach(w => GSET.tech.add(w));
+  // PAROLE GRAMMATICALI. Articoli, preposizioni, pronomi e congiunzioni non
+  // compaiono nei dizionari usati per calcolare gli ambigui, quindi passavano
+  // il filtro e finivano mascherate come nomi: "cui", "que", "para", "meno".
+  // Una di queste, presa per un nome, ha fatto tornare all'utente la parola
+  // "cui" trasformata in "Studio Legale Associato Marconi".
+  ('il lo la i gli le un uno una dei degli delle del dello della dal dallo dalla al allo alla ai agli alle nel nello nella nei negli nelle sul sullo sulla sui sugli sulle col coi di da in con su per tra fra e ed o od ma se che chi cui come dove quando perche quale quali quanto quanta quanti quante questo questa questi queste quello quella quelli quelle mi ti si ci vi ne lo la li le gli me te se noi voi loro io tu egli ella esso essa non piu meno molto poco tanto troppo assai gia ancora sempre mai anche pure solo soltanto sono sei siamo siete era erano essere stato stata stati state ho hai ha abbiamo avete hanno el la los las un una unos unas del al lo le les y e o u pero mas menos que quien cual cuyo como donde cuando porque para por con sin sobre entre desde hasta segun durante mediante yo tu el ella nosotros vosotros ellos ellas me te se nos os les lo la los las muy mucho poco tanto todo toda todos todas nada nadie algo alguien siempre nunca tambien soy eres es somos sois son era eran ser sido estar estado he has hemos habeis han the a an and or but if that which who whom whose what where when why how of in on at by for with from to into onto upon about over under above below is are was were be been being have has had do does did will would can could shall should may might must i you he she it we they me him her us them my your his its our their this these those there here not no yes very much many more most less least also only just even still already always never')
+    .split(' ').forEach(w => { if (w) { GSET.ambig.add(w); GSET.tech.add(w); } });
   (function () {
     const g = KB.gazetteers;
     // le particelle ("de", "la", "van") non sono nomi: entrerebbero nel
