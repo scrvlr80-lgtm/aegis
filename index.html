@@ -5238,6 +5238,49 @@ if (recognition) {
     pos: ['Foglio 12 particella 345'], neg: ['Foglio illustrativo']
   });
 
+  /* --- 12-bis. IDENTIFICATIVI LEGALI ITALIANI -----------------------
+     Catasto, numero di ruolo e sigla di provincia: in un atto notarile o in
+     una causa sono fra i dati piu' identificanti, e nessun rilevatore
+     generalista li conosce. Prima "Foglio 12, particella 345" restava in
+     chiaro e la parola "Foglio" veniva scambiata per un cognome.
+     ------------------------------------------------------------------ */
+  D('CATASTO_IT', {
+    category: 'CATASTO', sub: 'dati_catastali', token: 'CATASTO', priority: 830,
+    locale: ['it'], confidence: 0.95, flags: 'gi',
+    regex: '\\b(?:foglio|fg\\.?)\\s*n?[.\u00b0]?\\s*\\d{1,4}\\s*[,;\\-]?\\s*' +
+           '(?:particella|partic\\.?|part\\.?|mappale|mapp\\.?|map\\.?|p\\.lla)\\s*n?[.\u00b0]?\\s*\\d{1,5}' +
+           '(?:\\s*[,;\\-]?\\s*(?:subalterno|subalt\\.?|sub\\.?)\\s*n?[.\u00b0]?\\s*\\d{1,4})?',
+    hint: 'foglio e particella devono comparire insieme: il solo "foglio 12" e un numero qualsiasi',
+    pos: ['Foglio 12, particella 345, sub. 6', 'foglio 8 mappale 221 subalterno 3', 'Fg. 4 part. 1201'],
+    neg: ['foglio di calcolo']
+  });
+  C('CATASTO_ES', {
+    category: 'CATASTO', sub: 'dati_catastali', token: 'CATASTO', priority: 800,
+    locale: ['es'], confidence: 0.9,
+    regex: '\\b[0-9A-Z]{14,20}\\b',
+    anchors: { left: ['referencia catastral', 'ref. catastral', 'catastro'], right: [], window: 30 },
+    pos: ['9872023VH5797S0001WX'], neg: ['DOCUMENTO']
+  });
+  C('DOCID_IT', {
+    category: 'GIUDIZIARIO', sub: 'numero_atto', token: 'DOCID', priority: 700,
+    locale: ['it'], confidence: 0.88,
+    regex: '\\b\\d{1,6}\\s*\\/\\s*\\d{2,6}\\b',
+    anchors: { left: ['r.g.', 'rg', 'ruolo generale', 'numero di ruolo', 'fasc.', 'fascicolo',
+      'protocollo', 'prot.', 'repertorio', 'rep.', 'raccolta', 'sentenza', 'decreto',
+      'ordinanza', 'ricorso', 'atto n', 'pratica n', 'nostro rif', 'vostro rif'], right: [], window: 34 },
+    hint: 'numero/anno: senza ancora sarebbe una data o una frazione qualsiasi',
+    pos: ['R.G. 4471/2025', 'sentenza n. 1234/2024', 'protocollo n. 2025/871'],
+    neg: ['pagina 3/10']
+  });
+  D('PROVINCIA_IT', {
+    category: 'INDIRIZZI', sub: 'provincia', token: 'PROV', priority: 690,
+    locale: ['it'], confidence: 0.9,
+    regex: '\\(\\s*([A-Z]{2})\\s*\\)', group: 1, validator: 'provinciaIT',
+    metaKeep: 'region',
+    hint: 'solo fra parentesi e solo se e una sigla di provincia reale',
+    pos: ['Milano (MI)', 'Reggio Calabria (RC)'], neg: ['(OK)']
+  });
+
   /* --- 11. CATEGORIE SPECIALI ART.9 --------------------------------
      Solo co-occorrenza con una persona identificata. Mai match lessicale
      isolato: la v1 marcava "centro", "verde", "voto", "bianco".
@@ -5535,7 +5578,7 @@ if (recognition) {
   // il filtro e finivano mascherate come nomi: "cui", "que", "para", "meno".
   // Una di queste, presa per un nome, ha fatto tornare all'utente la parola
   // "cui" trasformata in "Studio Legale Associato Marconi".
-  ('il lo la i gli le un uno una dei degli delle del dello della dal dallo dalla al allo alla ai agli alle nel nello nella nei negli nelle sul sullo sulla sui sugli sulle col coi di da in con su per tra fra e ed o od ma se che chi cui come dove quando perche quale quali quanto quanta quanti quante questo questa questi queste quello quella quelli quelle mi ti si ci vi ne lo la li le gli me te se noi voi loro io tu egli ella esso essa non piu meno molto poco tanto troppo assai gia ancora sempre mai anche pure solo soltanto sono sei siamo siete era erano essere stato stata stati state ho hai ha abbiamo avete hanno el la los las un una unos unas del al lo le les y e o u pero mas menos que quien cual cuyo como donde cuando porque para por con sin sobre entre desde hasta segun durante mediante yo tu el ella nosotros vosotros ellos ellas me te se nos os les lo la los las muy mucho poco tanto todo toda todos todas nada nadie algo alguien siempre nunca tambien soy eres es somos sois son era eran ser sido estar estado he has hemos habeis han the a an and or but if that which who whom whose what where when why how of in on at by for with from to into onto upon about over under above below is are was were be been being have has had do does did will would can could shall should may might must i you he she it we they me him her us them my your his its our their this these those there here not no yes very much many more most less least also only just even still already always never')
+  ('foglio fogli particella particelle mappale mappali subalterno subalterni sub fascicolo protocollo repertorio raccolta ruolo sentenza decreto ordinanza ricorso atto verbale perizia il lo la i gli le un uno una dei degli delle del dello della dal dallo dalla al allo alla ai agli alle nel nello nella nei negli nelle sul sullo sulla sui sugli sulle col coi di da in con su per tra fra e ed o od ma se che chi cui come dove quando perche quale quali quanto quanta quanti quante questo questa questi queste quello quella quelli quelle mi ti si ci vi ne lo la li le gli me te se noi voi loro io tu egli ella esso essa non piu meno molto poco tanto troppo assai gia ancora sempre mai anche pure solo soltanto sono sei siamo siete era erano essere stato stata stati state ho hai ha abbiamo avete hanno el la los las un una unos unas del al lo le les y e o u pero mas menos que quien cual cuyo como donde cuando porque para por con sin sobre entre desde hasta segun durante mediante yo tu el ella nosotros vosotros ellos ellas me te se nos os les lo la los las muy mucho poco tanto todo toda todos todas nada nadie algo alguien siempre nunca tambien soy eres es somos sois son era eran ser sido estar estado he has hemos habeis han the a an and or but if that which who whom whose what where when why how of in on at by for with from to into onto upon about over under above below is are was were be been being have has had do does did will would can could shall should may might must i you he she it we they me him her us them my your his its our their this these those there here not no yes very much many more most less least also only just even still already always never')
     .split(' ').forEach(w => { if (w) { GSET.ambig.add(w); GSET.tech.add(w); } });
   (function () {
     const g = KB.gazetteers;
@@ -7078,6 +7121,247 @@ if (recognition) {
      File a parte perche' pesa 1,6 MB (541 KB compressi dal server): dentro
      index.html raddoppierebbe il peso della pagina. Va caricato DOPO il motore,
      si installa da solo. Se manca, Aegis funziona con gli elenchi minimi. -->
+<script>
+/* =============================================================================
+   AEGIS — lettura documenti NEL BROWSER
+   Il file non viene mai caricato da nessuna parte: si apre in locale, se ne
+   estrae il testo, e il testo finisce nel campo di scrittura. Da li' passa per
+   la mascheratura come qualsiasi altra cosa scritta a mano, e l'utente vede
+   nello specchio cosa partira' PRIMA di inviare.
+   Il vecchio pulsante immagine faceva l'opposto: spediva il file al server
+   senza protezione. Resta disattivato.
+
+   PDF con testo   -> pdf.js         (estrazione diretta, nessun modello)
+   PDF scansionato -> tesseract.js   (OCR in locale, lento ma non esce niente)
+   .docx           -> mammoth.js
+   .txt .md .csv   -> lettura diretta
+   .doc .xls .ppt  -> non trattabili nel browser: si chiede la conversione
+   Le librerie si scaricano solo al primo uso.
+   ============================================================================= */
+(function () {
+  'use strict';
+
+  var CDN = {
+    pdf: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js',
+    pdfWorker: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js',
+    docx: 'https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js',
+    ocr: 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.0/dist/tesseract.min.js'
+  };
+
+  function carica(url) {
+    return new Promise(function (ok, ko) {
+      if (carica._fatti && carica._fatti[url]) return ok();
+      var t = document.createElement('script');
+      t.src = url;
+      t.onload = function () {
+        carica._fatti = carica._fatti || {};
+        carica._fatti[url] = true;
+        ok();
+      };
+      t.onerror = function () { ko(new Error('non sono riuscito a scaricare la libreria')); };
+      document.head.appendChild(t);
+    });
+  }
+
+  /* ---------- stato visibile all'utente ---------- */
+  function stato(testo, errore) {
+    var b = document.getElementById('ag-doc-stato');
+    if (!b) return;
+    b.textContent = testo || '';
+    b.style.display = testo ? 'block' : 'none';
+    b.style.color = errore ? 'var(--c-per)' : 'var(--text-light)';
+  }
+
+  /* ---------- lettori ---------- */
+  function leggiTesto(file) {
+    return file.text ? file.text() : new Promise(function (ok) {
+      var r = new FileReader();
+      r.onload = function () { ok(String(r.result || '')); };
+      r.readAsText(file);
+    });
+  }
+
+  async function leggiPdf(file) {
+    await carica(CDN.pdf);
+    var lib = window.pdfjsLib;
+    if (!lib) throw new Error('pdf.js non disponibile');
+    lib.GlobalWorkerOptions.workerSrc = CDN.pdfWorker;
+    var buf = await file.arrayBuffer();
+    var doc = await lib.getDocument({ data: buf }).promise;
+    var pezzi = [];
+    for (var i = 1; i <= doc.numPages; i++) {
+      stato('Leggo la pagina ' + i + ' di ' + doc.numPages + '…');
+      var pag = await doc.getPage(i);
+      var tc = await pag.getTextContent();
+      pezzi.push(tc.items.map(function (x) { return x.str; }).join(' '));
+    }
+    var testo = pezzi.join('\n\n').replace(/[ \t]+/g, ' ').trim();
+
+    // Poco testo su molte pagine = PDF scansionato: sono immagini, serve l'OCR.
+    if (testo.length < 40 * doc.numPages) {
+      var vuoiOcr = confirm(
+        'Questo PDF sembra una scansione: non contiene testo, solo immagini.\n\n' +
+        'Posso leggerlo con il riconoscimento ottico, che gira sul tuo dispositivo ' +
+        '(il file non esce da qui). Richiede qualche secondo per pagina e la prima ' +
+        'volta scarica circa 15 MB.\n\nProcedo?');
+      if (vuoiOcr) return await ocrPdf(doc);
+    }
+    return testo;
+  }
+
+  async function ocrPdf(doc) {
+    await carica(CDN.ocr);
+    if (!window.Tesseract) throw new Error('OCR non disponibile');
+    var pezzi = [];
+    var max = Math.min(doc.numPages, 20);   // oltre diventa insopportabile
+    for (var i = 1; i <= max; i++) {
+      stato('Riconoscimento ottico, pagina ' + i + ' di ' + max + '…');
+      var pag = await doc.getPage(i);
+      var vp = pag.getViewport({ scale: 2 });
+      var cv = document.createElement('canvas');
+      cv.width = vp.width; cv.height = vp.height;
+      await pag.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+      var res = await window.Tesseract.recognize(cv, 'ita+eng');
+      pezzi.push(String((res && res.data && res.data.text) || ''));
+    }
+    if (doc.numPages > max) pezzi.push('\n[…documento troncato alla pagina ' + max + '…]');
+    return pezzi.join('\n\n').trim();
+  }
+
+  async function leggiDocx(file) {
+    await carica(CDN.docx);
+    if (!window.mammoth) throw new Error('lettore .docx non disponibile');
+    var buf = await file.arrayBuffer();
+    var r = await window.mammoth.extractRawText({ arrayBuffer: buf });
+    return String((r && r.value) || '').trim();
+  }
+
+  async function leggiImmagine(file) {
+    await carica(CDN.ocr);
+    if (!window.Tesseract) throw new Error('OCR non disponibile');
+    stato('Riconoscimento ottico in corso…');
+    var url = URL.createObjectURL(file);
+    try {
+      var res = await window.Tesseract.recognize(url, 'ita+eng');
+      return String((res && res.data && res.data.text) || '').trim();
+    } finally { URL.revokeObjectURL(url); }
+  }
+
+  /* ---------- smistamento ---------- */
+  async function estrai(file) {
+    var nome = String(file.name || '').toLowerCase();
+    if (/\.(txt|md|csv|json|log|rtf)$/.test(nome)) return await leggiTesto(file);
+    if (/\.pdf$/.test(nome)) return await leggiPdf(file);
+    if (/\.docx$/.test(nome)) return await leggiDocx(file);
+    if (/\.(png|jpe?g|webp|gif|bmp|tiff?)$/.test(nome)) return await leggiImmagine(file);
+    if (/\.(doc|xls|ppt)$/.test(nome)) {
+      throw new Error('I formati vecchi di Office (.doc, .xls, .ppt) non si possono ' +
+        'leggere nel browser. Aprilo e salvalo come .docx o come testo, poi riprova.');
+    }
+    // formato ignoto: si tenta come testo, male che vada esce spazzatura
+    return await leggiTesto(file);
+  }
+
+  async function scelto(input) {
+    var file = input && input.files && input.files[0];
+    input.value = '';
+    if (!file) return;
+    if (file.size > 25 * 1024 * 1024) {
+      stato('File troppo grande (oltre 25 MB).', true);
+      return;
+    }
+    var campo = document.getElementById('user-input');
+    if (!campo) return;
+    stato('Apro ' + file.name + '…');
+    try {
+      var testo = await estrai(file);
+      if (!testo || testo.trim().length < 2) {
+        stato('Non ho trovato testo leggibile in questo file.', true);
+        return;
+      }
+      var prima = campo.value ? campo.value.replace(/\s+$/, '') + '\n\n' : '';
+      campo.value = prima + testo.trim();
+      campo.dispatchEvent(new Event('input', { bubbles: true }));
+      campo.focus();
+      try { campo.setSelectionRange(campo.value.length, campo.value.length); } catch (e) {}
+      stato(file.name + ': ' + testo.trim().length.toLocaleString('it-IT') +
+            ' caratteri estratti. Controlla lo specchio prima di inviare.');
+      setTimeout(function () { stato(''); }, 9000);
+    } catch (e) {
+      stato(e && e.message ? e.message : 'Non sono riuscito a leggere il file.', true);
+    }
+  }
+
+  /* ---------- pulsante e trascinamento ---------- */
+  function monta() {
+    if (document.getElementById('ag-doc-btn')) return true;
+    var inner = document.querySelector('.input-inner');
+    var campo = document.getElementById('user-input');
+    if (!inner || !campo) return false;
+
+    var css = document.createElement('style');
+    css.textContent =
+      '.ag-doc-btn{background:transparent;border:none;color:var(--text-light);width:34px;' +
+      'height:34px;border-radius:4px;display:flex;align-items:center;justify-content:center;' +
+      'cursor:pointer;transition:.2s;flex-shrink:0;margin-bottom:2px;padding:0}' +
+      '.ag-doc-btn:hover{color:var(--accent);background:rgba(0,113,227,.06)}' +
+      '.ag-doc-btn svg{width:20px;height:20px;fill:currentColor}' +
+      '#ag-doc-stato{display:none;padding:6px 25px 0;font-family:Inter,sans-serif;' +
+      'font-size:11px;line-height:1.5;color:var(--text-light)}' +
+      '.ag-drop{outline:2px dashed var(--accent);outline-offset:-6px}';
+    document.head.appendChild(css);
+
+    var b = document.createElement('button');
+    b.id = 'ag-doc-btn';
+    b.type = 'button';
+    b.className = 'ag-doc-btn';
+    b.title = 'Apri un documento: il testo viene estratto qui sul tuo dispositivo, ' +
+              'il file non viene caricato da nessuna parte';
+    b.innerHTML = '<svg viewBox="0 0 24 24"><path d="M16.5 6v11.5a4 4 0 0 1-8 0V5a2.5 2.5 0 0 1 5 0v10.5a1 1 0 0 1-2 0V6H10v9.5a2.5 2.5 0 0 0 5 0V5a4 4 0 0 0-8 0v12.5a5.5 5.5 0 0 0 11 0V6h-1.5z"/></svg>';
+
+    var inp = document.createElement('input');
+    inp.type = 'file';
+    inp.id = 'ag-doc-input';
+    inp.style.display = 'none';
+    inp.accept = '.pdf,.docx,.txt,.md,.csv,.json,.log,.rtf,.png,.jpg,.jpeg,.webp,.gif,.bmp,.tif,.tiff';
+    inp.addEventListener('change', function () { scelto(inp); });
+
+    b.addEventListener('click', function (e) { e.preventDefault(); inp.click(); });
+    inner.insertBefore(b, campo);
+    inner.appendChild(inp);
+
+    var barra = document.createElement('div');
+    barra.id = 'ag-doc-stato';
+    var wrap = document.getElementById('chat-input-wrapper');
+    if (wrap && wrap.parentNode) wrap.parentNode.insertBefore(barra, wrap);
+
+    // trascinamento sul campo di scrittura
+    ['dragenter', 'dragover'].forEach(function (ev) {
+      inner.addEventListener(ev, function (e) {
+        e.preventDefault(); inner.classList.add('ag-drop');
+      });
+    });
+    ['dragleave', 'drop'].forEach(function (ev) {
+      inner.addEventListener(ev, function (e) {
+        e.preventDefault(); inner.classList.remove('ag-drop');
+      });
+    });
+    inner.addEventListener('drop', function (e) {
+      var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (!f) return;
+      var finto = { files: [f], value: '' };
+      scelto(finto);
+    });
+    return true;
+  }
+
+  function avvia() { if (!monta()) setTimeout(avvia, 400); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', avvia);
+  else avvia();
+
+  window.AEGIS_DOC = { monta: monta, estrai: estrai };
+})();
+</script>
 <script src="gazetteer.js"></script>
 </body>
 </html>
