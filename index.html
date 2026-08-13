@@ -6350,10 +6350,70 @@ if (recognition) {
   // la regola numero uno del sistema.
   var RIEMPIMENTO = true;    // per tornare ai codici nudi: false
   var ALFABETO = 'abcdefghijkmnopqrstuvwxyz23456789';   // niente l/1/0/o: si confondono
+  // FORMATO COMPATTO. "[[PER_01]]" sono undici caratteri: su una parola corta
+  // ("Ana", "Roma", "llaves") non c'e' niente da riempire e il testo si allarga
+  // comunque, scomponendo l'impaginazione. "@pe01@" sono sei caratteri, cioe'
+  // meno di quasi tutto cio' che viene mascherato: da li' in su il riempimento
+  // pareggia sempre la lunghezza. Le chiocciole fanno da parentesi e
+  // permettono di ritrovare il codice anche se il modello sporca il
+  // riempimento.
+  var SIGLE = { PER:'pe', ALIAS:'al', NAME:'pe', NER:'pe',
+    EMAIL:'em', PHONE:'tl', HANDLE:'hd', PROFILE:'pf',
+    ADDR:'ad', CITY:'ct', ZIP:'cp', POSTCODE:'cp', GPS:'gp', PROV:'pv',
+    DOB:'dn', DATE:'dt', AGE:'et',
+    IBAN:'ib', CARD:'cr', CVV:'cv', EXP:'sc', BIC:'bc', ACCT:'cc',
+    ABA:'ab', WALLET:'wl', AMOUNT:'im',
+    CF:'cf', PIVA:'pi', DNI:'dn2', NIE:'ni', CIF:'ci', NUSS:'nu',
+    SSN:'ss', NINO:'nn', NHS:'nh', ITIN:'it', EIN:'ei', DOCID:'da',
+    PASSPORT:'ps', DL:'pt', PERMIT:'pm', TAXID:'tx', PLATE:'tg', VIN:'te',
+    POLICY:'po', UTILITY:'ut', CADASTRE:'ca', CATASTO:'ca',
+    ICD:'ic', MRN:'ce', DIAGNOSIS:'dg', MEDICATION:'fa', BLOOD:'gs',
+    DISABILITY:'iv', SENSITIVE:'a9', BIOMETRIC:'bi',
+    IP:'ip', MAC:'mc', IMEI:'ie', UUID:'uu', SECRET:'sg', PASSWORD:'pw',
+    USER:'us', EMPID:'ma', STUID:'mt', ORG:'or', GRADE:'vt',
+    CASE:'rg', INMATE:'dt2', RECORD:'pp', NUM:'nm', CODE:'cd', ID:'id' };
+  function sigla(tok){
+    var tipo = String(tok).split('_')[0];
+    return SIGLE[tipo] || tipo.slice(0,2).toLowerCase();
+  }
+  // Dal codice compatto alla chiave interna del vault. Si cerca fra i codici
+  // gia' assegnati: e' l'unico modo affidabile, perche' la sigla da sola non
+  // basta a ricostruire il nome del tipo.
+  function tokenDaSigla(sg,num,vr){
+    var cercato='@'+sg+num+(vr||'')+'@', trovato=null;
+    vault.forEach(function(val,k){
+      var kk=k.split('~')[0];
+      if(!trovato && nudoDi(kk,val)===cercato) trovato=kk;
+    });
+    if(!trovato) valoriPreview.forEach(function(v,k){ if(!trovato && nudoDi(k,v)===cercato) trovato=k; });
+    if(!trovato) colorDi.forEach(function(c,k){ if(!trovato && nudoDi(k)===cercato) trovato=k; });
+    return trovato;
+  }
+  // Il codice ha due vestiti. Quello normale, "@pe01@", sei caratteri, che dice
+  // al modello di che tipo di dato si tratta. E quello stretto, "@p1@", quattro
+  // caratteri, che si usa SOLO quando la parola da coprire e' cosi' corta che
+  // il codice normale la farebbe crescere ("Roma", "Bepi", "Ana"). La scelta
+  // dipende dalla lunghezza del valore, che per una stessa entita' non cambia
+  // mai: quindi lo stesso dato ha sempre lo stesso codice.
+  function nudoDi(tok, valore){
+    var p = String(tok).split('_');
+    var num = (p[1] || '1').replace(/^0+/,'') || '0';
+    var coda = p[1] && /[A-Z]$/.test(p[1]) ? p[1].slice(-1).toLowerCase() : '';
+    var lungo  = '@' + sigla(tok) + (num.length < 2 ? '0' + num : num) + coda + '@';
+    if (valore === undefined) valore = vault.get(tok) || valoriPreview.get(tok);
+    var len = String(valore || '').length;
+    if (len && len < lungo.length) {
+      var stretto = '@' + sigla(tok).charAt(0) + num + coda + '@';
+      if (stretto.length <= len || stretto.length < lungo.length) return stretto;
+    }
+    return lungo;
+  }
+  // Riconosce il codice compatto, con o senza riempimento intorno.
+  var RX_NUDO = /@[a-z]{1,3}\d{1,3}[a-z]?@/g;
   // Regex che comprende ANCHE il riempimento: serve ovunque il codice vada
   // tolto o messo al riparo, altrimenti restano in giro sillabe che il motore
   // scambia per parole sconosciute.
-  var RX_PIENO = /[A-Za-z0-9]{0,40}\[\[[A-Z]+_\d+[A-Z]?\]\][A-Za-z0-9]{0,40}/g;
+  var RX_PIENO = /[A-Za-z0-9]{0,40}@[a-z]{1,3}\d{1,3}[a-z]?@[A-Za-z0-9]{0,40}/g;
 
   function semino(str){
     var h = 2166136261;
@@ -6370,7 +6430,7 @@ if (recognition) {
   }
   // Costruisce il segnaposto vestito, lungo quanto il valore originale.
   function vesti(tok, valore){
-    var nudo = '[[' + tok + ']]';
+    var nudo = nudoDi(tok);
     if (!RIEMPIMENTO) return nudo;
     var manca = String(valore || '').length - nudo.length;
     if (manca <= 0) return nudo;                 // parola piu' corta del codice
@@ -6575,7 +6635,7 @@ if (recognition) {
       try{
         // Si mangia anche il riempimento attaccato al codice, altrimenti
         // resterebbero sillabe casuali appiccicate al dato ripristinato.
-        out=out.replace(new RegExp('[A-Za-z0-9]{0,40}\\[\\['+rx(p.k)+'\\]\\][A-Za-z0-9]{0,40}','g'), p.val);
+        out=out.replace(new RegExp('[A-Za-z0-9]{0,40}'+rx(nudoDi(p.k,p.val))+'[A-Za-z0-9]{0,40}','g'), p.val);
       }catch(e){}
     });
     return out;
@@ -6870,8 +6930,9 @@ if (recognition) {
     return trovato;
   }
   function applicaGruppi(t){
-    return String(t).replace(/[A-Za-z0-9]{0,40}\[\[([A-Z]+)_(\d+)([A-Z]?)\]\][A-Za-z0-9]{0,40}/g,function(full,tipo,num,vr){
-      var tok=tipo+'_'+num+(vr||'');
+    return String(t).replace(/[A-Za-z0-9]{0,40}@([a-z]{1,3})(\d{1,3})([a-z]?)@[A-Za-z0-9]{0,40}/g,function(full,sg,num,vr){
+      var tok=tokenDaSigla(sg,num,vr);
+      if(!tok) return full;
       var col=colorDi.get(tok)||colore(tipo);
       if(!gruppiSpenti[col]) return full;
       var v=valoreDi(tok);
@@ -6881,8 +6942,9 @@ if (recognition) {
   function coloraToken(t){
     t = applicaGruppi(t);
     if(!codiciAccesi) return esc(t);
-    return esc(t).replace(/[A-Za-z0-9]{0,40}\[\[([A-Z]+)_(\d+)([A-Z]?)\]\][A-Za-z0-9]{0,40}/g,function(full,tipo,num,vr){
-      var tok=tipo+'_'+num+(vr||'');
+    return esc(t).replace(/[A-Za-z0-9]{0,40}@([a-z]{1,3})(\d{1,3})([a-z]?)@[A-Za-z0-9]{0,40}/g,function(full,sg,num,vr){
+      var tok=tokenDaSigla(sg,num,vr);
+      if(!tok) return full;
       // I codici NER sono PROPOSTE del modello, non certezze verificate:
       // vanno distinti a vista da quelli prodotti dalle regole.
       var extra = (tipo === 'NER') ? ' ag-proposta' : '';
