@@ -3427,6 +3427,12 @@ body {
     // ===== MARKDOWN INLINE: PRE-PARSING IN SEGMENTI =====
     // Tokenizza il testo PRIMA di animarlo: la macchina da scrivere scrive gia'
     // dentro <strong>/<em>, quindi gli asterischi non si vedono mai.
+    // I codici di protezione contengono trattini bassi ("[[PER_01]]") e
+    // chiocciole ("@pe01@"). Il compositore del markdown leggeva quel trattino
+    // come inizio di corsivo e se lo mangiava: il codice arrivava spezzato in
+    // "[[PER01]]" e il ripristino non lo trovava piu'. Qui i codici vengono
+    // riconosciuti e copiati alla lettera, senza interpretarli.
+    const RX_CODICE = /^(?:\[\[[A-Z]+_\d+[A-Z]?\]\]|@[a-z]{1,3}\d{1,3}[a-z]?@)/;
     function parseMarkdownSegments(texto) {
         const segs = [];
         let i = 0;
@@ -3434,6 +3440,8 @@ body {
         let buf = '';
         const push = (extra) => { if (buf) { segs.push(Object.assign({ text: buf }, extra)); buf = ''; } };
         while (i < n) {
+            const cod = texto.slice(i).match(RX_CODICE);
+            if (cod) { buf += cod[0]; i += cod[0].length; continue; }
             const two = texto.substr(i, 2);
             if (two === '**' || two === '__') {
                 const close = texto.indexOf(two, i + 2);
@@ -3441,7 +3449,12 @@ body {
             }
             const ch = texto[i];
             if ((ch === '*' || ch === '_') && texto[i + 1] !== ch) {
-                const close = texto.indexOf(ch, i + 1);
+                // Un trattino basso in mezzo a una parola non apre un corsivo:
+                // e' la regola di ogni markdown serio, e qui evita che
+                // "snake_case" e i codici vengano storpiati.
+                const prima = i > 0 ? texto[i - 1] : ' ';
+                const inParola = ch === '_' && /[A-Za-z0-9]/.test(prima);
+                const close = inParola ? -1 : texto.indexOf(ch, i + 1);
                 if (close > i && texto[close - 1] !== ' ') { push({}); segs.push({ text: texto.slice(i + 1, close), italic: true }); i = close + 1; continue; }
             }
             buf += ch; i++;
@@ -6369,7 +6382,13 @@ if (recognition) {
   // produce sempre lo stesso riempimento. Se cambiasse a ogni occorrenza, il
   // modello non capirebbe piu' che si tratta della stessa persona, e quella e'
   // la regola numero uno del sistema.
-  var RIEMPIMENTO = true;    // per tornare ai codici nudi: false
+  // SPENTO. Provato sul campo e messo da parte: il riempimento rende i codici
+  // fragili (il modello riscrive "@a9@" come "@a10@" e il ripristino salta),
+  // confonde la lettura perche' sembra che le parole siano tagliate a meta',
+  // e sulle parole corte costringe a una forma cosi' breve che due dati diversi
+  // rischiano lo stesso codice. Il meccanismo resta qui, funzionante, per
+  // quando i codici saranno stabili: allora si riprova.
+  var RIEMPIMENTO = false;   // true = codici lunghi quanto la parola coperta
   var ALFABETO = 'abcdefghijkmnopqrstuvwxyz23456789';   // niente l/1/0/o: si confondono
   // FORMATO COMPATTO. "[[PER_01]]" sono undici caratteri: su una parola corta
   // ("Ana", "Roma", "llaves") non c'e' niente da riempire e il testo si allarga
@@ -6423,6 +6442,9 @@ if (recognition) {
     var lungo  = '@' + sigla(tok) + (num.length < 2 ? '0' + num : num) + coda + '@';
     if (valore === undefined) valore = vault.get(tok) || valoriPreview.get(tok);
     var len = String(valore || '').length;
+    // Senza riempimento non serve nemmeno la forma stretta: si tiene il codice
+    // leggibile, che il modello confonde molto meno.
+    if (!RIEMPIMENTO) return lungo;
     if (len && len < lungo.length) {
       var stretto = '@' + sigla(tok).charAt(0) + num + coda + '@';
       // COLLISIONI. Nella forma stretta resta una lettera sola: "pe" (persona)
