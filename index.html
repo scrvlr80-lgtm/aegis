@@ -25,7 +25,8 @@
   --text-main:#1D1D1F;--text-light:#6E6E73;--bot-bubble:transparent;--user-bubble:#ECECF1;
   --shadow:0 10px 40px rgba(0,0,0,.08);
   --c-per:#E5484D;--c-addr:#30A46C;--c-city:#0091FF;--c-date:#F5A524;
-  --c-bank:#8E4EC6;--c-mail:#00A2C7;--c-tech:#5B6270;--c-med:#E93D82;--c-id:#D6409F;}
+  --c-bank:#8E4EC6;--c-mail:#00A2C7;--c-tech:#5B6270;--c-med:#E93D82;--c-id:#D6409F;
+  --c-org:#8B5E3C;}
 html,body{height:100%;margin:0}
 body{color:var(--text-main);background:var(--primary);overflow:hidden}
 .console-frame,.chat-area,.chat-container{background:var(--primary)!important}
@@ -135,6 +136,7 @@ body.ag-attivo{overflow:hidden;margin:0}
 .ag-per{background:var(--c-per)} .ag-addr{background:var(--c-addr)} .ag-city{background:var(--c-city)}
 .ag-date{background:var(--c-date)} .ag-bank{background:var(--c-bank)} .ag-mail{background:var(--c-mail)}
 .ag-tech{background:var(--c-tech)} .ag-med{background:var(--c-med)} .ag-id{background:var(--c-id)}
+.ag-org{background:var(--c-org)}
 
 /* --- TELEFONO: una sopra l altra, stessa larghezza --- */
 @media(max-width:820px){
@@ -194,6 +196,7 @@ mark.ag-m.city{background:rgba(0,145,255,.24)} mark.ag-m.date{background:rgba(24
 mark.ag-m.bank{background:rgba(142,78,198,.24)} mark.ag-m.mail{background:rgba(0,162,199,.24)}
 mark.ag-m.tech{background:rgba(91,98,112,.24)} mark.ag-m.med{background:rgba(233,61,130,.24)}
 mark.ag-m.id{background:rgba(214,64,159,.24)}
+mark.ag-m.org{background:rgba(139,94,60,.24)}
 
 
 * { box-sizing: border-box; }
@@ -6552,7 +6555,14 @@ if (recognition) {
     if(t==='IBAN'||t==='CARD'||t==='CVV'||t==='EXP'||t==='BIC'||t==='ACCT'||t==='ABA'||t==='WALLET'||t==='AMOUNT') return 'bank';
     if(t==='EMAIL'||t==='PHONE'||t==='HANDLE'||t==='PROFILE') return 'mail';
     if(t==='SECRET'||t==='PASSWORD'||t==='IP'||t==='MAC'||t==='IMEI'||t==='UUID'||t==='USER') return 'tech';
-    if(t==='ICD'||t==='MRN'||t==='DIAGNOSIS'||t==='MEDICATION'||t==='BLOOD') return 'med';
+    if(t==='ICD'||t==='MRN'||t==='DIAGNOSIS'||t==='MEDICATION'||t==='BLOOD'
+       ||t==='DISABILITY'||t==='SENSITIVE'||t==='BIOMETRIC') return 'med';
+    // Aziende, enti e scuole hanno un gruppo loro: finivano fra i "documenti",
+    // e nello specchio "AZIENDA OSPEDALIERA UNIVERSITARIA" risultava un
+    // documento d'identita'.
+    if(t==='ORG'||t==='EMPID'||t==='STUID'||t==='GRADE') return 'org';
+    if(t==='PROV') return 'city';
+    if(t==='AMOUNT') return 'bank';
     return 'id';
   }
   function esc(s){ return String(s).replace(/[&<>]/g,function(c){
@@ -7126,6 +7136,7 @@ if (recognition) {
         '<span data-g="id"><i class="ag-id"></i>documenti</span>'+
         '<span data-g="tech"><i class="ag-tech"></i>tecnici</span>'+
         '<span data-g="med"><i class="ag-med"></i>sanitari</span>'+
+        '<span data-g="org"><i class="ag-org"></i>aziende</span>'+
       '</div>';
 
     scena.appendChild(p);      // finestra 1: lo specchio
