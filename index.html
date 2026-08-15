@@ -163,6 +163,28 @@ body.ag-attivo{overflow:hidden;margin:0}
 /* --- CRONOLOGIA LOCALE ---
    Non legge piu' da chat_logs (dove non scriviamo piu' nulla): le conversazioni
    restano nel browser dell'utente. Il pulsante torna visibile. */
+/* --- NUVOLETTE DI SPIEGAZIONE --- */
+.ag-nuvola{position:fixed;z-index:2600;max-width:270px;background:var(--text-main);
+  color:var(--primary);font-family:'Inter',sans-serif;font-size:11.5px;line-height:1.55;
+  padding:9px 12px;border-radius:9px;box-shadow:0 8px 26px rgba(0,0,0,.22);
+  opacity:0;transition:opacity .5s ease;pointer-events:none}
+.ag-nuvola.on{opacity:1}
+/* --- PANNELLO DI CONFIGURAZIONE --- */
+.ag-opzioni{max-width:560px;max-height:86vh;overflow-y:auto}
+.ag-op-sez{margin-bottom:16px}
+.ag-op-sez h4{margin:0 0 8px;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--text-light);font-weight:700}
+.ag-op-riga{display:flex;gap:10px;align-items:flex-start;padding:7px 0;cursor:pointer}
+.ag-op-riga input{margin-top:2px;flex:none}
+.ag-op-riga span{display:flex;flex-direction:column;gap:2px}
+.ag-op-riga b{font-size:12.5px;font-weight:600;color:var(--text-main)}
+.ag-op-riga i{font-style:normal;font-size:11px;line-height:1.5;color:var(--text-light)}
+.ag-op-azioni{display:flex;gap:8px;flex-wrap:wrap}
+.ag-op-azioni button{border:1px solid var(--hairline);background:transparent;
+  color:var(--text-main);cursor:pointer;font-family:inherit;font-size:11.5px;
+  padding:7px 12px;border-radius:8px}
+.ag-op-azioni button:hover{border-color:var(--c-per);color:var(--c-per)}
+.ag-op-nota{margin:9px 0 0;font-size:10.5px;line-height:1.5;color:var(--text-light)}
 /* --- AVVISO PRIMA DELL'INVIO --- */
 .ag-avviso-ov{position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.38);
   backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:16px}
@@ -248,8 +270,17 @@ body.ag-attivo{overflow:hidden;margin:0}
 .ag-td-nuovo button{border:1px solid var(--accent);background:transparent;color:var(--accent);
   cursor:pointer;font-family:inherit;font-size:10.5px;font-weight:700;padding:5px 9px;border-radius:7px}
 /* --- pennello acceso: il cursore lo dice --- */
+/* Cursori del pennello: un mirino con il PIU' quando sta per coprire, e con il
+   MENO quando sta per togliere la protezione da un dato gia' coperto. Cosi' si
+   capisce cosa succede prima di cliccare, senza leggere niente. */
 body.ag-pennello-on .ag-lista,body.ag-pennello-on .ag-anteprima,
-body.ag-pennello-on .chat-messages{cursor:crosshair}
+body.ag-pennello-on .chat-messages,
+body.ag-pennello-on .ag-voci-corpo{
+  cursor:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26'><circle cx='11' cy='11' r='7' fill='none' stroke='%230071e3' stroke-width='2'/><path d='M11 7v8M7 11h8' stroke='%230071e3' stroke-width='2' stroke-linecap='round'/></svg>") 11 11, crosshair}
+body.ag-pennello-on .ag-t,
+body.ag-pennello-on .ag-voci-corpo .ag-gr-voce{
+  cursor:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26'><circle cx='11' cy='11' r='7' fill='none' stroke='%23E5484D' stroke-width='2'/><path d='M7 11h8' stroke='%23E5484D' stroke-width='2' stroke-linecap='round'/></svg>") 11 11, crosshair}
+.ag-ia svg{width:13px;height:13px;vertical-align:-2px;margin-right:5px;fill:currentColor}
 /* --- modalita' riservata --- */
 body.ag-riservato .ag-voci .ag-voci-corpo,
 body.ag-riservato .ag-lista,
@@ -259,7 +290,7 @@ body.ag-sfocato .ag-lista,
 body.ag-sfocato .ag-anteprima{filter:blur(7px);user-select:none;transition:filter .18s}
 body.ag-riservato .chat-messages,body.ag-sfocato .chat-messages{filter:blur(7px);transition:filter .18s}
 body.ag-sfocato .ag-scena::after,body.ag-riservato .ag-scena::after{
-  content:'Modalita\00a0 riservata \2014 i dati sono nascosti';
+  content:var(--ag-riservato-testo,'\2014');
   position:fixed;left:50%;top:86px;transform:translateX(-50%);z-index:2200;
   background:var(--primary);border:1px solid var(--hairline);border-radius:10px;
   padding:8px 14px;font-family:'Inter',sans-serif;font-size:11.5px;color:var(--text-main);
@@ -1521,6 +1552,10 @@ body {
         safeStorage.set('bistro_mic_lang', langCode);
         safeStorage.setSession('bistro_session_lang', langCode);
         applyUITranslations(langCode);
+        // Il pannello di protezione ha i suoi testi (pulsanti, schede, avvisi,
+        // configurazione): si riscrivono insieme al resto, altrimenti resta
+        // meta' interfaccia in una lingua e meta' in un'altra.
+        setTimeout(function(){ try { if (window.aegisLingua) window.aegisLingua(); } catch(e){} }, 0);
         const ui = UI_STRINGS[langCode] || UI_DEFAULT;
         currentTypingMsg = ui.typingMsg;
         // Se e' un VERO cambio di lingua (non il caricamento iniziale), ritira i
@@ -3462,9 +3497,7 @@ body {
             // com'e'. Prima mostrava "verifica la connessione" e lo mandava a
             // cercare un guasto che non esisteva.
             else if (error && error.message === 'AEGIS_RESIDUI') {
-                transformTypingIntoMessage(typingIndicator,
-                  '🛡️ Non ho inviato il messaggio: contiene dati che non sono riuscito a proteggere del tutto. Non e\u0027 un problema di rete. Prova ad accorciare il testo o ad attivare l\u0027analisi profonda.',
-                  false, false);
+                transformTypingIntoMessage(typingIndicator, (window.aegisT || function(k){return k;})('invioBloccato'), false, false);
             }
             else { transformTypingIntoMessage(typingIndicator, ((UI_STRINGS[activeLanguageCode] || UI_DEFAULT).errConexion || '⚠️ Error de conexión. Verifica tu conexión y pulsa el icono ↻ sobre tu mensaje para reintentar.'), false, false); }
         } finally {
@@ -6915,12 +6948,237 @@ if (recognition) {
      una parola e viene presa tutta, senza trascinare.
      ================================================================== */
 
+  /* ================== LINGUA DELL'INTERFACCIA ==================
+     Ogni testo che l'utente legge passa da qui. La lingua e' quella scelta
+     nella chat (activeLanguageCode): se cambia, cambia tutto insieme.
+     Aggiungere una lingua vuol dire aggiungere una colonna, non cercare le
+     stringhe sparse nel codice.
+     ============================================================ */
+  var VOCI = {
+    it: {
+      pennello:'Pennello', pennelloOn:'Pennello: ON',
+      profonda:'Analisi profonda', profondaOn:'Profonda: ON',
+      riservato:'Riservato', riservatoOn:'Riservato: ON',
+      config:'Configurazione',
+      aiutoPennello:'Tocca una parola e viene presa tutta: scegli in che categoria coprirla. Tocca un codice gia\u0027 coperto per riportarlo in chiaro. Funziona anche sugli elenchi qui a sinistra.',
+      aiutoProfonda:'Misura estrema: copre molto di piu\u0027 e sbaglia molto di piu\u0027. Prende anche i nomi in minuscolo che sono parole comuni. Non serve quasi mai.',
+      aiutoRiservato:'Sfoca i dati sullo schermo. Utile prima di condividere lo schermo o mostrare il monitor a qualcuno.',
+      aiutoConfig:'Avvisi, preferenze di protezione, dati salvati su questo dispositivo, uscita dall\u0027account.',
+      aiutoEvidenzia:'Accende e spegne i colori sui codici nello specchio. Non cambia cio\u0027 che viene inviato.',
+      tabDefault:'Default', tabAggiunte:'Aggiunte', tabRimosse:'Rimosse',
+      vuotoDefault:'Qui compaiono i dati che il sistema sta coprendo.',
+      vuotoAggiunte:'Qui compaiono le parole che copri tu con il pennello.',
+      vuotoRimosse:'Qui compaiono le parole che hai riportato in chiaro. Da quel momento partono cosi\u0027 come sono.',
+      grTolti:'lasciati in chiaro da te',
+      rimetti:'Rimetti la decisione al sistema',
+      copre:'copre {n} caratteri',
+      dove:'Dove metto', etichettaNuova:'oppure scrivi un\u0027etichetta nuova', aggiungi:'Aggiungi',
+      confScopri:'Lasciare "{v}" in chiaro?\n\nDa questo momento partira\u0027 cosi\u0027 com\u0027e\u0027, senza protezione.',
+      catNomi:'nomi', catIndirizzi:'indirizzi', catLuoghi:'luoghi', catDate:'date',
+      catBancari:'bancari', catContatti:'contatti', catDocumenti:'documenti',
+      catTecnici:'tecnici', catSanitari:'sanitari', catAziende:'aziende',
+      avvTitolo:'Queste {n} parole partirebbero in chiaro',
+      avvTesto:'Il sistema non le riconosce come dati protetti, ma potrebbero esserlo. Clicca le righe per scegliere quali coprire: quelle spente partono come sono.',
+      avvTutte:'Seleziona tutte', avvNessuna:'Nessuna',
+      avvMai:'Non avvisarmi piu\u0027 in questa sessione',
+      avvIndietro:'Torna indietro', avvInvia:'Invia senza coprire',
+      avvCopri:'Copri le <b id="ag-av-n">{n}</b> scelte e invia',
+      pfTitolo:'Analisi profonda: e\u0027 una misura estrema',
+      pfP1:'Toglie i freni alle regole: copre anche i nomi scritti in minuscolo che coincidono con parole comuni, le righe tutte maiuscole e le sequenze dubbie. Copre molto di piu\u0027, e <b>sbaglia molto di piu\u0027</b>.',
+      pfP2:'Non serve quasi mai. Su un testo normale copre parole che non sono dati e il modello riceve un testo pieno di buchi: le risposte peggiorano, a volte diventano incomprensibili.',
+      pfP3:'Usala quando il documento contiene nomi rari o stranieri che la passata normale non riconosce, e accetti di rileggere il risultato prima di inviare.',
+      pfMai:'Non mostrare piu\u0027 questa spiegazione',
+      pfNo:'Lascia spenta', pfSi:'Ho capito, attivala',
+      opTitolo:'Configurazione',
+      opAvvisi:'Avvisi', opProtezione:'Protezione', opDati:'Dati su questo dispositivo',
+      opAvvisoInvio:'Avviso prima dell\u0027invio',
+      opAvvisoInvioD:'Elenca le parole che partirebbero in chiaro e ti fa scegliere quali coprire.',
+      opAvvisoProf:'Spiegazione dell\u0027analisi profonda',
+      opAvvisoProfD:'Ricorda che cos\u0027e\u0027 e quando conviene usarla.',
+      opRiempi:'Codici lunghi quanto la parola',
+      opRiempiD:'Mantiene l\u0027impaginazione, ma i codici diventano piu\u0027 fragili.',
+      opSfoca:'Sfoca quando la finestra perde il fuoco',
+      opSfocaD:'Protegge lo schermo quando passi a un\u0027altra applicazione, per esempio per condividerlo.',
+      opAzzera:'Azzera le mie scelte sui termini',
+      opCancella:'Cancella la cronologia locale',
+      opNota:'Le conversazioni e la corrispondenza fra codici e dati reali restano solo su questo dispositivo. Cancellandole non si recuperano.',
+      opEsci:'Esci dall\u0027account', opChiudi:'Chiudi',
+      confAzzera:'Azzero tutte le parole che hai coperto o lasciato in chiaro?',
+      confCancella:'Cancello tutte le conversazioni salvate su questo dispositivo?',
+      confEsci:'Esci dall\u0027account? La conversazione in corso resta su questo dispositivo.',
+      riservatoBanner:'Modalita\u0027 riservata \u2014 i dati sono nascosti',
+      cronNota:'Queste conversazioni sono salvate solo su questo dispositivo, in questo browser. Non sono mai state inviate a nessun server.',
+      cronVuota:'Nessuna conversazione trovata.',
+      cronRinomina:'Nuovo nome della conversazione:',
+      cronElimina:'Eliminare questa conversazione?',
+      docAiuto:'Apri un documento: il testo viene estratto qui sul tuo dispositivo, il file non viene caricato da nessuna parte',
+      docGrande:'File troppo grande (oltre 25 MB).',
+      docNiente:'Non ho trovato testo leggibile in questo file.',
+      docErrore:'Non sono riuscito a leggere il file.',
+      docVecchio:'I formati vecchi di Office (.doc, .xls, .ppt) non si possono leggere nel browser. Aprilo e salvalo come .docx o come testo, poi riprova.',
+      docApro:'Apro {f}\u2026', docPagina:'Leggo la pagina {i} di {n}\u2026',
+      docOcr:'Riconoscimento ottico, pagina {i} di {n}\u2026', docOcr1:'Riconoscimento ottico in corso\u2026',
+      docFatto:'{f}: {n} caratteri estratti. Controlla lo specchio prima di inviare.',
+      docScan:'Questo PDF sembra una scansione: non contiene testo, solo immagini.\n\nPosso leggerlo con il riconoscimento ottico, che gira sul tuo dispositivo (il file non esce da qui). Richiede qualche secondo per pagina e la prima volta scarica circa 15 MB.\n\nProcedo?',
+      invioBloccato:'\ud83d\udee1\ufe0f Non ho inviato il messaggio: contiene dati che non sono riuscito a proteggere del tutto. Non e\u0027 un problema di rete.'
+    },
+    es: {
+      pennello:'Pincel', pennelloOn:'Pincel: ON',
+      profonda:'Analisis profundo', profondaOn:'Profundo: ON',
+      riservato:'Reservado', riservatoOn:'Reservado: ON',
+      config:'Configuracion',
+      aiutoPennello:'Toca una palabra y se selecciona entera: elige en que categoria ocultarla. Toca un codigo ya oculto para devolverlo a la vista. Funciona tambien en las listas de la izquierda.',
+      aiutoProfonda:'Medida extrema: oculta mucho mas y se equivoca mucho mas. Toma tambien los nombres en minuscula que son palabras comunes. Casi nunca hace falta.',
+      aiutoRiservato:'Difumina los datos en pantalla. Util antes de compartir pantalla o ensenar el monitor a alguien.',
+      aiutoConfig:'Avisos, preferencias de proteccion, datos guardados en este dispositivo, cierre de sesion.',
+      aiutoEvidenzia:'Enciende y apaga los colores de los codigos en el espejo. No cambia lo que se envia.',
+      tabDefault:'Default', tabAggiunte:'Anadidas', tabRimosse:'Quitadas',
+      vuotoDefault:'Aqui aparecen los datos que el sistema esta ocultando.',
+      vuotoAggiunte:'Aqui aparecen las palabras que ocultas tu con el pincel.',
+      vuotoRimosse:'Aqui aparecen las palabras que has devuelto a la vista. A partir de ese momento se envian tal cual.',
+      grTolti:'dejadas a la vista por ti',
+      rimetti:'Devolver la decision al sistema',
+      copre:'cubre {n} caracteres',
+      dove:'Donde pongo', etichettaNuova:'o escribe una etiqueta nueva', aggiungi:'Anadir',
+      confScopri:'Dejar "{v}" a la vista?\n\nA partir de ahora se enviara tal cual, sin proteccion.',
+      catNomi:'nombres', catIndirizzi:'direcciones', catLuoghi:'lugares', catDate:'fechas',
+      catBancari:'bancarios', catContatti:'contactos', catDocumenti:'documentos',
+      catTecnici:'tecnicos', catSanitari:'sanitarios', catAziende:'empresas',
+      avvTitolo:'Estas {n} palabras se enviarian sin proteger',
+      avvTesto:'El sistema no las reconoce como datos protegidos, pero podrian serlo. Haz clic en las filas para elegir cuales ocultar: las apagadas se envian tal cual.',
+      avvTutte:'Seleccionar todas', avvNessuna:'Ninguna',
+      avvMai:'No avisarme mas en esta sesion',
+      avvIndietro:'Volver atras', avvInvia:'Enviar sin ocultar',
+      avvCopri:'Ocultar las <b id="ag-av-n">{n}</b> elegidas y enviar',
+      pfTitolo:'Analisis profundo: es una medida extrema',
+      pfP1:'Quita los frenos a las reglas: oculta tambien los nombres en minuscula que coinciden con palabras comunes, las lineas en mayusculas y las secuencias dudosas. Oculta mucho mas, y <b>se equivoca mucho mas</b>.',
+      pfP2:'Casi nunca hace falta. En un texto normal oculta palabras que no son datos y el modelo recibe un texto lleno de huecos: las respuestas empeoran, a veces se vuelven incomprensibles.',
+      pfP3:'Usalo cuando el documento contenga nombres raros o extranjeros que la pasada normal no reconoce, y aceptes releer el resultado antes de enviar.',
+      pfMai:'No mostrar mas esta explicacion',
+      pfNo:'Dejarlo apagado', pfSi:'Entendido, activalo',
+      opTitolo:'Configuracion',
+      opAvvisi:'Avisos', opProtezione:'Proteccion', opDati:'Datos en este dispositivo',
+      opAvvisoInvio:'Aviso antes de enviar',
+      opAvvisoInvioD:'Enumera las palabras que se enviarian sin proteger y te deja elegir cuales ocultar.',
+      opAvvisoProf:'Explicacion del analisis profundo',
+      opAvvisoProfD:'Recuerda que es y cuando conviene usarlo.',
+      opRiempi:'Codigos del largo de la palabra',
+      opRiempiD:'Mantiene la maquetacion, pero los codigos se vuelven mas fragiles.',
+      opSfoca:'Difuminar cuando la ventana pierde el foco',
+      opSfocaD:'Protege la pantalla cuando pasas a otra aplicacion, por ejemplo para compartirla.',
+      opAzzera:'Borrar mis decisiones sobre los terminos',
+      opCancella:'Borrar el historial local',
+      opNota:'Las conversaciones y la correspondencia entre codigos y datos reales solo estan en este dispositivo. Si las borras no se recuperan.',
+      opEsci:'Cerrar sesion', opChiudi:'Cerrar',
+      confAzzera:'Borro todas las palabras que has ocultado o dejado a la vista?',
+      confCancella:'Borro todas las conversaciones guardadas en este dispositivo?',
+      confEsci:'Cerrar sesion? La conversacion actual permanece en este dispositivo.',
+      riservatoBanner:'Modo reservado \u2014 los datos estan ocultos',
+      cronNota:'Estas conversaciones estan guardadas solo en este dispositivo, en este navegador. Nunca se han enviado a ningun servidor.',
+      cronVuota:'No se han encontrado conversaciones.',
+      cronRinomina:'Nuevo nombre de la conversacion:',
+      cronElimina:'Eliminar esta conversacion?',
+      docAiuto:'Abre un documento: el texto se extrae aqui en tu dispositivo, el archivo no se sube a ningun sitio',
+      docGrande:'Archivo demasiado grande (mas de 25 MB).',
+      docNiente:'No he encontrado texto legible en este archivo.',
+      docErrore:'No he podido leer el archivo.',
+      docVecchio:'Los formatos antiguos de Office (.doc, .xls, .ppt) no se pueden leer en el navegador. Abrelo y guardalo como .docx o como texto, y vuelve a intentarlo.',
+      docApro:'Abriendo {f}\u2026', docPagina:'Leyendo la pagina {i} de {n}\u2026',
+      docOcr:'Reconocimiento optico, pagina {i} de {n}\u2026', docOcr1:'Reconocimiento optico en curso\u2026',
+      docFatto:'{f}: {n} caracteres extraidos. Revisa el espejo antes de enviar.',
+      docScan:'Este PDF parece un escaneo: no contiene texto, solo imagenes.\n\nPuedo leerlo con reconocimiento optico, que se ejecuta en tu dispositivo (el archivo no sale de aqui). Tarda unos segundos por pagina y la primera vez descarga unos 15 MB.\n\nSigo?',
+      invioBloccato:'\ud83d\udee1\ufe0f No he enviado el mensaje: contiene datos que no he podido proteger del todo. No es un problema de red.'
+    },
+    en: {
+      pennello:'Brush', pennelloOn:'Brush: ON',
+      profonda:'Deep scan', profondaOn:'Deep scan: ON',
+      riservato:'Private', riservatoOn:'Private: ON',
+      config:'Settings',
+      aiutoPennello:'Tap a word and the whole word is taken: choose which category to mask it under. Tap an existing code to bring it back in the clear. Works on the lists on the left too.',
+      aiutoProfonda:'Extreme measure: masks far more and gets it wrong far more. It also takes lowercase names that are ordinary words. Rarely needed.',
+      aiutoRiservato:'Blurs the data on screen. Useful before sharing your screen or showing your monitor to someone.',
+      aiutoConfig:'Warnings, protection preferences, data stored on this device, sign out.',
+      aiutoEvidenzia:'Turns the code colours in the mirror on and off. Does not change what is sent.',
+      tabDefault:'Default', tabAggiunte:'Added', tabRimosse:'Removed',
+      vuotoDefault:'This is where the data the system is masking appears.',
+      vuotoAggiunte:'This is where the words you mask with the brush appear.',
+      vuotoRimosse:'This is where the words you brought back in the clear appear. From then on they are sent as they are.',
+      grTolti:'left in the clear by you',
+      rimetti:'Give the decision back to the system',
+      copre:'covers {n} characters',
+      dove:'Where do I put', etichettaNuova:'or type a new label', aggiungi:'Add',
+      confScopri:'Leave "{v}" in the clear?\n\nFrom now on it will be sent as it is, unprotected.',
+      catNomi:'names', catIndirizzi:'addresses', catLuoghi:'places', catDate:'dates',
+      catBancari:'banking', catContatti:'contacts', catDocumenti:'documents',
+      catTecnici:'technical', catSanitari:'health', catAziende:'companies',
+      avvTitolo:'These {n} words would be sent in the clear',
+      avvTesto:'The system does not recognise them as protected data, but they might be. Click the rows to choose which to mask: the ones switched off are sent as they are.',
+      avvTutte:'Select all', avvNessuna:'None',
+      avvMai:'Do not warn me again this session',
+      avvIndietro:'Go back', avvInvia:'Send without masking',
+      avvCopri:'Mask the <b id="ag-av-n">{n}</b> selected and send',
+      pfTitolo:'Deep scan: this is an extreme measure',
+      pfP1:'It takes the brakes off the rules: it also masks lowercase names that match ordinary words, all-caps lines and doubtful sequences. It masks far more, and <b>gets it wrong far more</b>.',
+      pfP2:'It is rarely needed. On ordinary text it masks words that are not data, and the model receives text full of holes: answers get worse, sometimes unreadable.',
+      pfP3:'Use it when the document contains rare or foreign names the normal pass misses, and you are willing to reread the result before sending.',
+      pfMai:'Do not show this explanation again',
+      pfNo:'Leave it off', pfSi:'Understood, turn it on',
+      opTitolo:'Settings',
+      opAvvisi:'Warnings', opProtezione:'Protection', opDati:'Data on this device',
+      opAvvisoInvio:'Warning before sending',
+      opAvvisoInvioD:'Lists the words that would be sent in the clear and lets you choose which to mask.',
+      opAvvisoProf:'Deep scan explanation',
+      opAvvisoProfD:'Reminds you what it is and when it is worth using.',
+      opRiempi:'Codes as long as the word',
+      opRiempiD:'Keeps the layout, but makes the codes more fragile.',
+      opSfoca:'Blur when the window loses focus',
+      opSfocaD:'Protects the screen when you switch to another application, for example to share it.',
+      opAzzera:'Reset my decisions on terms',
+      opCancella:'Delete local history',
+      opNota:'Conversations and the mapping between codes and real data live only on this device. Deleting them cannot be undone.',
+      opEsci:'Sign out', opChiudi:'Close',
+      confAzzera:'Reset every word you have masked or left in the clear?',
+      confCancella:'Delete every conversation stored on this device?',
+      confEsci:'Sign out? The current conversation stays on this device.',
+      riservatoBanner:'Private mode \u2014 data is hidden',
+      cronNota:'These conversations are stored only on this device, in this browser. They have never been sent to any server.',
+      cronVuota:'No conversations found.',
+      cronRinomina:'New conversation name:',
+      cronElimina:'Delete this conversation?',
+      docAiuto:'Open a document: the text is extracted here on your device, the file is never uploaded anywhere',
+      docGrande:'File too large (over 25 MB).',
+      docNiente:'I could not find readable text in this file.',
+      docErrore:'I could not read the file.',
+      docVecchio:'Old Office formats (.doc, .xls, .ppt) cannot be read in the browser. Open it and save it as .docx or as text, then try again.',
+      docApro:'Opening {f}\u2026', docPagina:'Reading page {i} of {n}\u2026',
+      docOcr:'Optical recognition, page {i} of {n}\u2026', docOcr1:'Optical recognition running\u2026',
+      docFatto:'{f}: {n} characters extracted. Check the mirror before sending.',
+      docScan:'This PDF looks like a scan: it contains no text, only images.\n\nI can read it with optical recognition, which runs on your device (the file never leaves here). It takes a few seconds per page and downloads about 15 MB the first time.\n\nShall I go ahead?',
+      invioBloccato:'\ud83d\udee1\ufe0f I did not send the message: it contains data I could not fully protect. This is not a network problem.'
+    }
+  };
+  function lingua(){
+    var c = '';
+    try { c = String(activeLanguageCode || document.documentElement.lang || 'it'); } catch(e) { c = 'it'; }
+    c = c.slice(0,2).toLowerCase();
+    return VOCI[c] ? c : 'en';
+  }
+  function T(chiave, dati){
+    var v = (VOCI[lingua()] || VOCI.en)[chiave];
+    if (v === undefined) v = VOCI.en[chiave] !== undefined ? VOCI.en[chiave] : chiave;
+    if (dati) Object.keys(dati).forEach(function(k){
+      v = String(v).split('{' + k + '}').join(dati[k]);
+    });
+    return v;
+  }
+  window.aegisT = T;
+
   var CATEGORIE = [
-    { id:'per',  nome:'nomi' },      { id:'addr', nome:'indirizzi' },
-    { id:'city', nome:'luoghi' },    { id:'date', nome:'date' },
-    { id:'bank', nome:'bancari' },   { id:'mail', nome:'contatti' },
-    { id:'id',   nome:'documenti' }, { id:'tech', nome:'tecnici' },
-    { id:'med',  nome:'sanitari' },  { id:'org',  nome:'aziende' }
+    { id:'per',  k:'catNomi' },      { id:'addr', k:'catIndirizzi' },
+    { id:'city', k:'catLuoghi' },    { id:'date', k:'catDate' },
+    { id:'bank', k:'catBancari' },   { id:'mail', k:'catContatti' },
+    { id:'id',   k:'catDocumenti' }, { id:'tech', k:'catTecnici' },
+    { id:'med',  k:'catSanitari' },  { id:'org',  k:'catAziende' }
   ];
   // Etichette inventate dall'utente: id -> {nome, colore}. Il colore si assegna
   // dalla tavolozza, in ordine, cosi' non deve sceglierlo nessuno.
@@ -6932,9 +7190,9 @@ if (recognition) {
   var riservato = false;
 
   function nomeCategoria(id){
-    if (id === 'tolti') return 'lasciati in chiaro da te';
+    if (id === 'tolti') return T('grTolti');
     var c = CATEGORIE.find(function(x){ return x.id===id; });
-    if (c) return c.nome;
+    if (c) return T(c.k);
     var p = categoriePersonali.get(id);
     return p ? p.nome : id;
   }
@@ -6975,15 +7233,15 @@ if (recognition) {
     var d = document.createElement('div');
     d.id = 'ag-tendina';
     d.className = 'ag-tendina';
-    var h = '<div class="ag-td-tit">Dove metto <b>' + esc(testo) + '</b>?</div><div class="ag-td-lista">';
+    var h = '<div class="ag-td-tit">' + T('dove') + ' <b>' + esc(testo) + '</b>?</div><div class="ag-td-lista">';
     CATEGORIE.forEach(function(c){
-      h += '<button type="button" data-c="'+c.id+'"><i style="background:'+coloreCategoria(c.id)+'"></i>'+c.nome+'</button>';
+      h += '<button type="button" data-c="'+c.id+'"><i style="background:'+coloreCategoria(c.id)+'"></i>'+T(c.k)+'</button>';
     });
     categoriePersonali.forEach(function(c,id){
       h += '<button type="button" data-c="'+id+'"><i style="background:'+c.colore+'"></i>'+esc(c.nome)+'</button>';
     });
-    h += '</div><div class="ag-td-nuovo"><input type="text" placeholder="oppure scrivi un\'etichetta nuova" maxlength="24">' +
-         '<button type="button" data-c="__nuovo">Aggiungi</button></div>';
+    h += '</div><div class="ag-td-nuovo"><input type="text" placeholder="' + T('etichettaNuova') + '" maxlength="24">' +
+         '<button type="button" data-c="__nuovo">' + T('aggiungi') + '</button></div>';
     d.innerHTML = h;
     document.body.appendChild(d);
     var l = Math.max(8, Math.min(rect.left, window.innerWidth - 250));
@@ -7027,7 +7285,7 @@ if (recognition) {
   function scopriTermine(testo){
     testo = String(testo).trim();
     if (!testo) return;
-    if (!confirm('Lasciare "' + testo + '" in chiaro?\n\nDa questo momento partira\u0027 cosi\u0027 com\u0027e\u0027, senza protezione.')) return;
+    if (!confirm(T('confScopri', { v: testo }))) return;
     banditi.delete(testo);
     esclusi.add(testo);
     vaiA('rimosse');
@@ -7063,9 +7321,9 @@ if (recognition) {
     col.className = 'ag-voci';
     col.innerHTML =
       '<div class="ag-voci-testa">' +
-        '<button type="button" class="ag-tab on" data-s="default">Default <span id="ag-conta">0</span></button>' +
-        '<button type="button" class="ag-tab" data-s="aggiunte">Aggiunte</button>' +
-        '<button type="button" class="ag-tab" data-s="rimosse">Rimosse</button>' +
+        '<button type="button" class="ag-tab on" data-s="default">' + T('tabDefault') + ' <span id="ag-conta">0</span></button>' +
+        '<button type="button" class="ag-tab" data-s="aggiunte">' + T('tabAggiunte') + '</button>' +
+        '<button type="button" class="ag-tab" data-s="rimosse">' + T('tabRimosse') + '</button>' +
       '</div>' +
       '<div class="ag-voci-corpo" id="ag-voci-corpo"></div>';
     scena.insertBefore(col, pannello);
@@ -7110,11 +7368,8 @@ if (recognition) {
     });
     if (!chiavi.length) {
       corpo.innerHTML = '<div class="ag-voci-vuoto">' +
-        (schedaAttiva === 'default'
-          ? 'Qui compaiono i dati che il sistema sta coprendo.'
-          : schedaAttiva === 'aggiunte'
-            ? 'Qui compaiono le parole che copri tu con il pennello.'
-            : 'Qui compaiono le parole che hai riportato in chiaro. Da quel momento partono cosi\u0027 come sono.') + '</div>';
+        (schedaAttiva === 'default' ? T('vuotoDefault')
+          : schedaAttiva === 'aggiunte' ? T('vuotoAggiunte') : T('vuotoRimosse')) + '</div>';
       aggiornaConta();
       return;
     }
@@ -7126,7 +7381,7 @@ if (recognition) {
         h += '<div class="ag-gr-voce'+(v.stato==='tolto'?' ag-tolto':'')+'">' +
              '<span class="t">'+esc(v.testo)+'</span>' +
              (v.stato==='attivo' ? '' :
-               '<button type="button" data-x="'+esc(v.testo)+'" title="Rimetti la decisione al sistema">&times;</button>') +
+               '<button type="button" data-x="'+esc(v.testo)+'" title="' + T('rimetti') + '">&times;</button>') +
              '</div>';
       });
       h += '</div>';
@@ -7207,13 +7462,26 @@ if (recognition) {
   function accendiPennello(b){
     pennelloAcceso = !pennelloAcceso;
     b.classList.toggle('on', pennelloAcceso);
-    b.textContent = pennelloAcceso ? 'Pennello: ON' : 'Pennello';
+    b.lastChild.textContent = pennelloAcceso ? T('pennelloOn') : T('pennello');
     document.body.classList.toggle('ag-pennello-on', pennelloAcceso);
     if (!pennelloAcceso) { chiudiTendina(); azzeraSelezione(); }
   }
   function avviaPennello(){
     document.addEventListener('click', function(e){
-      if (e.target.closest && e.target.closest('#ag-tendina, .ag-voci, .ag-testa')) return;
+      if (e.target.closest && e.target.closest('#ag-tendina, .ag-testa, .ag-voci-testa')) return;
+      // col pennello acceso, un clic su una voce dell'elenco vale come un clic
+      // sul dato nel testo: in Default la toglie dalla censura, nelle altre due
+      // schede annulla la scelta fatta prima.
+      var voce = pennelloAcceso && e.target.closest && e.target.closest('.ag-gr-voce');
+      if (voce) {
+        var testoVoce = (voce.querySelector('.t') || {}).textContent;
+        if (testoVoce) {
+          if (schedaAttiva === 'default') scopriTermine(testoVoce.trim());
+          else disfa(testoVoce.trim());
+        }
+        return;
+      }
+      if (e.target.closest && e.target.closest('.ag-voci')) return;
       // con il pennello acceso: un tocco prende la parola intera
       if (pennelloAcceso) {
         var dentro = e.target.closest && e.target.closest('.ag-lista, .ag-anteprima, .chat-messages');
@@ -7231,8 +7499,9 @@ if (recognition) {
           }
         }
       }
-      // clic su un codice: si offre di riportarlo in chiaro
-      var t = e.target.closest && e.target.closest('.ag-t');
+      // clic su un codice: SOLO col pennello acceso. Prima toglieva la
+      // protezione anche a pennello spento, e bastava un clic distratto.
+      var t = pennelloAcceso && e.target.closest && e.target.closest('.ag-t');
       if (t) {
         var cod = String(t.textContent||'').trim();
         var m = cod.match(/@([a-z]{1,3})(\d{1,3})([a-z]?)@/);
@@ -7246,7 +7515,7 @@ if (recognition) {
     });
     // selezione col mouse: resta possibile anche a pennello spento
     document.addEventListener('mouseup', function(e){
-      if (pennelloAcceso) return;
+      if (!pennelloAcceso) return;      // a pennello spento non si tocca nulla
       if (e.target.closest && e.target.closest('#ag-tendina')) return;
       setTimeout(function(){
         var sel = window.getSelection();
@@ -7273,7 +7542,7 @@ if (recognition) {
     riservato = !!on;
     document.body.classList.toggle('ag-riservato', riservato);
     var b = document.getElementById('ag-riservato-btn');
-    if (b) { b.classList.toggle('on', riservato); b.textContent = riservato ? 'Riservato: ON' : 'Riservato'; }
+    if (b) { b.classList.toggle('on', riservato); b.textContent = riservato ? T('riservatoOn') : T('riservato'); }
   }
   function avviaRiservatezza(){
     window.addEventListener('blur', function(){ if (autoRiservato) document.body.classList.add('ag-sfocato'); });
@@ -7338,21 +7607,19 @@ if (recognition) {
       }).join('');
       ov.innerHTML =
         '<div class="ag-avviso">' +
-          '<h3>Queste ' + elenco.length + ' parole partirebbero in chiaro</h3>' +
-          '<p>Il sistema non le riconosce come dati protetti, ma potrebbero esserlo. ' +
-             'Clicca le righe per scegliere quali coprire: quelle spente partono come sono.</p>' +
+          '<h3>' + T('avvTitolo', { n: elenco.length }) + '</h3>' +
+          '<p>' + T('avvTesto') + '</p>' +
           '<div class="ag-av-strumenti">' +
-            '<button type="button" class="ag-av-mini" data-a="tutte">Seleziona tutte</button>' +
-            '<button type="button" class="ag-av-mini" data-a="nessuna">Nessuna</button>' +
+            '<button type="button" class="ag-av-mini" data-a="tutte">' + T('avvTutte') + '</button>' +
+            '<button type="button" class="ag-av-mini" data-a="nessuna">' + T('avvNessuna') + '</button>' +
           '</div>' +
           '<div class="ag-av-lista">' + righe + '</div>' +
-          '<label class="ag-av-spunta"><input type="checkbox" id="ag-av-mai"> ' +
-             'Non avvisarmi piu\' in questa sessione</label>' +
+          '<label class="ag-av-spunta"><input type="checkbox" id="ag-av-mai"> ' + T('avvMai') + '</label>' +
           '<div class="ag-av-bottoni">' +
-            '<button type="button" data-a="indietro">Torna indietro</button>' +
-            '<button type="button" data-a="invia">Invia senza coprire</button>' +
+            '<button type="button" data-a="indietro">' + T('avvIndietro') + '</button>' +
+            '<button type="button" data-a="invia">' + T('avvInvia') + '</button>' +
             '<button type="button" class="ag-av-primo" data-a="copri">' +
-               'Copri le <b id="ag-av-n">' + elenco.length + '</b> scelte e invia</button>' +
+               T('avvCopri', { n: elenco.length }) + '</button>' +
           '</div>' +
         '</div>';
       document.body.appendChild(ov);
@@ -7385,7 +7652,7 @@ if (recognition) {
           conta();
           return;
         }
-        if (document.getElementById('ag-av-mai').checked) nonAvvisarePiu = true;
+        if (document.getElementById('ag-av-mai').checked) { nonAvvisarePiu = true; spegniAvviso('invio', true); }
         ov.remove();
         risolvi({ scelta: a, quali: elenco.filter(function(x, i){ return scelte[i]; }) });
       });
@@ -7421,6 +7688,198 @@ if (recognition) {
       } catch (e) { console.error('[Aegis] avviso pre-invio:', e && e.message); }
       return originale.apply(this, arguments);
     };
+  }
+
+  /* ============== PREFERENZE, NUVOLETTE, OPZIONI ============== */
+
+  // Tutti gli avvisi che l'utente puo' spegnere stanno qui, in un posto solo,
+  // e dal pannello opzioni si riaccendono. Un avviso spento per sempre e senza
+  // modo di riaverlo e' una trappola: chi lo spegne per sbaglio il primo
+  // giorno non lo rivede mai piu'.
+  var AVVISI = [
+    { id:'invio',    k:'opAvvisoInvio', kd:'opAvvisoInvioD' },
+    { id:'profonda', k:'opAvvisoProf',  kd:'opAvvisoProfD'  }
+  ];
+  function avvisoSpento(id){
+    try { return localStorage.getItem('aegis_no_' + id) === '1'; } catch(e) { return false; }
+  }
+  function spegniAvviso(id, spento){
+    try {
+      if (spento) localStorage.setItem('aegis_no_' + id, '1');
+      else localStorage.removeItem('aegis_no_' + id);
+    } catch(e) {}
+  }
+
+  /* ---------- nuvolette di spiegazione ---------- */
+  // 1200 ms prima di comparire: sotto si aprono da sole mentre passi il mouse
+  // per andare altrove, sopra sembrano rotte. Mezzo secondo di dissolvenza in
+  // entrata e in uscita.
+  var ATTESA_NUVOLA = 1200;
+  // Etichette e spiegazioni dei pulsanti: si riscrivono a ogni cambio di lingua,
+  // insieme al banner della modalita' riservata, che vive in una regola CSS.
+  function etichette(){
+    var m = { 'ag-pennello-btn':['pennello','aiutoPennello'],
+              'ag-ia':['profonda','aiutoProfonda'],
+              'ag-riservato-btn':['riservato','aiutoRiservato'],
+              'ag-opzioni-btn':['config','aiutoConfig'],
+              'ag-sp-hl':[null,'aiutoEvidenzia'],
+              'ag-doc-btn':[null,'docAiuto'] };
+    Object.keys(m).forEach(function(id){
+      var b = document.getElementById(id);
+      if (!b) return;
+      b.setAttribute('data-aiuto', T(m[id][1]));
+      b.removeAttribute('title');
+      if (!m[id][0]) return;
+      if (id === 'ag-pennello-btn') {
+        if (b.lastChild && b.lastChild.nodeType === 3) b.lastChild.textContent = pennelloAcceso ? T('pennelloOn') : T('pennello');
+      } else if (id === 'ag-ia') {
+        b.textContent = PROFONDA ? T('profondaOn') : T('profonda');
+      } else if (id === 'ag-riservato-btn') {
+        b.textContent = riservato ? T('riservatoOn') : T('riservato');
+      } else {
+        b.textContent = T(m[id][0]);
+      }
+    });
+    try { document.documentElement.style.setProperty('--ag-riservato-testo', '"' + T('riservatoBanner') + '"'); } catch(e) {}
+    var t = document.querySelectorAll('.ag-voci .ag-tab');
+    if (t && t.length >= 3) {
+      var c = document.getElementById('ag-conta');
+      t[0].innerHTML = T('tabDefault') + ' <span id="ag-conta">' + (c ? c.textContent : '0') + '</span>';
+      t[1].textContent = T('tabAggiunte');
+      t[2].textContent = T('tabRimosse');
+    }
+    try { disegnaColonna(); } catch(e) {}
+  }
+  window.aegisLingua = etichette;
+
+  function avviaNuvolette(){
+    var nuvola = null, timer = null;
+    function chiudi(){
+      if (timer) { clearTimeout(timer); timer = null; }
+      if (nuvola) {
+        var n = nuvola; nuvola = null;
+        n.classList.remove('on');
+        setTimeout(function(){ if (n.parentNode) n.parentNode.removeChild(n); }, 520);
+      }
+    }
+    document.addEventListener('mouseover', function(e){
+      var b = e.target.closest && e.target.closest('[data-aiuto]');
+      if (!b) return;
+      chiudi();
+      timer = setTimeout(function(){
+        var r = b.getBoundingClientRect();
+        nuvola = document.createElement('div');
+        nuvola.className = 'ag-nuvola';
+        nuvola.textContent = b.getAttribute('data-aiuto');
+        document.body.appendChild(nuvola);
+        var l = Math.max(8, Math.min(r.left, window.innerWidth - nuvola.offsetWidth - 12));
+        var t = r.bottom + 9;
+        if (t + nuvola.offsetHeight > window.innerHeight - 8) t = Math.max(8, r.top - nuvola.offsetHeight - 9);
+        nuvola.style.left = l + 'px'; nuvola.style.top = t + 'px';
+        requestAnimationFrame(function(){ if (nuvola) nuvola.classList.add('on'); });
+      }, ATTESA_NUVOLA);
+    });
+    document.addEventListener('mouseout', function(e){
+      if (e.target.closest && e.target.closest('[data-aiuto]')) chiudi();
+    });
+    document.addEventListener('click', chiudi);
+  }
+
+  /* ---------- spiegazione dell'analisi profonda ---------- */
+  function spiegaProfonda(){
+    return new Promise(function(risolvi){
+      var ov = document.createElement('div');
+      ov.className = 'ag-avviso-ov';
+      ov.innerHTML =
+        '<div class="ag-avviso">' +
+          '<h3>' + T('pfTitolo') + '</h3>' +
+          '<p>' + T('pfP1') + '</p>' +
+          '<p>' + T('pfP2') + '</p>' +
+          '<p>' + T('pfP3') + '</p>' +
+          '<label class="ag-av-spunta"><input type="checkbox" id="ag-pf-mai"> ' + T('pfMai') + '</label>' +
+          '<div class="ag-av-bottoni">' +
+            '<button type="button" data-a="no">' + T('pfNo') + '</button>' +
+            '<button type="button" class="ag-av-primo" data-a="si">' + T('pfSi') + '</button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(ov);
+      ov.addEventListener('click', function(e){
+        var b = e.target.closest('button'); if (!b) return;
+        if (document.getElementById('ag-pf-mai').checked) spegniAvviso('profonda', true);
+        ov.remove();
+        risolvi(b.getAttribute('data-a') === 'si');
+      });
+    });
+  }
+
+  /* ---------- pannello di configurazione ---------- */
+  function apriOpzioni(){
+    var ov = document.createElement('div');
+    ov.className = 'ag-avviso-ov';
+    var righeAvvisi = AVVISI.map(function(a){
+      return '<label class="ag-op-riga"><input type="checkbox" data-avviso="' + a.id + '"' +
+             (avvisoSpento(a.id) ? '' : ' checked') + '>' +
+             '<span><b>' + T(a.k) + '</b><i>' + T(a.kd) + '</i></span></label>';
+    }).join('');
+    ov.innerHTML =
+      '<div class="ag-avviso ag-opzioni">' +
+        '<h3>' + T('opTitolo') + '</h3>' +
+        '<div class="ag-op-sez"><h4>' + T('opAvvisi') + '</h4>' + righeAvvisi + '</div>' +
+        '<div class="ag-op-sez"><h4>' + T('opProtezione') + '</h4>' +
+          '<label class="ag-op-riga"><input type="checkbox" id="op-riempi"' + (RIEMPIMENTO ? ' checked' : '') + '>' +
+            '<span><b>' + T('opRiempi') + '</b><i>' + T('opRiempiD') + '</i></span></label>' +
+          '<label class="ag-op-riga"><input type="checkbox" id="op-riservato-auto"' + (autoRiservato ? ' checked' : '') + '>' +
+            '<span><b>' + T('opSfoca') + '</b><i>' + T('opSfocaD') + '</i></span></label>' +
+        '</div>' +
+        '<div class="ag-op-sez"><h4>' + T('opDati') + '</h4>' +
+          '<div class="ag-op-azioni">' +
+            '<button type="button" data-a="scelte">' + T('opAzzera') + '</button>' +
+            '<button type="button" data-a="cronologia">' + T('opCancella') + '</button>' +
+          '</div>' +
+          '<p class="ag-op-nota">' + T('opNota') + '</p>' +
+        '</div>' +
+        '<div class="ag-av-bottoni">' +
+          '<button type="button" data-a="esci">' + T('opEsci') + '</button>' +
+          '<button type="button" class="ag-av-primo" data-a="chiudi">' + T('opChiudi') + '</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(ov);
+    ov.addEventListener('change', function(e){
+      var t = e.target;
+      if (t.getAttribute && t.getAttribute('data-avviso')) {
+        spegniAvviso(t.getAttribute('data-avviso'), !t.checked);
+        if (t.getAttribute('data-avviso') === 'invio') nonAvvisarePiu = !t.checked;
+      }
+      if (t.id === 'op-riempi') { RIEMPIMENTO = t.checked; aggiorna(); }
+      if (t.id === 'op-riservato-auto') autoRiservato = t.checked;
+    });
+    ov.addEventListener('click', function(e){
+      var b = e.target.closest('button'); if (!b) return;
+      var a = b.getAttribute('data-a');
+      if (a === 'scelte') {
+        if (confirm(T('confAzzera'))) {
+          banditi.clear(); esclusi.clear(); aggiorna();
+        }
+        return;
+      }
+      if (a === 'cronologia') {
+        if (confirm(T('confCancella'))) {
+          if (window.AEGIS_CRONOLOGIA) window.AEGIS_CRONOLOGIA.svuota();
+        }
+        return;
+      }
+      if (a === 'esci') {
+        if (!confirm(T('confEsci'))) return;
+        try {
+          localStorage.removeItem('chat_user_email');
+          localStorage.removeItem('gdpr_ok');
+          sessionStorage.clear();
+        } catch (err) {}
+        location.reload();
+        return;
+      }
+      ov.remove();
+    });
   }
 
   /* ---------- API usata dalla chat ---------- */
@@ -7763,8 +8222,7 @@ if (recognition) {
       // meglio un codice piccolo che una riga che si sposta
       var stile = 'width:' + largo + 'ch';
       if (full.length > largo) stile += ';font-size:' + (largo/full.length).toFixed(2) + 'em';
-      var titolo = ' title="' + (extra ? 'Proposto dal riconoscimento avanzato — ' : '') +
-                   'copre ' + largo + ' caratteri"';
+      var titolo = ' title="' + T('copre', { n: largo }) + '"';
       return '<span class="ag-t ag-'+(colorDi.get(tok)||colore(tok))+extra+'" style="'+stile+'"'+titolo+'>'+full+'</span>';
     });
   }
@@ -7831,10 +8289,11 @@ if (recognition) {
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'+
         '<span class="ag-tit">Quello che riceve il modello</span>'+
         '<span class="ag-ner" id="ag-ner" title="Riconoscimento avanzato dei nomi"></span>'+
-        '<button class="ag-ia" id="ag-pennello-btn" type="button" title="Tocca una parola per coprirla, senza selezionarla">Pennello</button>'+
-        '<button class="ag-ia" id="ag-ia" type="button"></button>'+
-        '<button class="ag-ia" id="ag-riservato-btn" type="button" title="Sfoca i dati sullo schermo">Riservato</button>'+
-        '<button class="ag-toggle ag-toggle-sp on" id="ag-sp-hl" title="Evidenzia i codici"><span class="ag-dot"></span><span class="ag-lbl"></span></button>'+
+        '<button class="ag-ia" id="ag-pennello-btn" type="button" data-aiuto="Tocca una parola e viene presa tutta: scegli in che categoria coprirla. Tocca un codice gia\u0027 coperto per riportarlo in chiaro. Funziona anche sugli elenchi qui a sinistra."><svg viewBox=\'0 0 24 24\'><path d=\'M18.5 2.5a2.1 2.1 0 0 1 3 3L13 14l-4 1 1-4 8.5-8.5zM6 16c1.7 0 3 1.3 3 3 0 1.7-1.8 3-4 3-1.2 0-2.4-.3-3-1 1.1 0 2-1.3 2-2.5S5 16 6 16z\'/></svg>Pennello</button>'+
+        '<button class="ag-ia" id="ag-ia" type="button" data-aiuto="Misura estrema: copre molto di piu\u0027 e sbaglia molto di piu\u0027. Prende anche i nomi in minuscolo che sono parole comuni. Non serve quasi mai."></button>'+
+        '<button class="ag-ia" id="ag-riservato-btn" type="button"></button>'+
+        '<button class="ag-ia" id="ag-opzioni-btn" type="button"></button>'+
+        '<button class="ag-toggle ag-toggle-sp on" id="ag-sp-hl" data-aiuto="Accende e spegne i colori sui codici nello specchio. Non cambia cio\u0027 che viene inviato."><span class="ag-dot"></span><span class="ag-lbl"></span></button>'+
       '</div>'+
       '<div class="ag-corpo">'+
         '<div class="ag-lista" id="ag-lista"></div>'+
@@ -7951,7 +8410,7 @@ if (recognition) {
     var bIa = document.getElementById('ag-ia');
     function aggiornaIa(){
       if(!bIa) return;
-      bIa.textContent = PROFONDA ? 'Profonda: ON' : 'Analisi profonda';
+      bIa.textContent = PROFONDA ? T('profondaOn') : T('profonda');
       bIa.className = 'ag-ia' + (PROFONDA ? ' ag-pronto' : '');
       bIa.disabled = false;
       bIa.title = PROFONDA
@@ -7965,8 +8424,12 @@ if (recognition) {
     }
     if(bIa){
       aggiornaIa();
-      bIa.addEventListener('click', function(e){
+      bIa.addEventListener('click', async function(e){
         e.stopPropagation();
+        if (!PROFONDA && !avvisoSpento('profonda')) {
+          var ok = await spiegaProfonda();
+          if (!ok) return;
+        }
         PROFONDA = !PROFONDA;
         try{
           if(PROFONDA) localStorage.setItem('aegis_profonda','1');
@@ -8041,6 +8504,11 @@ if (recognition) {
     if (bPen) bPen.addEventListener('click', function(e){ e.stopPropagation(); accendiPennello(bPen); });
     var bRis = document.getElementById('ag-riservato-btn');
     if (bRis) bRis.addEventListener('click', function(e){ e.stopPropagation(); riservatezza(!riservato); });
+    var bOpz = document.getElementById('ag-opzioni-btn');
+    if (bOpz) bOpz.addEventListener('click', function(e){ e.stopPropagation(); apriOpzioni(); });
+    etichette();
+    avviaNuvolette();
+    try { nonAvvisarePiu = avvisoSpento('invio'); } catch(e) {}
 
     costruisciColonna();
     disegna();
@@ -8147,7 +8615,7 @@ if (recognition) {
     var doc = await lib.getDocument({ data: buf }).promise;
     var pezzi = [];
     for (var i = 1; i <= doc.numPages; i++) {
-      stato('Leggo la pagina ' + i + ' di ' + doc.numPages + '…');
+      stato((window.aegisT || function(k){return k;})('docPagina', { i: i, n: doc.numPages }));
       var pag = await doc.getPage(i);
       var tc = await pag.getTextContent();
       pezzi.push(tc.items.map(function (x) { return x.str; }).join(' '));
@@ -8156,11 +8624,7 @@ if (recognition) {
 
     // Poco testo su molte pagine = PDF scansionato: sono immagini, serve l'OCR.
     if (testo.length < 40 * doc.numPages) {
-      var vuoiOcr = confirm(
-        'Questo PDF sembra una scansione: non contiene testo, solo immagini.\n\n' +
-        'Posso leggerlo con il riconoscimento ottico, che gira sul tuo dispositivo ' +
-        '(il file non esce da qui). Richiede qualche secondo per pagina e la prima ' +
-        'volta scarica circa 15 MB.\n\nProcedo?');
+      var vuoiOcr = confirm((window.aegisT || function(k){return k;})('docScan'));
       if (vuoiOcr) return await ocrPdf(doc);
     }
     return testo;
@@ -8172,7 +8636,7 @@ if (recognition) {
     var pezzi = [];
     var max = Math.min(doc.numPages, 20);   // oltre diventa insopportabile
     for (var i = 1; i <= max; i++) {
-      stato('Riconoscimento ottico, pagina ' + i + ' di ' + max + '…');
+      stato((window.aegisT || function(k){return k;})('docOcr', { i: i, n: max }));
       var pag = await doc.getPage(i);
       var vp = pag.getViewport({ scale: 2 });
       var cv = document.createElement('canvas');
@@ -8196,7 +8660,7 @@ if (recognition) {
   async function leggiImmagine(file) {
     await carica(CDN.ocr);
     if (!window.Tesseract) throw new Error('OCR non disponibile');
-    stato('Riconoscimento ottico in corso…');
+    stato((window.aegisT || function(k){return k;})('docOcr1'));
     var url = URL.createObjectURL(file);
     try {
       var res = await window.Tesseract.recognize(url, 'ita+eng');
@@ -8212,8 +8676,7 @@ if (recognition) {
     if (/\.docx$/.test(nome)) return await leggiDocx(file);
     if (/\.(png|jpe?g|webp|gif|bmp|tiff?)$/.test(nome)) return await leggiImmagine(file);
     if (/\.(doc|xls|ppt)$/.test(nome)) {
-      throw new Error('I formati vecchi di Office (.doc, .xls, .ppt) non si possono ' +
-        'leggere nel browser. Aprilo e salvalo come .docx o come testo, poi riprova.');
+      throw new Error((window.aegisT || function(k){return k;})('docVecchio'));
     }
     // formato ignoto: si tenta come testo, male che vada esce spazzatura
     return await leggiTesto(file);
@@ -8224,16 +8687,16 @@ if (recognition) {
     input.value = '';
     if (!file) return;
     if (file.size > 25 * 1024 * 1024) {
-      stato('File troppo grande (oltre 25 MB).', true);
+      stato((window.aegisT || function(k){return k;})('docGrande'), true);
       return;
     }
     var campo = document.getElementById('user-input');
     if (!campo) return;
-    stato('Apro ' + file.name + '…');
+    stato((window.aegisT || function(k){return k;})('docApro', { f: file.name }));
     try {
       var testo = await estrai(file);
       if (!testo || testo.trim().length < 2) {
-        stato('Non ho trovato testo leggibile in questo file.', true);
+        stato((window.aegisT || function(k){return k;})('docNiente'), true);
         return;
       }
       var prima = campo.value ? campo.value.replace(/\s+$/, '') + '\n\n' : '';
@@ -8241,11 +8704,10 @@ if (recognition) {
       campo.dispatchEvent(new Event('input', { bubbles: true }));
       campo.focus();
       try { campo.setSelectionRange(campo.value.length, campo.value.length); } catch (e) {}
-      stato(file.name + ': ' + testo.trim().length.toLocaleString('it-IT') +
-            ' caratteri estratti. Controlla lo specchio prima di inviare.');
+      stato((window.aegisT || function(k){return k;})('docFatto', { f: file.name, n: testo.trim().length.toLocaleString() }));
       setTimeout(function () { stato(''); }, 9000);
     } catch (e) {
-      stato(e && e.message ? e.message : 'Non sono riuscito a leggere il file.', true);
+      stato(e && e.message ? e.message : (window.aegisT || function(k){return k;})('docErrore'), true);
     }
   }
 
@@ -8272,8 +8734,7 @@ if (recognition) {
     b.id = 'ag-doc-btn';
     b.type = 'button';
     b.className = 'ag-doc-btn';
-    b.title = 'Apri un documento: il testo viene estratto qui sul tuo dispositivo, ' +
-              'il file non viene caricato da nessuna parte';
+    b.setAttribute('data-aiuto', (window.aegisT || function(k){return k;})('docAiuto'));
     b.innerHTML = '<svg viewBox="0 0 24 24"><path d="M16.5 6v11.5a4 4 0 0 1-8 0V5a2.5 2.5 0 0 1 5 0v10.5a1 1 0 0 1-2 0V6H10v9.5a2.5 2.5 0 0 0 5 0V5a4 4 0 0 0-8 0v12.5a5.5 5.5 0 0 0 11 0V6h-1.5z"/></svg>';
 
     var inp = document.createElement('input');
@@ -8434,7 +8895,7 @@ if (recognition) {
     if (!lista.length) {
       var vuoto = document.createElement('div');
       vuoto.className = 'history-status-box';
-      vuoto.innerText = L.historyEmpty || 'Nessuna conversazione trovata.';
+      vuoto.innerText = (window.aegisT || function(k){return k;})('cronVuota');
       griglia.appendChild(vuoto);
       return;
     }
@@ -8442,8 +8903,7 @@ if (recognition) {
     var nota = document.createElement('div');
     nota.style.cssText = 'font-size:11px;color:var(--text-light);text-align:center;' +
       'margin-bottom:14px;line-height:1.5;font-family:Inter,sans-serif';
-    nota.textContent = 'Queste conversazioni sono salvate solo su questo dispositivo, '
-      + 'in questo browser. Non sono mai state inviate a nessun server.';
+    nota.textContent = (window.aegisT || function(k){return k;})('cronNota');
     griglia.appendChild(nota);
 
     lista.forEach(function (chat) {
@@ -8479,7 +8939,7 @@ if (recognition) {
       };
       menu.querySelector('[data-a="rinomina"]').onclick = function (e) {
         e.stopPropagation(); menu.classList.remove('open');
-        var nuovo = prompt('Nuovo nome della conversazione:', chat.titolo || '');
+        var nuovo = prompt((window.aegisT || function(k){return k;})('cronRinomina'), chat.titolo || '');
         if (nuovo === null) return;
         var l = leggi();
         l.forEach(function (c) { if (c.id === chat.id) c.titolo = nuovo.trim().slice(0, 80) || c.titolo; });
@@ -8494,7 +8954,7 @@ if (recognition) {
       };
       menu.querySelector('[data-a="elimina"]').onclick = function (e) {
         e.stopPropagation(); menu.classList.remove('open');
-        if (!confirm(L.histDeleteConfirm || 'Eliminare questa conversazione?')) return;
+        if (!confirm((window.aegisT || function(k){return k;})('cronElimina'))) return;
         scrivi(leggi().filter(function (c) { return c.id !== chat.id; }));
         riga.remove();
       };
@@ -8520,15 +8980,25 @@ if (recognition) {
     if (window.aegisReset) window.aegisReset();
     if (messaggi) messaggi.innerHTML = '';
 
+    // Prima ogni messaggio veniva rimascherato mentre si disegnava la chat, e
+    // su una conversazione lunga si vedevano le bolle comparire a fatica. Ora
+    // la chat si disegna subito e lo specchio si ricostruisce dopo, fuori dal
+    // percorso di disegno: l'utente vede la conversazione all'istante.
+    var daRimascherare = [];
     (chat.messaggi || []).forEach(function (m) {
       addMessageToChat(m.content, m.role === 'user' ? 'user-message' : 'bot-message',
                        m.role === 'assistant', false);
       conversationHistory.push({ role: m.role, content: m.content });
-      // lo specchio si ricostruisce mascherando di nuovo, cosi' i codici
-      // tornano quelli giusti anche in una conversazione ripresa
-      if (m.role === 'user' && window.aegisUtente) window.aegisUtente(m.content);
-      else if (window.aegisModello) window.aegisModello(m.content);
+      daRimascherare.push(m);
     });
+    setTimeout(function () {
+      daRimascherare.forEach(function (m) {
+        try {
+          if (m.role === 'user' && window.aegisUtente) window.aegisUtente(m.content);
+          else if (window.aegisModello) window.aegisModello(m.content);
+        } catch (e) {}
+      });
+    }, 30);
     setTimeout(function () {
       var cm = document.getElementById('chat-messages');
       if (cm) cm.scrollTop = cm.scrollHeight;
