@@ -54,8 +54,18 @@ body.ag-attivo{overflow:hidden;margin:0}
 .ag-pannello{overflow:hidden;background:var(--console-bg);
   border:1px solid var(--hairline);border-radius:14px;font-family:'Inter',sans-serif}
 /* riga 1: intestazione, alla stessa altezza della barra pulsanti a destra */
-.ag-testa{display:flex;align-items:center;gap:8px;height:52px;padding:0 14px;flex:none;
-  border-bottom:1px solid var(--hairline);background:var(--primary)}
+/* La barra si dispone su piu' righe e i pulsanti hanno tutti la stessa
+   larghezza. Serve perche' le stesse parole in lingue diverse cambiano molto:
+   "Analisi profonda" diventa "Analisis profundo" e "Deep scan". Con i pulsanti
+   a larghezza libera qualcuno finiva tagliato fuori dallo schermo. */
+.ag-testa{display:flex;align-items:center;gap:7px;min-height:52px;padding:8px 12px;flex:none;
+  flex-wrap:wrap;border-bottom:1px solid var(--hairline);background:var(--primary)}
+.ag-testa .ag-ia,
+.ag-testa .ag-toggle-sp{flex:1 1 120px;min-width:112px;max-width:none;
+  justify-content:center;text-align:center}
+/* In questa barra le icone rubano spazio alle parole: restano solo altrove. */
+.ag-testa .ag-ia svg{display:none}
+.ag-testa .ag-toggle-sp .ag-dot{display:none}
 .ag-testa svg{width:14px;height:14px;color:var(--text-light);flex:none}
 /* L'ingranaggio prende il posto del lucchetto, che era solo un disegno senza
    funzione. La configurazione sta dove ci si aspetta di trovarla, e la barra
@@ -66,7 +76,8 @@ body.ag-attivo{overflow:hidden;margin:0}
 .ag-ingranaggio:hover{color:var(--accent);background:rgba(0,113,227,.08)}
 .ag-ingranaggio svg{width:16px;height:16px;color:currentColor}
 .ag-tit{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
-  color:var(--text-light);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  color:var(--text-light);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  flex:0 1 auto;max-width:150px}
 .ag-badge{margin-left:auto;min-width:20px;text-align:center;padding:1px 7px;border-radius:9px;
   background:var(--hairline);color:var(--text-light);font-size:10px;font-weight:700;transition:.2s}
 .ag-badge.att{background:var(--accent);color:#fff}
@@ -5801,7 +5812,9 @@ if (recognition) {
   // Le sequenze capitalizzate si estraggono UNA volta in modo lineare.
   // Una regex con alternanze e ripetizioni su 250 KB costa secondi; questa
   // passata costa millisecondi.
-  const TOKEN_RE = /[A-Z\u00C0-\u00DE][A-Za-z\u00C0-\u024F'\u2019]{0,24}\.?/g;
+  // Anche qui si accetta la doppia maiuscola iniziale ("MArio Rossi"): e' lo
+  // stesso refuso, sulle sequenze di piu' parole invece che sulla singola.
+  const TOKEN_RE = /[A-Z\u00C0-\u00DE]{1,2}[A-Za-z\u00C0-\u024F'\u2019]{0,24}\.?/g;
   const PARTICLE_RE = /^(?:d[eiao]l?|de la|de los|della|degli|van|der|von|du|la|le|mac|mc)$/i;
   function capitalRuns(text) {
     const toks = [];
@@ -5912,7 +5925,10 @@ if (recognition) {
         // singoli passa di qui ma lavora anche sul minuscolo ("peppino"), e
         // pretendere la maiuscola lo spegnerebbe del tutto.
         if (!p.gazetteer.single && !PROFONDO) {
-          const formaNome = words.every(w => /^[A-Z\u00C0-\u00DE][^A-Z\u00C0-\u00DE]*$/.test(w));
+          // Fino a due maiuscole iniziali: "MArio Rossi" resta una forma di nome,
+          // e' solo scritto male. Da tre in su e' tutto maiuscolo, e quello ha
+          // regole sue.
+          const formaNome = words.every(w => /^[A-Z\u00C0-\u00DE]{1,2}[^A-Z\u00C0-\u00DE]*$/.test(w));
           if (!formaNome) return;
         }
         conf += KB.modifiers.inGazetteer * Math.min(1, known.length / words.length);
@@ -5986,12 +6002,22 @@ if (recognition) {
     // "Sig.ra", "Dr.", "Paziente:") e dai titoli, che sono affidabili.
     // Il riconoscimento dei nomi nel testo libero e' il compito del modello,
     // non degli elenchi.
-    if (p.gazetteer && !PROFONDO) return;
+    //
+    // MA SOLO SE IL MODELLO C'E'. Spegnere gli elenchi in attesa di un motore
+    // che non e' ancora acceso lascia un buco con niente dentro: i nomi in
+    // minuscolo smettono di essere coperti e nessuno se ne accorge. Quando il
+    // modello e' attivo gli elenchi si fanno da parte, e con loro spariscono i
+    // falsi positivi ("Software", "Medicina Interna"). Quando non c'e',
+    // tornano in servizio: coprire troppo e' meglio che non coprire.
+    if (p.gazetteer && !PROFONDO && MODELLO_ATTIVO) return;
     if (p.gazetteer && p.gazetteer.single) {
       // Un nome proprio isolato ("Valerio") e' comunque un dato personale.
       if (!cache.toks) {
         cache.toks = [];
-        const TR = /[A-Z\u00C0-\u00DE][a-z\u00DF-\u00FF']{1,20}/g;
+        // "PIetro", "MAria": due maiuscole all'inizio sono un refuso comunissimo
+        // di chi scrive in fretta, e prima nessuna regola le riconosceva come
+        // parole capitalizzate. Il nome restava scoperto per una battuta storta.
+        const TR = /[A-Z\u00C0-\u00DE]{1,2}[a-z\u00DF-\u00FF']{1,20}/g;
         let m;
         while ((m = TR.exec(text)) !== null) cache.toks.push({ s: m.index, w: m[0] });
       }
@@ -6297,6 +6323,7 @@ if (recognition) {
   // di default.
   let PROFONDO = false;
   let LINGUA = null;
+  let MODELLO_ATTIVO = false;   // vero solo quando il motore contestuale gira
 
   function protect(rawText, opts) {
     opts = opts || {};
@@ -6306,6 +6333,7 @@ if (recognition) {
     // pattern spagnoli giravano su testi italiani e viceversa. Se la lingua non
     // e' nota si esegue tutto, come prima.
     LINGUA = String(opts.language || '').toLowerCase().split('-')[0] || null;
+    MODELLO_ATTIVO = !!opts.modelloAttivo;
     const level = KB.levels[opts.level || 'standard'];
     const disabled = new Set(opts.disabledPatterns || []);
     const excluded = new Set((opts.excludedValues || []).map(v => v.toLowerCase()));
@@ -6559,6 +6587,7 @@ if (recognition) {
   function opzioni(){
     var o = PROFONDA ? {level:'paranoid', profondo:true} : {level:LIVELLO};
     if (esclusi.size) o.excludedValues = Array.from(esclusi);
+    o.modelloAttivo = !!(window.AEGIS_MODELLO && window.AEGIS_MODELLO.pronto);
     return o;
   }
   var vault=new Map(), colorDi=new Map(), contatore={};
@@ -6994,6 +7023,7 @@ if (recognition) {
      ============================================================ */
   var VOCI = {
     it: {
+      profondaAttiva:'analisi profonda attiva',
       motore:'Motore avanzato',
       motoreOn:'Motore: ON',
       motoreCarico:'Scarico {p}%',
@@ -7073,6 +7103,7 @@ if (recognition) {
       invioBloccato:'\ud83d\udee1\ufe0f Non ho inviato il messaggio: contiene dati che non sono riuscito a proteggere del tutto. Non e\u0027 un problema di rete.'
     },
     es: {
+      profondaAttiva:'analisis profundo activo',
       motore:'Motor avanzado',
       motoreOn:'Motor: ON',
       motoreCarico:'Descargando {p}%',
@@ -7152,6 +7183,7 @@ if (recognition) {
       invioBloccato:'\ud83d\udee1\ufe0f No he enviado el mensaje: contiene datos que no he podido proteger del todo. No es un problema de red.'
     },
     en: {
+      profondaAttiva:'deep scan on',
       motore:'Advanced engine',
       motoreOn:'Engine: ON',
       motoreCarico:'Downloading {p}%',
@@ -8610,7 +8642,7 @@ if (recognition) {
       var et = document.getElementById('ag-ner');
       if(et){
         et.className = 'ag-ner' + (PROFONDA ? ' ag-pronto' : '');
-        et.textContent = PROFONDA ? 'analisi profonda attiva' : '';
+        et.textContent = PROFONDA ? T('profondaAttiva') : '';
       }
     }
     if(bIa){
@@ -9310,6 +9342,7 @@ if (recognition) {
         });
       }
       segnala('pronto');
+      console.log('%c[Aegis] motore contestuale pronto', 'color:#30A46C;font-weight:700', MODELLO);
       return motore;
     })().catch(function (e) {
       console.error('[Aegis] motore contestuale non disponibile:', e && e.message);
@@ -9399,8 +9432,17 @@ if (recognition) {
     var t = String(testo || '');
     if (t.trim().length < 3) return [];
     try {
+      var a = performance.now();
       var pezzi = await motore(t);
-      return ricomponi(pezzi, t);
+      var fuori = ricomponi(pezzi, t);
+      // Diagnosi: senza questa riga non c'e' modo di sapere se il motore sta
+      // girando davvero, se e' lento, o se sta trovando zero.
+      console.log('%c[Aegis] motore', 'color:#0071e3;font-weight:700',
+        Math.round(performance.now() - a) + 'ms |',
+        fuori.length + ' trovati:',
+        fuori.map(function(x){ return x.valore + ' (' + x.cat + ')'; }).join(', ') || '—',
+        '| grezzo:', (pezzi || []).length + ' pezzi');
+      return fuori;
     } catch (e) {
       console.error('[Aegis] analisi contestuale fallita:', e && e.message);
       return [];
