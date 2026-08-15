@@ -154,6 +154,70 @@ body.ag-attivo{overflow:hidden;margin:0}
 /* --- CRONOLOGIA LOCALE ---
    Non legge piu' da chat_logs (dove non scriviamo piu' nulla): le conversazioni
    restano nel browser dell'utente. Il pulsante torna visibile. */
+/* --- TERZA COLONNA: le voci --- */
+.ag-voci{flex:0 0 22%;min-width:170px;max-width:300px;display:flex;flex-direction:column;
+  background:var(--console-bg);border:1px solid var(--hairline);border-radius:14px;
+  overflow:hidden;font-family:'Inter',sans-serif}
+.ag-voci-testa{display:flex;height:52px;flex:none;border-bottom:1px solid var(--hairline);
+  background:var(--primary)}
+.ag-tab{flex:1;border:none;background:transparent;cursor:pointer;font-family:inherit;
+  font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--text-light);border-bottom:2px solid transparent;transition:.15s}
+.ag-tab:hover{color:var(--text-main)}
+.ag-tab.on{color:var(--accent);border-bottom-color:var(--accent)}
+.ag-tab span{display:inline-block;min-width:18px;margin-left:4px;padding:1px 5px;
+  border-radius:9px;background:var(--hairline);color:var(--text-light);font-size:9.5px}
+.ag-tab.on span{background:var(--accent);color:#fff}
+.ag-voci-corpo{flex:1 1 auto;min-height:0;overflow-y:auto;padding:10px 12px 14px}
+.ag-voci-vuoto{color:var(--text-light);opacity:.65;font-size:11px;line-height:1.6;
+  text-align:center;padding:24px 6px}
+.ag-gr{margin-bottom:12px}
+.ag-gr-tit{display:flex;align-items:center;gap:6px;font-size:9.5px;font-weight:700;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--text-light);margin-bottom:4px}
+.ag-gr-tit i{width:9px;height:9px;border-radius:2px;flex:none}
+.ag-gr-voce{display:flex;align-items:center;gap:6px;font-size:11.5px;line-height:1.5;
+  color:var(--text-main);padding:1px 0 1px 15px}
+.ag-gr-voce .t{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ag-gr-voce button{border:none;background:transparent;color:var(--text-light);
+  cursor:pointer;font-size:14px;line-height:1;padding:0 2px}
+.ag-gr-voce button:hover{color:var(--c-per)}
+.ag-gr-voce.ag-tolto .t{text-decoration:line-through;opacity:.5}
+/* --- TENDINA di scelta della categoria --- */
+.ag-tendina{position:fixed;z-index:2100;width:236px;background:var(--primary);
+  border:1px solid var(--hairline);border-radius:12px;box-shadow:0 10px 34px rgba(0,0,0,.16);
+  padding:10px;font-family:'Inter',sans-serif}
+.ag-td-tit{font-size:11px;color:var(--text-light);margin-bottom:7px;line-height:1.4}
+.ag-td-tit b{color:var(--text-main)}
+.ag-td-lista{display:grid;grid-template-columns:1fr 1fr;gap:3px;max-height:190px;overflow-y:auto}
+.ag-td-lista button{display:flex;align-items:center;gap:5px;border:1px solid transparent;
+  background:transparent;cursor:pointer;font-family:inherit;font-size:11px;color:var(--text-main);
+  padding:5px 6px;border-radius:7px;text-align:left}
+.ag-td-lista button:hover{background:var(--console-bg);border-color:var(--hairline)}
+.ag-td-lista i{width:9px;height:9px;border-radius:2px;flex:none}
+.ag-td-nuovo{display:flex;gap:5px;margin-top:8px;padding-top:8px;border-top:1px solid var(--hairline)}
+.ag-td-nuovo input{flex:1;min-width:0;border:1px solid var(--hairline);border-radius:7px;
+  padding:5px 7px;font-family:inherit;font-size:11px;background:var(--console-bg);
+  color:var(--text-main);outline:none}
+.ag-td-nuovo input:focus{border-color:var(--accent)}
+.ag-td-nuovo button{border:1px solid var(--accent);background:transparent;color:var(--accent);
+  cursor:pointer;font-family:inherit;font-size:10.5px;font-weight:700;padding:5px 9px;border-radius:7px}
+/* --- pennello acceso: il cursore lo dice --- */
+body.ag-pennello-on .ag-lista,body.ag-pennello-on .ag-anteprima,
+body.ag-pennello-on .chat-messages{cursor:crosshair}
+/* --- modalita' riservata --- */
+body.ag-riservato .ag-voci .ag-voci-corpo,
+body.ag-riservato .ag-lista,
+body.ag-riservato .ag-anteprima,
+body.ag-sfocato .ag-voci .ag-voci-corpo,
+body.ag-sfocato .ag-lista,
+body.ag-sfocato .ag-anteprima{filter:blur(7px);user-select:none;transition:filter .18s}
+body.ag-riservato .chat-messages,body.ag-sfocato .chat-messages{filter:blur(7px);transition:filter .18s}
+body.ag-sfocato .ag-scena::after,body.ag-riservato .ag-scena::after{
+  content:'Modalita\00a0 riservata \2014 i dati sono nascosti';
+  position:fixed;left:50%;top:18px;transform:translateX(-50%);z-index:2200;
+  background:var(--primary);border:1px solid var(--hairline);border-radius:10px;
+  padding:8px 14px;font-family:'Inter',sans-serif;font-size:11.5px;color:var(--text-main);
+  box-shadow:0 6px 22px rgba(0,0,0,.12)}
 /* --- PENNELLO: barretta sulla selezione ed elenco delle scelte --- */
 .ag-pennello{position:fixed;z-index:2000;display:none;gap:6px;padding:5px;
   background:var(--primary);border:1px solid var(--hairline);border-radius:10px;
@@ -6560,9 +6624,10 @@ if (recognition) {
     try{
       var v=[]; vault.forEach(function(val,k){ v.push([k,val]); });
       var c=[]; colorDi.forEach(function(val,k){ c.push([k,val]); });
-      var b=[]; banditi.forEach(function(tok,testo){ b.push([testo,tok]); });
+      var b=[]; banditi.forEach(function(v,testo){ b.push([testo,v]); });
+      var cu=[]; categoriePersonali.forEach(function(c,id){ cu.push([id,c]); });
       sessionStorage.setItem(CHIAVE, JSON.stringify({v:v,c:c,n:contatore,r:righe,
-        b:b, e:Array.from(esclusi)}));
+        b:b, e:Array.from(esclusi), cu:cu}));
     }catch(e){}
   }
   function ripristina(){
@@ -6576,7 +6641,8 @@ if (recognition) {
       (d.v||[]).forEach(function(p){ nudoDi(p[0].split('~')[0], p[1]); });
       (d.c||[]).forEach(function(p){ colorDi.set(p[0],p[1]); });
       contatore=d.n||{}; righe=d.r||[];
-      (d.b||[]).forEach(function(p){ banditi.set(p[0],p[1]); });
+      (d.b||[]).forEach(function(p){ banditi.set(p[0], typeof p[1]==='string'?{tok:p[1],cat:'per'}:p[1]); });
+      (d.cu||[]).forEach(function(p){ categoriePersonali.set(p[0],p[1]); });
       (d.e||[]).forEach(function(x){ esclusi.add(x); });
     }catch(e){}
   }
@@ -6754,16 +6820,19 @@ if (recognition) {
       var ordinati = Array.from(banditi.keys()).sort(function(a,b){ return b.length-a.length; });
       ordinati.forEach(function(testo){
         if (!testo || out.indexOf(testo) === -1) return;
-        var tok = banditi.get(testo);
-        if (!tok) {
-          contatore['MAN'] = (contatore['MAN']||0)+1;
-          tok = 'MAN_' + String(contatore['MAN']).padStart(2,'0');
-          banditi.set(testo, tok);
-          colorDi.set(tok, 'per');
+        var v = banditi.get(testo) || {};
+        var cat = v.cat || 'per';
+        if (!v.tok) {
+          var sigla = (cat.toUpperCase().replace(/[^A-Z]/g,'') || 'MAN').slice(0,4);
+          contatore[sigla] = (contatore[sigla]||0)+1;
+          v.tok = sigla + '_' + String(contatore[sigla]).padStart(2,'0');
+          banditi.set(testo, v);
+          colorDi.set(v.tok, cat);
         }
-        if (congela && !vault.has(tok)) vault.set(tok, testo);
-        out = out.split(testo).join(vesti(tok, testo));
-        if (voci.indexOf) voci.push({tok:tok, col:'per'});
+        colorDi.set(v.tok, cat);
+        if (congela && !vault.has(v.tok)) vault.set(v.tok, testo);
+        out = out.split(testo).join(vesti(v.tok, testo));
+        voci.push({tok:v.tok, col:cat});
       });
     }
 
@@ -6789,62 +6858,127 @@ if (recognition) {
     return out;
   }
 
-  /* ================= PENNELLO: copri e scopri a mano =================
-     Nessun sistema di regole puo' essere giusto su ogni documento. Qui
-     l'utente decide: seleziona del testo e lo copre, oppure clicca un codice
-     nello specchio e lo riporta in chiaro. Le scelte valgono su tutte le
-     occorrenze, restano per la sessione, e si disfano una per una.
+  /* ================== PENNELLO E COLONNA DELLE VOCI ==================
+     Terza colonna a sinistra, larga un terzo. Due schede:
+       DEFAULT  - tutto cio' che il sistema sta coprendo adesso, raggruppato
+                  per categoria, con i valori veri. Le voci che l'utente ha
+                  riportato in chiaro restano qui, barrate e sbiadite.
+       AGGIUNTE - solo i termini coperti a mano, sotto la categoria scelta,
+                  comprese le etichette inventate dall'utente.
+     Il pennello sta in cima, accanto ad "Analisi profonda": acceso, si tocca
+     una parola e viene presa tutta, senza trascinare.
      ================================================================== */
 
-  function barra(){
-    var b = document.getElementById('ag-pennello');
-    if (b) return b;
-    b = document.createElement('div');
-    b.id = 'ag-pennello';
-    b.className = 'ag-pennello';
-    b.innerHTML = '<button type="button" data-a="copri">Copri</button>' +
-                  '<button type="button" class="ag-scopri" data-a="scopri">Lascia in chiaro</button>';
-    document.body.appendChild(b);
-    b.addEventListener('mousedown', function(e){ e.preventDefault(); });
-    b.addEventListener('click', function(e){
-      var t = e.target.closest('button'); if (!t) return;
-      var testo = b.__testo || '';
-      if (!testo) return;
-      if (t.getAttribute('data-a') === 'copri') copriTermine(testo);
-      else scopriTermine(testo);
-      nascondiBarra();
-      try { window.getSelection().removeAllRanges(); } catch (err) {}
+  var CATEGORIE = [
+    { id:'per',  nome:'nomi' },      { id:'addr', nome:'indirizzi' },
+    { id:'city', nome:'luoghi' },    { id:'date', nome:'date' },
+    { id:'bank', nome:'bancari' },   { id:'mail', nome:'contatti' },
+    { id:'id',   nome:'documenti' }, { id:'tech', nome:'tecnici' },
+    { id:'med',  nome:'sanitari' },  { id:'org',  nome:'aziende' }
+  ];
+  // Etichette inventate dall'utente: id -> {nome, colore}. Il colore si assegna
+  // dalla tavolozza, in ordine, cosi' non deve sceglierlo nessuno.
+  var categoriePersonali = new Map();
+  var TAVOLOZZA = ['#B45309','#0F766E','#7C3AED','#BE123C','#4D7C0F',
+                   '#0369A1','#A21CAF','#B91C1C','#065F46','#6D28D9'];
+  var pennelloAcceso = false;
+  var schedaAttiva = 'default';
+  var riservato = false;
+
+  function nomeCategoria(id){
+    var c = CATEGORIE.find(function(x){ return x.id===id; });
+    if (c) return c.nome;
+    var p = categoriePersonali.get(id);
+    return p ? p.nome : id;
+  }
+  function coloreCategoria(id){
+    var p = categoriePersonali.get(id);
+    if (p) return p.colore;
+    return 'var(--c-' + id + ')';
+  }
+  function nuovaCategoria(nome){
+    var pulito = String(nome||'').trim().slice(0,24);
+    if (!pulito) return null;
+    var id = 'x' + pulito.toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,10);
+    if (!id || id==='x') id = 'x' + (categoriePersonali.size+1);
+    if (!categoriePersonali.has(id)) {
+      categoriePersonali.set(id, { nome: pulito,
+        colore: TAVOLOZZA[categoriePersonali.size % TAVOLOZZA.length] });
+      stileCategorie();
+    }
+    return id;
+  }
+  // I colori delle etichette inventate diventano regole CSS, cosi' i codici
+  // nello specchio si colorano come tutti gli altri.
+  function stileCategorie(){
+    var el = document.getElementById('ag-stile-cat');
+    if (!el) { el = document.createElement('style'); el.id='ag-stile-cat'; document.head.appendChild(el); }
+    var css = '';
+    categoriePersonali.forEach(function(c,id){
+      css += '.ag-'+id+'{background:'+c.colore+'}\n';
+      css += 'mark.ag-m.'+id+'{background:'+c.colore+'33}\n';
     });
-    return b;
-  }
-  function nascondiBarra(){
-    var b = document.getElementById('ag-pennello');
-    if (b) b.classList.remove('on');
-  }
-  function mostraBarra(testo, rect){
-    var b = barra();
-    b.__testo = testo;
-    b.classList.add('on');
-    var l = Math.max(8, Math.min(rect.left, window.innerWidth - b.offsetWidth - 12));
-    var t = rect.top - b.offsetHeight - 8;
-    if (t < 8) t = rect.bottom + 8;
-    b.style.left = l + 'px';
-    b.style.top = t + 'px';
+    el.textContent = css;
   }
 
-  function copriTermine(testo){
+  /* ---------- tendina di scelta della categoria ---------- */
+  function tendina(testo, rect){
+    chiudiTendina();
+    var d = document.createElement('div');
+    d.id = 'ag-tendina';
+    d.className = 'ag-tendina';
+    var h = '<div class="ag-td-tit">Dove metto <b>' + esc(testo) + '</b>?</div><div class="ag-td-lista">';
+    CATEGORIE.forEach(function(c){
+      h += '<button type="button" data-c="'+c.id+'"><i style="background:'+coloreCategoria(c.id)+'"></i>'+c.nome+'</button>';
+    });
+    categoriePersonali.forEach(function(c,id){
+      h += '<button type="button" data-c="'+id+'"><i style="background:'+c.colore+'"></i>'+esc(c.nome)+'</button>';
+    });
+    h += '</div><div class="ag-td-nuovo"><input type="text" placeholder="oppure scrivi un\'etichetta nuova" maxlength="24">' +
+         '<button type="button" data-c="__nuovo">Aggiungi</button></div>';
+    d.innerHTML = h;
+    document.body.appendChild(d);
+    var l = Math.max(8, Math.min(rect.left, window.innerWidth - 250));
+    var t = rect.bottom + 8;
+    if (t + d.offsetHeight > window.innerHeight - 8) t = Math.max(8, rect.top - d.offsetHeight - 8);
+    d.style.left = l + 'px'; d.style.top = t + 'px';
+    var campo = d.querySelector('input');
+    d.addEventListener('mousedown', function(e){ if (e.target.tagName !== 'INPUT') e.preventDefault(); });
+    d.addEventListener('click', function(e){
+      var b = e.target.closest('button'); if (!b) return;
+      var cat = b.getAttribute('data-c');
+      if (cat === '__nuovo') {
+        cat = nuovaCategoria(campo.value);
+        if (!cat) { campo.focus(); return; }
+      }
+      copriTermine(testo, cat);
+      chiudiTendina();
+      try { window.getSelection().removeAllRanges(); } catch(err) {}
+    });
+    if (campo) campo.addEventListener('keydown', function(e){
+      if (e.key === 'Enter') { e.preventDefault(); var c = nuovaCategoria(campo.value); if (c) { copriTermine(testo, c); chiudiTendina(); } }
+    });
+  }
+  function chiudiTendina(){
+    var d = document.getElementById('ag-tendina');
+    if (d && d.parentNode) d.parentNode.removeChild(d);
+  }
+
+  /* ---------- azioni ---------- */
+  function copriTermine(testo, cat){
     testo = String(testo).trim();
-    if (testo.length < 2 || testo.length > 90) return;
+    if (testo.length < 1 || testo.length > 90) return;
     esclusi.delete(testo);
-    if (!banditi.has(testo)) banditi.set(testo, null);   // il codice si conia al primo uso
+    var v = banditi.get(testo) || {};
+    v.cat = cat || 'per';
+    if (v.tok) colorDi.set(v.tok, v.cat);
+    banditi.set(testo, v);
     aggiorna();
   }
   function scopriTermine(testo){
     testo = String(testo).trim();
     if (!testo) return;
-    if (!confirm('Lasciare "' + testo + '" in chiaro?\n\n' +
-                 'Da questo momento partira\u0027 cosi\u0027 com\u0027e\u0027, senza protezione, ' +
-                 'in questo messaggio e nei successivi.')) return;
+    if (!confirm('Lasciare "' + testo + '" in chiaro?\n\nDa questo momento partira\u0027 cosi\u0027 com\u0027e\u0027, senza protezione.')) return;
     banditi.delete(testo);
     esclusi.add(testo);
     aggiorna();
@@ -6856,72 +6990,178 @@ if (recognition) {
   }
   function aggiorna(){
     salva();
-    disegnaScelte();
+    disegnaColonna();
     disegna();
     var i = document.getElementById('user-input');
     if (i) anteprima(i.value);
     if (window.aegisRiapplica) window.aegisRiapplica();
   }
 
-  function disegnaScelte(){
-    var box = document.getElementById('ag-scelte');
-    if (!box) return;
-    if (!banditi.size && !esclusi.size) { box.innerHTML = ''; return; }
-    var h = '';
-    if (banditi.size) {
-      h += '<h4>Coperti da te</h4>';
-      banditi.forEach(function(tok, testo){
-        h += '<div class="ag-voce"><i class="ag-per"></i><span class="t">' +
-             esc(testo) + '</span><button type="button" data-x="' + esc(testo) +
-             '" title="Torna alla decisione del sistema">&times;</button></div>';
-      });
-    }
-    if (esclusi.size) {
-      h += '<h4>Lasciati in chiaro da te</h4>';
-      esclusi.forEach(function(testo){
-        h += '<div class="ag-voce"><i style="background:var(--text-light)"></i><span class="t">' +
-             esc(testo) + '</span><button type="button" data-x="' + esc(testo) +
-             '" title="Torna alla decisione del sistema">&times;</button></div>';
-      });
-    }
-    box.innerHTML = h;
-    box.querySelectorAll('button[data-x]').forEach(function(b){
-      b.onclick = function(){ disfa(b.getAttribute('data-x')); };
+  /* ---------- la colonna ---------- */
+  function costruisciColonna(){
+    if (document.getElementById('ag-voci')) return true;
+    var scena = document.querySelector('.ag-scena');
+    var pannello = document.getElementById('ag-pannello-specchio') || document.querySelector('.ag-pannello');
+    if (!scena || !pannello) return false;
+    var col = document.createElement('div');
+    col.id = 'ag-voci';
+    col.className = 'ag-voci';
+    col.innerHTML =
+      '<div class="ag-voci-testa">' +
+        '<button type="button" class="ag-tab on" data-s="default">Default <span id="ag-conta">0</span></button>' +
+        '<button type="button" class="ag-tab" data-s="aggiunte">Aggiunte</button>' +
+      '</div>' +
+      '<div class="ag-voci-corpo" id="ag-voci-corpo"></div>';
+    scena.insertBefore(col, pannello);
+    col.querySelector('.ag-voci-testa').addEventListener('click', function(e){
+      var b = e.target.closest('.ag-tab'); if (!b) return;
+      schedaAttiva = b.getAttribute('data-s');
+      col.querySelectorAll('.ag-tab').forEach(function(x){ x.classList.toggle('on', x===b); });
+      disegnaColonna();
     });
+    return true;
   }
 
+  function disegnaColonna(){
+    var corpo = document.getElementById('ag-voci-corpo');
+    if (!corpo) return;
+    // raccolgo i valori attualmente coperti, raggruppati per categoria
+    var gruppi = {};
+    function metti(cat, testo, stato){
+      if (!gruppi[cat]) gruppi[cat] = [];
+      if (!gruppi[cat].some(function(x){ return x.testo===testo; })) gruppi[cat].push({testo:testo, stato:stato});
+    }
+    if (schedaAttiva === 'default') {
+      vault.forEach(function(val, k){
+        var tok = k.split('~')[0];
+        if (k.indexOf('~') !== -1) return;
+        metti(colorDi.get(tok) || colore(tok), String(val), 'attivo');
+      });
+      esclusi.forEach(function(t){ metti('per', t, 'tolto'); });
+    } else {
+      banditi.forEach(function(v, testo){ metti(v.cat || 'per', testo, 'aggiunto'); });
+    }
+    var chiavi = Object.keys(gruppi).sort();
+    if (!chiavi.length) {
+      corpo.innerHTML = '<div class="ag-voci-vuoto">' +
+        (schedaAttiva === 'default'
+          ? 'Qui compaiono i dati che il sistema sta coprendo.'
+          : 'Qui compaiono le parole che copri tu con il pennello.') + '</div>';
+      aggiornaConta();
+      return;
+    }
+    var h = '';
+    chiavi.forEach(function(cat){
+      h += '<div class="ag-gr"><div class="ag-gr-tit"><i style="background:'+coloreCategoria(cat)+'"></i>'+
+           esc(nomeCategoria(cat))+'</div>';
+      gruppi[cat].forEach(function(v){
+        h += '<div class="ag-gr-voce'+(v.stato==='tolto'?' ag-tolto':'')+'">' +
+             '<span class="t">'+esc(v.testo)+'</span>' +
+             (v.stato==='attivo' ? '' :
+               '<button type="button" data-x="'+esc(v.testo)+'" title="Rimetti la decisione al sistema">&times;</button>') +
+             '</div>';
+      });
+      h += '</div>';
+    });
+    corpo.innerHTML = h;
+    corpo.querySelectorAll('button[data-x]').forEach(function(b){
+      b.onclick = function(){ disfa(b.getAttribute('data-x')); };
+    });
+    aggiornaConta();
+  }
+  function aggiornaConta(){
+    var c = document.getElementById('ag-conta');
+    if (!c) return;
+    var n = 0;
+    vault.forEach(function(v,k){ if (k.indexOf('~')===-1) n++; });
+    c.textContent = String(n);
+  }
+
+  /* ---------- il pennello ---------- */
+  function parolaSotto(nodo, offset){
+    var t = nodo.nodeValue || '';
+    if (!t) return null;
+    var a = offset, b = offset;
+    var ok = function(c){ return c && /[A-Za-z0-9\u00C0-\u024F'\u2019.@_-]/.test(c); };
+    while (a > 0 && ok(t[a-1])) a--;
+    while (b < t.length && ok(t[b])) b++;
+    var p = t.slice(a,b).replace(/^[.'\u2019_-]+|[.,;:'\u2019_-]+$/g,'');
+    return p.length ? p : null;
+  }
+  function accendiPennello(b){
+    pennelloAcceso = !pennelloAcceso;
+    b.classList.toggle('on', pennelloAcceso);
+    b.textContent = pennelloAcceso ? 'Pennello: ON' : 'Pennello';
+    document.body.classList.toggle('ag-pennello-on', pennelloAcceso);
+    if (!pennelloAcceso) chiudiTendina();
+  }
   function avviaPennello(){
-    // selezione di testo: si offre di coprirlo
+    document.addEventListener('click', function(e){
+      if (e.target.closest && e.target.closest('#ag-tendina, .ag-voci, .ag-testa')) return;
+      // con il pennello acceso: un tocco prende la parola intera
+      if (pennelloAcceso) {
+        var dentro = e.target.closest && e.target.closest('.ag-lista, .ag-anteprima, .chat-messages');
+        if (dentro) {
+          var pos = document.caretRangeFromPoint ? document.caretRangeFromPoint(e.clientX, e.clientY) : null;
+          if (pos && pos.startContainer && pos.startContainer.nodeType === 3) {
+            var parola = parolaSotto(pos.startContainer, pos.startOffset);
+            if (parola && !/^@[a-z]{1,3}\d{1,3}[a-z]?@$/.test(parola)) {
+              var r = e.target.getBoundingClientRect();
+              tendina(parola, { left:e.clientX, top:e.clientY, bottom:e.clientY, right:e.clientX });
+              return;
+            }
+          }
+        }
+      }
+      // clic su un codice: si offre di riportarlo in chiaro
+      var t = e.target.closest && e.target.closest('.ag-t');
+      if (t) {
+        var cod = String(t.textContent||'').trim();
+        var m = cod.match(/@([a-z]{1,3})(\d{1,3})([a-z]?)@/);
+        if (m) {
+          var tok = tokenDaSigla(m[1], m[2], m[3]);
+          var valore = tok ? valoreDi(tok) : null;
+          if (valore) { scopriTermine(valore); return; }
+        }
+      }
+      chiudiTendina();
+    });
+    // selezione col mouse: resta possibile anche a pennello spento
     document.addEventListener('mouseup', function(e){
-      if (e.target && e.target.closest && e.target.closest('#ag-pennello')) return;
+      if (pennelloAcceso) return;
+      if (e.target.closest && e.target.closest('#ag-tendina')) return;
       setTimeout(function(){
         var sel = window.getSelection();
         var testo = sel ? String(sel).trim() : '';
-        if (!testo || testo.length < 2 || testo.length > 90 || /\n/.test(testo)) { nascondiBarra(); return; }
+        if (!testo || testo.length < 2 || testo.length > 90 || /\n/.test(testo)) return;
         var nodo = sel.anchorNode && sel.anchorNode.parentElement;
-        if (!nodo || !nodo.closest('.ag-lista, .ag-anteprima, .chat-messages')) { nascondiBarra(); return; }
-        // un codice non si copre: semmai si scopre, e si fa cliccandolo
-        if (/^@[a-z]{1,3}\d{1,3}[a-z]?@$/.test(testo)) { nascondiBarra(); return; }
-        var r = sel.getRangeAt(0).getBoundingClientRect();
-        mostraBarra(testo, r);
+        if (!nodo || !nodo.closest('.ag-lista, .ag-anteprima, .chat-messages')) return;
+        if (/^@[a-z]{1,3}\d{1,3}[a-z]?@$/.test(testo)) return;
+        tendina(testo, sel.getRangeAt(0).getBoundingClientRect());
       }, 10);
     });
-    document.addEventListener('scroll', nascondiBarra, true);
-
-    // clic su un codice nello specchio: si offre di riportarlo in chiaro
-    document.addEventListener('click', function(e){
-      var t = e.target && e.target.closest && e.target.closest('.ag-t');
-      if (!t) return;
-      var cod = String(t.textContent || '').trim();
-      var m = cod.match(/@([a-z]{1,3})(\d{1,3})([a-z]?)@/);
-      if (!m) return;
-      var tok = tokenDaSigla(m[1], m[2], m[3]);
-      var valore = tok ? valoreDi(tok) : null;
-      if (!valore) return;
-      scopriTermine(valore);
-    });
-    disegnaScelte();
+    document.addEventListener('scroll', chiudiTendina, true);
+    stileCategorie();
+    disegnaColonna();
   }
+
+  /* ---------- modalita' riservata ----------
+     Una pagina web NON puo' accorgersi che e' in corso una videochiamata:
+     Zoom o Meet girano in un'altra applicazione e il browser non li vede.
+     Quello che si puo' fare davvero e' questo: un interruttore manuale, e
+     lo sfocamento automatico quando la finestra perde il fuoco, che copre
+     il caso vero (passi a Zoom per condividere lo schermo). */
+  function riservatezza(on){
+    riservato = !!on;
+    document.body.classList.toggle('ag-riservato', riservato);
+    var b = document.getElementById('ag-riservato-btn');
+    if (b) { b.classList.toggle('on', riservato); b.textContent = riservato ? 'Riservato: ON' : 'Riservato'; }
+  }
+  function avviaRiservatezza(){
+    window.addEventListener('blur', function(){ if (autoRiservato) document.body.classList.add('ag-sfocato'); });
+    window.addEventListener('focus', function(){ document.body.classList.remove('ag-sfocato'); });
+  }
+  var autoRiservato = true;
 
   /* ---------- API usata dalla chat ---------- */
   /* ATTESA DEL SECONDO STRATO — da chiamare PRIMA di mascherare.
@@ -7049,8 +7289,17 @@ if (recognition) {
   };
   window.aegisDecodifica=decodifica;
   // esposto per collaudo e per eventuali comandi da console
-  window.aegisPennello={ copri:copriTermine, scopri:function(t){ banditi.delete(t); esclusi.add(t); aggiorna(); },
-    disfa:disfa, elenco:function(){ return {coperti:Array.from(banditi.keys()), inChiaro:Array.from(esclusi)}; } };
+  window.aegisPennello={
+    copri: copriTermine,
+    scopri: function(t){ banditi.delete(t); esclusi.add(t); aggiorna(); },
+    disfa: disfa,
+    categoria: nuovaCategoria,
+    riservato: riservatezza,
+    elenco: function(){
+      var c=[]; banditi.forEach(function(v,t){ c.push({testo:t, cat:v.cat}); });
+      return { coperti:c, inChiaro:Array.from(esclusi),
+               etichette:Array.from(categoriePersonali.entries()) };
+    } };
   window.aegisReset=function(){
     vault.clear(); colorDi.clear(); cortiUsati.clear(); contatore={}; righe=[];
     banditi.clear(); esclusi.clear(); scorda();
@@ -7253,6 +7502,7 @@ if (recognition) {
     });
   }
   function disegna(){
+    try { disegnaColonna(); } catch(e) {}
     if(!lista) return;
     if(!righe.length){ lista.innerHTML=''; lista.appendChild(vuoto); return; }
     lista.innerHTML=righe.map(function(r){
@@ -7306,14 +7556,17 @@ if (recognition) {
     chat.parentNode.insertBefore(scena, chat);
 
     var p = document.createElement('div');
-    p.id = 'ag-pannello';
+    p.id = 'ag-pannello-specchio';
     p.className = 'ag-pannello';
     p.innerHTML =
       '<div class="ag-testa">'+
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'+
         '<span class="ag-tit">Quello che riceve il modello</span>'+
-        '<span class="ag-badge" id="ag-badge">0</span>'+
-        '<span class="ag-ner" id="ag-ner" title="Riconoscimento avanzato dei nomi"></span>'+'<button class="ag-ia" id="ag-ia" type="button"></button>'+'<button class="ag-toggle ag-toggle-sp on" id="ag-sp-hl" title="Evidenzia i codici"><span class="ag-dot"></span><span class="ag-lbl"></span></button>'+
+        '<span class="ag-ner" id="ag-ner" title="Riconoscimento avanzato dei nomi"></span>'+
+        '<button class="ag-ia" id="ag-pennello-btn" type="button" title="Tocca una parola per coprirla, senza selezionarla">Pennello</button>'+
+        '<button class="ag-ia" id="ag-ia" type="button"></button>'+
+        '<button class="ag-ia" id="ag-riservato-btn" type="button" title="Sfoca i dati sullo schermo">Riservato</button>'+
+        '<button class="ag-toggle ag-toggle-sp on" id="ag-sp-hl" title="Evidenzia i codici"><span class="ag-dot"></span><span class="ag-lbl"></span></button>'+
       '</div>'+
       '<div class="ag-corpo">'+
         '<div class="ag-lista" id="ag-lista"></div>'+
@@ -7321,7 +7574,6 @@ if (recognition) {
       '<div class="ag-basso">'+
         '<div class="ag-anteprima" id="ag-anteprima"></div>'+
       '</div>'+
-      '<div class="ag-scelte" id="ag-scelte"></div>'+
       '<div class="ag-legenda">'+
         '<span data-g="per"><i class="ag-per"></i>nomi</span>'+
         '<span data-g="addr"><i class="ag-addr"></i>indirizzi</span>'+
@@ -7477,7 +7729,7 @@ if (recognition) {
 
     lista=document.getElementById('ag-lista');
     anteprimaEl=document.getElementById('ag-anteprima');
-    badge=document.getElementById('ag-badge');
+    badge=document.getElementById('ag-badge');   // puo' non esistere: il conto sta nella colonna
     vuoto=document.createElement('div');
     vuoto.className='ag-vuoto';
     vuoto.innerHTML='Scrivi nella chat.<br>Qui compare esattamente cio\u0027 che parte,<br>con i dati sostituiti da codici.';
@@ -7517,8 +7769,15 @@ if (recognition) {
         if(window.AEGIS_NER) window.AEGIS_NER.carica();
       },{once:true});
     }
+    var bPen = document.getElementById('ag-pennello-btn');
+    if (bPen) bPen.addEventListener('click', function(e){ e.stopPropagation(); accendiPennello(bPen); });
+    var bRis = document.getElementById('ag-riservato-btn');
+    if (bRis) bRis.addEventListener('click', function(e){ e.stopPropagation(); riservatezza(!riservato); });
+
+    costruisciColonna();
     disegna();
     avviaPennello();
+    avviaRiservatezza();
     return true;
   }
 
