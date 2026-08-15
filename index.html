@@ -154,6 +154,28 @@ body.ag-attivo{overflow:hidden;margin:0}
 /* --- CRONOLOGIA LOCALE ---
    Non legge piu' da chat_logs (dove non scriviamo piu' nulla): le conversazioni
    restano nel browser dell'utente. Il pulsante torna visibile. */
+/* --- AVVISO PRIMA DELL'INVIO --- */
+.ag-avviso-ov{position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.38);
+  backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:16px}
+.ag-avviso{background:var(--primary);border:1px solid var(--hairline);border-radius:16px;
+  max-width:520px;width:100%;padding:22px;font-family:'Inter',sans-serif;
+  box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.ag-avviso h3{margin:0 0 8px;font-size:15px;font-weight:600;color:var(--text-main)}
+.ag-avviso p{margin:0 0 14px;font-size:12.5px;line-height:1.6;color:var(--text-light)}
+.ag-av-lista{max-height:34vh;overflow-y:auto;border:1px solid var(--hairline);
+  border-radius:10px;padding:8px 10px;background:var(--console-bg);margin-bottom:12px}
+.ag-av-riga{display:flex;gap:9px;align-items:baseline;padding:3px 0;font-size:12.5px}
+.ag-av-riga .n{min-width:20px;color:var(--text-light);font-size:10.5px}
+.ag-av-riga .v{color:var(--c-per);font-weight:600;word-break:break-word}
+.ag-av-spunta{display:flex;align-items:center;gap:8px;font-size:11.5px;
+  color:var(--text-light);margin-bottom:14px;cursor:pointer}
+.ag-av-bottoni{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.ag-av-bottoni button{border:1px solid var(--hairline);background:transparent;
+  color:var(--text-main);cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;
+  padding:9px 14px;border-radius:9px;transition:.15s}
+.ag-av-bottoni button:hover{border-color:var(--accent);color:var(--accent)}
+.ag-av-bottoni .ag-av-primo{background:var(--accent);border-color:var(--accent);color:#fff}
+.ag-av-bottoni .ag-av-primo:hover{opacity:.9;color:#fff}
 /* --- TERZA COLONNA: le voci --- */
 .ag-voci{flex:0 0 22%;min-width:170px;max-width:300px;display:flex;flex-direction:column;
   background:var(--console-bg);border:1px solid var(--hairline);border-radius:14px;
@@ -7235,6 +7257,109 @@ if (recognition) {
   }
   var autoRiservato = true;
 
+  /* ============== AVVISO PRIMA DELL'INVIO ==============
+     Confronta quello che la passata normale ha coperto con quello che la
+     passata profonda troverebbe: la differenza sono le parole che stanno per
+     partire in chiaro pur avendo l'aspetto di un dato personale.
+     L'elenco e' COMPLETO, non un campione: se sono ventidue, sono ventidue.
+     La decisione resta all'utente, prima che il messaggio parta, e non dopo
+     averlo mandato al modello.
+     ===================================================== */
+  var nonAvvisarePiu = false;
+
+  function sospetti(testo){
+    var fuori = [];
+    try {
+      var coperto = maschera(String(testo), false).testo;
+      RX_PIENO.lastIndex = 0;
+      var pulito = coperto.replace(RX_PIENO, ' ');
+      var r = AEGIS.protect(pulito, { level:'paranoid', profondo:true });
+      var visti = {};
+      (r.vault || []).forEach(function(v){
+        var val = String(v.value).trim();
+        if (val.length < 3) return;
+        if (esclusi.has(val)) return;              // l'utente l'ha gia' deciso
+        // La passata profonda, per come e' fatta, prende anche parole comuni
+        // in minuscolo ("paziente", "vive"). In un avviso che deve essere
+        // preso sul serio quelle sono rumore: si tengono solo le cose che
+        // hanno l'aspetto di un dato, cioe' piu' parole insieme oppure una
+        // parola con l'iniziale maiuscola.
+        var piuParole = /\s/.test(val);
+        var maiuscola = /^[A-Z\u00C0-\u00DE]/.test(val);
+        if (!piuParole && !maiuscola) return;
+        if (/^[A-Z]{1,3}$/.test(val)) return;      // sigle: CF, PEC, RMN
+        if (visti[val.toLowerCase()]) return;
+        visti[val.toLowerCase()] = 1;
+        fuori.push({ valore: val, tipo: v.sub || v.category || '' });
+      });
+    } catch (e) {}
+    return fuori;
+  }
+
+  function avvisoInvio(elenco){
+    return new Promise(function(risolvi){
+      var ov = document.createElement('div');
+      ov.className = 'ag-avviso-ov';
+      var righe = elenco.map(function(x, i){
+        return '<div class="ag-av-riga"><span class="n">' + (i+1) + '</span>' +
+               '<span class="v">' + esc(x.valore) + '</span></div>';
+      }).join('');
+      ov.innerHTML =
+        '<div class="ag-avviso">' +
+          '<h3>Queste ' + elenco.length + ' parole partirebbero in chiaro</h3>' +
+          '<p>Il sistema non le riconosce come dati protetti, ma potrebbero esserlo. ' +
+             'Decidi tu, adesso: dopo l\'invio non si torna indietro.</p>' +
+          '<div class="ag-av-lista">' + righe + '</div>' +
+          '<label class="ag-av-spunta"><input type="checkbox" id="ag-av-mai"> ' +
+             'Non avvisarmi piu\' in questa sessione</label>' +
+          '<div class="ag-av-bottoni">' +
+            '<button type="button" data-a="indietro">Torna indietro</button>' +
+            '<button type="button" data-a="invia">Invia cosi\'</button>' +
+            '<button type="button" class="ag-av-primo" data-a="copri">Coprile tutte e invia</button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(ov);
+      ov.addEventListener('click', function(e){
+        var b = e.target.closest('button'); if (!b) return;
+        if (document.getElementById('ag-av-mai').checked) nonAvvisarePiu = true;
+        var scelta = b.getAttribute('data-a');
+        ov.remove();
+        risolvi(scelta);
+      });
+    });
+  }
+
+  // Il controllo si aggancia all'invio, PRIMA che parta qualsiasi cosa.
+  function agganciaAvviso(){
+    if (agganciaAvviso._fatto) return;
+    if (typeof window.handleSendMessage !== 'function') return;
+    agganciaAvviso._fatto = true;
+    var originale = window.handleSendMessage;
+    window.handleSendMessage = async function(){
+      try {
+        var campo = document.getElementById('user-input');
+        var testo = campo ? campo.value.trim() : '';
+        if (testo && !nonAvvisarePiu) {
+          var fuori = sospetti(testo);
+          if (fuori.length) {
+            var scelta = await avvisoInvio(fuori);
+            if (scelta === 'indietro') return;
+            if (scelta === 'copri') {
+              fuori.forEach(function(x){ 
+                var v = banditi.get(x.valore) || {};
+                v.cat = v.cat || 'per';
+                banditi.set(x.valore, v);
+              });
+              vaiA('aggiunte');
+              salva(); disegnaColonna();
+            }
+          }
+        }
+      } catch (e) { console.error('[Aegis] avviso pre-invio:', e && e.message); }
+      return originale.apply(this, arguments);
+    };
+  }
+
   /* ---------- API usata dalla chat ---------- */
   /* ATTESA DEL SECONDO STRATO — da chiamare PRIMA di mascherare.
      Il modello NER lavora in modo asincrono mentre si scrive: se l'utente
@@ -7851,6 +7976,7 @@ if (recognition) {
     disegna();
     avviaPennello();
     avviaRiservatezza();
+    setTimeout(agganciaAvviso, 300);
     return true;
   }
 
