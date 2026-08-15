@@ -173,9 +173,24 @@ body.ag-attivo{overflow:hidden;margin:0}
 .ag-avviso p{margin:0 0 14px;font-size:12.5px;line-height:1.6;color:var(--text-light)}
 .ag-av-lista{max-height:34vh;overflow-y:auto;border:1px solid var(--hairline);
   border-radius:10px;padding:8px 10px;background:var(--console-bg);margin-bottom:12px}
-.ag-av-riga{display:flex;gap:9px;align-items:baseline;padding:3px 0;font-size:12.5px}
-.ag-av-riga .n{min-width:20px;color:var(--text-light);font-size:10.5px}
-.ag-av-riga .v{color:var(--c-per);font-weight:600;word-break:break-word}
+.ag-av-strumenti{display:flex;gap:6px;margin-bottom:7px}
+.ag-av-mini{border:1px solid var(--hairline);background:transparent;color:var(--text-light);
+  cursor:pointer;font-family:inherit;font-size:10.5px;padding:4px 9px;border-radius:7px}
+.ag-av-mini:hover{border-color:var(--accent);color:var(--accent)}
+.ag-av-riga{display:flex;gap:9px;align-items:center;padding:5px 6px;font-size:12.5px;
+  border-radius:7px;cursor:pointer;user-select:none;transition:.12s}
+.ag-av-riga:hover{background:rgba(0,0,0,.04)}
+.ag-av-riga .ck{width:14px;height:14px;flex:none;border:1.5px solid var(--hairline);
+  border-radius:4px;position:relative}
+.ag-av-riga.sel .ck{background:var(--accent);border-color:var(--accent)}
+.ag-av-riga.sel .ck::after{content:'';position:absolute;left:4px;top:1px;width:4px;height:8px;
+  border:solid #fff;border-width:0 2px 2px 0;transform:rotate(42deg)}
+.ag-av-riga .n{min-width:18px;color:var(--text-light);font-size:10.5px}
+.ag-av-riga .v{flex:1;color:var(--text-main);font-weight:600;word-break:break-word}
+.ag-av-riga.sel .v{color:var(--c-per)}
+.ag-av-riga:not(.sel) .v{opacity:.5;text-decoration:line-through}
+.ag-av-riga .c{width:9px;height:9px;border-radius:2px;flex:none}
+.ag-av-bottoni button:disabled{opacity:.4;cursor:not-allowed}
 .ag-av-spunta{display:flex;align-items:center;gap:8px;font-size:11.5px;
   color:var(--text-light);margin-bottom:14px;cursor:pointer}
 .ag-av-bottoni{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
@@ -7299,7 +7314,7 @@ if (recognition) {
         if (/^[A-Z]{1,3}$/.test(val)) return;      // sigle: CF, PEC, RMN
         if (visti[val.toLowerCase()]) return;
         visti[val.toLowerCase()] = 1;
-        fuori.push({ valore: val, tipo: v.sub || v.category || '' });
+        fuori.push({ valore: val, cat: colore(v.token) || 'per' });
       });
     } catch (e) {}
     return fuori;
@@ -7309,31 +7324,70 @@ if (recognition) {
     return new Promise(function(risolvi){
       var ov = document.createElement('div');
       ov.className = 'ag-avviso-ov';
+      // Ogni riga si accende e si spegne con un clic. Partono tutte accese:
+      // il caso normale e' "coprile", e l'utente toglie quelle che vuole
+      // lasciar correre, invece di doverle scegliere una per una.
+      var scelte = elenco.map(function(){ return true; });
       var righe = elenco.map(function(x, i){
-        return '<div class="ag-av-riga"><span class="n">' + (i+1) + '</span>' +
-               '<span class="v">' + esc(x.valore) + '</span></div>';
+        return '<div class="ag-av-riga sel" data-i="' + i + '">' +
+               '<span class="ck"></span>' +
+               '<span class="n">' + (i+1) + '</span>' +
+               '<span class="v">' + esc(x.valore) + '</span>' +
+               '<span class="c" style="background:' + coloreCategoria(x.cat) + '"></span>' +
+               '</div>';
       }).join('');
       ov.innerHTML =
         '<div class="ag-avviso">' +
           '<h3>Queste ' + elenco.length + ' parole partirebbero in chiaro</h3>' +
           '<p>Il sistema non le riconosce come dati protetti, ma potrebbero esserlo. ' +
-             'Decidi tu, adesso: dopo l\'invio non si torna indietro.</p>' +
+             'Clicca le righe per scegliere quali coprire: quelle spente partono come sono.</p>' +
+          '<div class="ag-av-strumenti">' +
+            '<button type="button" class="ag-av-mini" data-a="tutte">Seleziona tutte</button>' +
+            '<button type="button" class="ag-av-mini" data-a="nessuna">Nessuna</button>' +
+          '</div>' +
           '<div class="ag-av-lista">' + righe + '</div>' +
           '<label class="ag-av-spunta"><input type="checkbox" id="ag-av-mai"> ' +
              'Non avvisarmi piu\' in questa sessione</label>' +
           '<div class="ag-av-bottoni">' +
             '<button type="button" data-a="indietro">Torna indietro</button>' +
-            '<button type="button" data-a="invia">Invia cosi\'</button>' +
-            '<button type="button" class="ag-av-primo" data-a="copri">Coprile tutte e invia</button>' +
+            '<button type="button" data-a="invia">Invia senza coprire</button>' +
+            '<button type="button" class="ag-av-primo" data-a="copri">' +
+               'Copri le <b id="ag-av-n">' + elenco.length + '</b> scelte e invia</button>' +
           '</div>' +
         '</div>';
       document.body.appendChild(ov);
+
+      function conta(){
+        var n = scelte.filter(Boolean).length;
+        var e = document.getElementById('ag-av-n');
+        if (e) e.textContent = String(n);
+        var p = ov.querySelector('.ag-av-primo');
+        if (p) p.disabled = (n === 0);
+      }
+      function segna(i, val){
+        scelte[i] = val;
+        var r = ov.querySelector('.ag-av-riga[data-i="' + i + '"]');
+        if (r) r.classList.toggle('sel', val);
+      }
+
       ov.addEventListener('click', function(e){
+        var riga = e.target.closest('.ag-av-riga');
+        if (riga) {
+          var i = +riga.getAttribute('data-i');
+          segna(i, !scelte[i]);
+          conta();
+          return;
+        }
         var b = e.target.closest('button'); if (!b) return;
+        var a = b.getAttribute('data-a');
+        if (a === 'tutte' || a === 'nessuna') {
+          elenco.forEach(function(x, i){ segna(i, a === 'tutte'); });
+          conta();
+          return;
+        }
         if (document.getElementById('ag-av-mai').checked) nonAvvisarePiu = true;
-        var scelta = b.getAttribute('data-a');
         ov.remove();
-        risolvi(scelta);
+        risolvi({ scelta: a, quali: elenco.filter(function(x, i){ return scelte[i]; }) });
       });
     });
   }
@@ -7351,12 +7405,12 @@ if (recognition) {
         if (testo && !nonAvvisarePiu) {
           var fuori = sospetti(testo);
           if (fuori.length) {
-            var scelta = await avvisoInvio(fuori);
-            if (scelta === 'indietro') return;
-            if (scelta === 'copri') {
-              fuori.forEach(function(x){ 
+            var esito = await avvisoInvio(fuori);
+            if (esito.scelta === 'indietro') return;
+            if (esito.scelta === 'copri' && esito.quali.length) {
+              esito.quali.forEach(function(x){
                 var v = banditi.get(x.valore) || {};
-                v.cat = v.cat || 'per';
+                v.cat = v.cat || x.cat || 'per';
                 banditi.set(x.valore, v);
               });
               vaiA('aggiunte');
