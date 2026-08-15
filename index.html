@@ -8536,9 +8536,35 @@ if (recognition) {
   }
 
   /* ---------- sostituzione delle funzioni del server ---------- */
+  // Al ricaricamento della pagina la chat spariva: initChatbot chiedeva la
+  // cronologia al server, che non ne tiene piu', e mostrava il benvenuto come
+  // se fosse una conversazione nuova. Il lavoro c'era ancora - bastava aprire
+  // la cronologia - ma nessuno lo sa e sembra perso. Qui la conversazione in
+  // corso viene ripresa da sola, dal browser.
+  function riprendi() {
+    var lista = leggi();
+    var chat = null;
+    for (var i = 0; i < lista.length; i++) {
+      if (lista[i].id === currentSessionId && lista[i].messaggi && lista[i].messaggi.length) {
+        chat = lista[i]; break;
+      }
+    }
+    if (!chat) return false;
+    carica(chat);
+    return true;
+  }
+
   function installa() {
     if (!aggancia()) return false;
     window.openHistoryPanel = apri;
+    if (typeof initChatbot === 'function' && !installa._init) {
+      installa._init = true;
+      var originale = initChatbot;
+      window.initChatbot = async function () {
+        if (riprendi()) return;             // c'e' una conversazione da riprendere
+        return originale.apply(this, arguments);
+      };
+    }
     return true;
   }
   function avvia() { if (!installa()) setTimeout(avvia, 400); }
