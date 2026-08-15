@@ -154,6 +154,29 @@ body.ag-attivo{overflow:hidden;margin:0}
 /* --- CRONOLOGIA LOCALE ---
    Non legge piu' da chat_logs (dove non scriviamo piu' nulla): le conversazioni
    restano nel browser dell'utente. Il pulsante torna visibile. */
+/* --- PENNELLO: barretta sulla selezione ed elenco delle scelte --- */
+.ag-pennello{position:fixed;z-index:2000;display:none;gap:6px;padding:5px;
+  background:var(--primary);border:1px solid var(--hairline);border-radius:10px;
+  box-shadow:0 6px 24px rgba(0,0,0,.14);font-family:'Inter',sans-serif}
+.ag-pennello.on{display:flex}
+.ag-pennello button{border:1px solid var(--hairline);background:transparent;cursor:pointer;
+  font-size:11px;font-weight:700;letter-spacing:.03em;padding:6px 11px;border-radius:8px;
+  color:var(--text-main);white-space:nowrap;font-family:inherit;transition:.15s}
+.ag-pennello button:hover{border-color:var(--accent);color:var(--accent)}
+.ag-pennello button.ag-scopri{color:var(--c-per);border-color:rgba(229,72,77,.35)}
+.ag-scelte{flex:none;max-height:22vh;overflow-y:auto;padding:8px 14px 10px;
+  border-top:1px solid var(--hairline);background:var(--primary);
+  font-family:'Inter',sans-serif;font-size:11px}
+.ag-scelte:empty{display:none}
+.ag-scelte h4{margin:0 0 5px;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--text-light);font-weight:700}
+.ag-voce{display:flex;align-items:center;gap:7px;padding:3px 0;color:var(--text-main)}
+.ag-voce i{width:8px;height:8px;border-radius:2px;flex:none}
+.ag-voce .t{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ag-voce button{border:none;background:transparent;color:var(--text-light);cursor:pointer;
+  font-size:14px;line-height:1;padding:0 3px}
+.ag-voce button:hover{color:var(--c-per)}
+.ag-t{cursor:pointer}
 /* --- chips eliminate --- */
 /* NIENTE selettore jolly [class*=chip]: prendeva anche #chat-messages,
    che porta la classe chips-open, e lo nascondeva finche l utente non
@@ -6383,9 +6406,19 @@ if (recognition) {
   var PROFONDA=false;
   try{ if(localStorage.getItem('aegis_profonda')==='1') PROFONDA=true; }catch(e){}
   function opzioni(){
-    return PROFONDA ? {level:'paranoid', profondo:true} : {level:LIVELLO};
+    var o = PROFONDA ? {level:'paranoid', profondo:true} : {level:LIVELLO};
+    if (esclusi.size) o.excludedValues = Array.from(esclusi);
+    return o;
   }
   var vault=new Map(), colorDi=new Map(), contatore={};
+  // PENNELLO. Due elenchi decisi dall'utente, che vincono sempre sul motore.
+  //   banditi : testo che va coperto anche se le regole non lo riconoscono
+  //   esclusi : testo che NON va coperto, anche se le regole lo riconoscono
+  // Sono la valvola di sfogo di un sistema che per forza sbaglia in entrambe
+  // le direzioni: invece di aspettare una regola nuova, l'utente decide sul
+  // suo documento, in un secondo.
+  var banditi = new Map();   // testo -> chiave del vault
+  var esclusi = new Set();   // testo che resta in chiaro
   // ===== SEGNAPOSTO DELLA STESSA LUNGHEZZA DELL'ORIGINALE =====
   // "Saverio Boretti" (15 caratteri) non diventa "[[PER_01]]" (10) ma
   // "k7f2[[PER_01]]h3x" (15). Le doppie parentesi quadre fanno da marcatori:
@@ -6527,7 +6560,9 @@ if (recognition) {
     try{
       var v=[]; vault.forEach(function(val,k){ v.push([k,val]); });
       var c=[]; colorDi.forEach(function(val,k){ c.push([k,val]); });
-      sessionStorage.setItem(CHIAVE, JSON.stringify({v:v,c:c,n:contatore,r:righe}));
+      var b=[]; banditi.forEach(function(tok,testo){ b.push([testo,tok]); });
+      sessionStorage.setItem(CHIAVE, JSON.stringify({v:v,c:c,n:contatore,r:righe,
+        b:b, e:Array.from(esclusi)}));
     }catch(e){}
   }
   function ripristina(){
@@ -6541,6 +6576,8 @@ if (recognition) {
       (d.v||[]).forEach(function(p){ nudoDi(p[0].split('~')[0], p[1]); });
       (d.c||[]).forEach(function(p){ colorDi.set(p[0],p[1]); });
       contatore=d.n||{}; righe=d.r||[];
+      (d.b||[]).forEach(function(p){ banditi.set(p[0],p[1]); });
+      (d.e||[]).forEach(function(x){ esclusi.add(x); });
     }catch(e){}
   }
   function scorda(){ try{ sessionStorage.removeItem(CHIAVE); }catch(e){} }
@@ -6710,6 +6747,26 @@ if (recognition) {
       out=out.split(v.token).join(vesti(tok, v.value));
       voci.push({tok:tok,col:colorDi.get(tok)||colore(v.token)});
     });
+    // TERMINI COPERTI A MANO. Si applicano dopo il motore, per sostituzione
+    // diretta, e valgono su TUTTE le occorrenze: se l'utente copre "Ugolone"
+    // una volta, non deve ritrovarselo scoperto tre righe piu' sotto.
+    if (banditi.size) {
+      var ordinati = Array.from(banditi.keys()).sort(function(a,b){ return b.length-a.length; });
+      ordinati.forEach(function(testo){
+        if (!testo || out.indexOf(testo) === -1) return;
+        var tok = banditi.get(testo);
+        if (!tok) {
+          contatore['MAN'] = (contatore['MAN']||0)+1;
+          tok = 'MAN_' + String(contatore['MAN']).padStart(2,'0');
+          banditi.set(testo, tok);
+          colorDi.set(tok, 'per');
+        }
+        if (congela && !vault.has(tok)) vault.set(tok, testo);
+        out = out.split(testo).join(vesti(tok, testo));
+        if (voci.indexOf) voci.push({tok:tok, col:'per'});
+      });
+    }
+
     // rimetto al loro posto i codici messi al riparo
     out = String(out).replace(/\u0001(\d+)\u0001/g, function(m, i){
       return scudi[Number(i)] !== undefined ? scudi[Number(i)] : m;
@@ -6730,6 +6787,140 @@ if (recognition) {
       }catch(e){}
     });
     return out;
+  }
+
+  /* ================= PENNELLO: copri e scopri a mano =================
+     Nessun sistema di regole puo' essere giusto su ogni documento. Qui
+     l'utente decide: seleziona del testo e lo copre, oppure clicca un codice
+     nello specchio e lo riporta in chiaro. Le scelte valgono su tutte le
+     occorrenze, restano per la sessione, e si disfano una per una.
+     ================================================================== */
+
+  function barra(){
+    var b = document.getElementById('ag-pennello');
+    if (b) return b;
+    b = document.createElement('div');
+    b.id = 'ag-pennello';
+    b.className = 'ag-pennello';
+    b.innerHTML = '<button type="button" data-a="copri">Copri</button>' +
+                  '<button type="button" class="ag-scopri" data-a="scopri">Lascia in chiaro</button>';
+    document.body.appendChild(b);
+    b.addEventListener('mousedown', function(e){ e.preventDefault(); });
+    b.addEventListener('click', function(e){
+      var t = e.target.closest('button'); if (!t) return;
+      var testo = b.__testo || '';
+      if (!testo) return;
+      if (t.getAttribute('data-a') === 'copri') copriTermine(testo);
+      else scopriTermine(testo);
+      nascondiBarra();
+      try { window.getSelection().removeAllRanges(); } catch (err) {}
+    });
+    return b;
+  }
+  function nascondiBarra(){
+    var b = document.getElementById('ag-pennello');
+    if (b) b.classList.remove('on');
+  }
+  function mostraBarra(testo, rect){
+    var b = barra();
+    b.__testo = testo;
+    b.classList.add('on');
+    var l = Math.max(8, Math.min(rect.left, window.innerWidth - b.offsetWidth - 12));
+    var t = rect.top - b.offsetHeight - 8;
+    if (t < 8) t = rect.bottom + 8;
+    b.style.left = l + 'px';
+    b.style.top = t + 'px';
+  }
+
+  function copriTermine(testo){
+    testo = String(testo).trim();
+    if (testo.length < 2 || testo.length > 90) return;
+    esclusi.delete(testo);
+    if (!banditi.has(testo)) banditi.set(testo, null);   // il codice si conia al primo uso
+    aggiorna();
+  }
+  function scopriTermine(testo){
+    testo = String(testo).trim();
+    if (!testo) return;
+    if (!confirm('Lasciare "' + testo + '" in chiaro?\n\n' +
+                 'Da questo momento partira\u0027 cosi\u0027 com\u0027e\u0027, senza protezione, ' +
+                 'in questo messaggio e nei successivi.')) return;
+    banditi.delete(testo);
+    esclusi.add(testo);
+    aggiorna();
+  }
+  function disfa(testo){
+    banditi.delete(testo);
+    esclusi.delete(testo);
+    aggiorna();
+  }
+  function aggiorna(){
+    salva();
+    disegnaScelte();
+    disegna();
+    var i = document.getElementById('user-input');
+    if (i) anteprima(i.value);
+    if (window.aegisRiapplica) window.aegisRiapplica();
+  }
+
+  function disegnaScelte(){
+    var box = document.getElementById('ag-scelte');
+    if (!box) return;
+    if (!banditi.size && !esclusi.size) { box.innerHTML = ''; return; }
+    var h = '';
+    if (banditi.size) {
+      h += '<h4>Coperti da te</h4>';
+      banditi.forEach(function(tok, testo){
+        h += '<div class="ag-voce"><i class="ag-per"></i><span class="t">' +
+             esc(testo) + '</span><button type="button" data-x="' + esc(testo) +
+             '" title="Torna alla decisione del sistema">&times;</button></div>';
+      });
+    }
+    if (esclusi.size) {
+      h += '<h4>Lasciati in chiaro da te</h4>';
+      esclusi.forEach(function(testo){
+        h += '<div class="ag-voce"><i style="background:var(--text-light)"></i><span class="t">' +
+             esc(testo) + '</span><button type="button" data-x="' + esc(testo) +
+             '" title="Torna alla decisione del sistema">&times;</button></div>';
+      });
+    }
+    box.innerHTML = h;
+    box.querySelectorAll('button[data-x]').forEach(function(b){
+      b.onclick = function(){ disfa(b.getAttribute('data-x')); };
+    });
+  }
+
+  function avviaPennello(){
+    // selezione di testo: si offre di coprirlo
+    document.addEventListener('mouseup', function(e){
+      if (e.target && e.target.closest && e.target.closest('#ag-pennello')) return;
+      setTimeout(function(){
+        var sel = window.getSelection();
+        var testo = sel ? String(sel).trim() : '';
+        if (!testo || testo.length < 2 || testo.length > 90 || /\n/.test(testo)) { nascondiBarra(); return; }
+        var nodo = sel.anchorNode && sel.anchorNode.parentElement;
+        if (!nodo || !nodo.closest('.ag-lista, .ag-anteprima, .chat-messages')) { nascondiBarra(); return; }
+        // un codice non si copre: semmai si scopre, e si fa cliccandolo
+        if (/^@[a-z]{1,3}\d{1,3}[a-z]?@$/.test(testo)) { nascondiBarra(); return; }
+        var r = sel.getRangeAt(0).getBoundingClientRect();
+        mostraBarra(testo, r);
+      }, 10);
+    });
+    document.addEventListener('scroll', nascondiBarra, true);
+
+    // clic su un codice nello specchio: si offre di riportarlo in chiaro
+    document.addEventListener('click', function(e){
+      var t = e.target && e.target.closest && e.target.closest('.ag-t');
+      if (!t) return;
+      var cod = String(t.textContent || '').trim();
+      var m = cod.match(/@([a-z]{1,3})(\d{1,3})([a-z]?)@/);
+      if (!m) return;
+      var tok = tokenDaSigla(m[1], m[2], m[3]);
+      var valore = tok ? valoreDi(tok) : null;
+      if (!valore) return;
+      scopriTermine(valore);
+    });
+    disegnaScelte();
   }
 
   /* ---------- API usata dalla chat ---------- */
@@ -6857,8 +7048,12 @@ if (recognition) {
     return decodifica(grezzo);
   };
   window.aegisDecodifica=decodifica;
+  // esposto per collaudo e per eventuali comandi da console
+  window.aegisPennello={ copri:copriTermine, scopri:function(t){ banditi.delete(t); esclusi.add(t); aggiorna(); },
+    disfa:disfa, elenco:function(){ return {coperti:Array.from(banditi.keys()), inChiaro:Array.from(esclusi)}; } };
   window.aegisReset=function(){
-    vault.clear(); colorDi.clear(); cortiUsati.clear(); contatore={}; righe=[]; scorda();
+    vault.clear(); colorDi.clear(); cortiUsati.clear(); contatore={}; righe=[];
+    banditi.clear(); esclusi.clear(); scorda();
     disegna(); anteprima('');
   };
 
@@ -7126,6 +7321,7 @@ if (recognition) {
       '<div class="ag-basso">'+
         '<div class="ag-anteprima" id="ag-anteprima"></div>'+
       '</div>'+
+      '<div class="ag-scelte" id="ag-scelte"></div>'+
       '<div class="ag-legenda">'+
         '<span data-g="per"><i class="ag-per"></i>nomi</span>'+
         '<span data-g="addr"><i class="ag-addr"></i>indirizzi</span>'+
@@ -7322,6 +7518,7 @@ if (recognition) {
       },{once:true});
     }
     disegna();
+    avviaPennello();
     return true;
   }
 
