@@ -129,7 +129,16 @@ body.ag-attivo{overflow:hidden;margin:0}
 .ag-bolla.ag-ghost{border:0;background:transparent;padding:0;max-width:100%;opacity:.85}
 .ag-vuoto{color:var(--text-light);opacity:.6;font-family:'Inter',sans-serif;font-size:12px;
   text-align:center;align-self:center;line-height:1.7;padding:20px}
-.ag-t{border-radius:3px;padding:1px 4px;font-weight:700;color:#fff}
+/* CAPSULA. Il codice viene disegnato dentro un contenitore largo esattamente
+   quanto la parola che ha sostituito. Lo specchio usa un carattere a larghezza
+   fissa, quindi l'unita' "ch" corrisponde a un carattere esatto: sette lettere
+   coperte occupano sette lettere di spazio. Cosi' il testo non si scompone
+   quando si accendono e spengono i gruppi, e la riga resta dov'era.
+   Il testo INVIATO non cambia: resta il codice corto, che il modello legge
+   meglio. Questa e' solo la sua veste. */
+.ag-t{border-radius:3px;padding:1px 0;font-weight:700;color:#fff;
+  display:inline-block;text-align:center;overflow:hidden;white-space:nowrap;
+  vertical-align:baseline;line-height:inherit}
 /* proposta del modello: tratteggiata, non piena come le certezze */
 .ag-t.ag-proposta{background:transparent!important;color:var(--c-per)!important;
   border:1px dashed var(--c-per);cursor:help}
@@ -7694,8 +7703,15 @@ if (recognition) {
       // I codici NER sono PROPOSTE del modello, non certezze verificate:
       // vanno distinti a vista da quelli prodotti dalle regole.
       var extra = (String(tok).split('_')[0] === 'NER') ? ' ag-proposta' : '';
-      var titolo = extra ? ' title="Proposto dal riconoscimento avanzato: da rivedere"' : '';
-      return '<span class="ag-t ag-'+(colorDi.get(tok)||colore(tok))+extra+'"'+titolo+'>'+full+'</span>';
+      var valore = valoreDi(tok);
+      var largo = valore ? String(valore).length : full.length;
+      // se il codice non ci sta, si rimpicciolisce quel tanto che basta:
+      // meglio un codice piccolo che una riga che si sposta
+      var stile = 'width:' + largo + 'ch';
+      if (full.length > largo) stile += ';font-size:' + (largo/full.length).toFixed(2) + 'em';
+      var titolo = ' title="' + (extra ? 'Proposto dal riconoscimento avanzato — ' : '') +
+                   'copre ' + largo + ' caratteri"';
+      return '<span class="ag-t ag-'+(colorDi.get(tok)||colore(tok))+extra+'" style="'+stile+'"'+titolo+'>'+full+'</span>';
     });
   }
   function disegna(){
