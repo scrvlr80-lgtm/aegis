@@ -57,6 +57,14 @@ body.ag-attivo{overflow:hidden;margin:0}
 .ag-testa{display:flex;align-items:center;gap:8px;height:52px;padding:0 14px;flex:none;
   border-bottom:1px solid var(--hairline);background:var(--primary)}
 .ag-testa svg{width:14px;height:14px;color:var(--text-light);flex:none}
+/* L'ingranaggio prende il posto del lucchetto, che era solo un disegno senza
+   funzione. La configurazione sta dove ci si aspetta di trovarla, e la barra
+   dei pulsanti si alleggerisce di una voce. */
+.ag-ingranaggio{border:none;background:transparent;padding:0;margin:0;flex:none;
+  width:26px;height:26px;display:flex;align-items:center;justify-content:center;
+  border-radius:7px;cursor:pointer;color:var(--text-light);transition:.18s}
+.ag-ingranaggio:hover{color:var(--accent);background:rgba(0,113,227,.08)}
+.ag-ingranaggio svg{width:16px;height:16px;color:currentColor}
 .ag-tit{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
   color:var(--text-light);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ag-badge{margin-left:auto;min-width:20px;text-align:center;padding:1px 7px;border-radius:9px;
@@ -7836,7 +7844,7 @@ if (recognition) {
     var m = { 'ag-pennello-btn':['pennello','aiutoPennello'],
               'ag-ia':['profonda','aiutoProfonda'],
               'ag-riservato-btn':['riservato','aiutoRiservato'],
-              'ag-opzioni-btn':['config','aiutoConfig'],
+              'ag-opzioni-btn':[null,'aiutoConfig'],
               'ag-motore-btn':['motore','aiutoMotore'],
               'ag-sp-hl':[null,'aiutoEvidenzia'],
               'ag-doc-btn':[null,'docAiuto'] };
@@ -8464,14 +8472,18 @@ if (recognition) {
     p.className = 'ag-pannello';
     p.innerHTML =
       '<div class="ag-testa">'+
-        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'+
+        '<button class="ag-ingranaggio" id="ag-opzioni-btn" type="button">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+            '<circle cx="12" cy="12" r="3.2"/>' +
+            '<path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/>' +
+          '</svg></button>'+
         '<span class="ag-tit">Quello che riceve il modello</span>'+
         '<span class="ag-ner" id="ag-ner" title="Riconoscimento avanzato dei nomi"></span>'+
         '<button class="ag-ia" id="ag-pennello-btn" type="button" data-aiuto="Tocca una parola e viene presa tutta: scegli in che categoria coprirla. Tocca un codice gia\u0027 coperto per riportarlo in chiaro. Funziona anche sugli elenchi qui a sinistra."><svg viewBox=\'0 0 24 24\'><path d=\'M18.5 2.5a2.1 2.1 0 0 1 3 3L13 14l-4 1 1-4 8.5-8.5zM6 16c1.7 0 3 1.3 3 3 0 1.7-1.8 3-4 3-1.2 0-2.4-.3-3-1 1.1 0 2-1.3 2-2.5S5 16 6 16z\'/></svg>Pennello</button>'+
         '<button class="ag-ia" id="ag-ia" type="button" data-aiuto="Misura estrema: copre molto di piu\u0027 e sbaglia molto di piu\u0027. Prende anche i nomi in minuscolo che sono parole comuni. Non serve quasi mai."></button>'+
         '<button class="ag-ia" id="ag-motore-btn" type="button"></button>'+
         '<button class="ag-ia" id="ag-riservato-btn" type="button"></button>'+
-        '<button class="ag-ia" id="ag-opzioni-btn" type="button"></button>'+
+
         '<button class="ag-toggle ag-toggle-sp on" id="ag-sp-hl" data-aiuto="Accende e spegne i colori sui codici nello specchio. Non cambia cio\u0027 che viene inviato."><span class="ag-dot"></span><span class="ag-lbl"></span></button>'+
       '</div>'+
       '<div class="ag-corpo">'+
