@@ -6562,6 +6562,11 @@ if (recognition) {
   // suo documento, in un secondo.
   var banditi = new Map();   // testo -> chiave del vault
   var esclusi = new Set();   // testo che resta in chiaro
+  // Proposte del MOTORE CONTESTUALE. Stanno in un elenco separato dai termini
+  // scelti a mano: l'utente deve poter distinguere cio' che ha deciso lui da
+  // cio' che ha proposto il modello, e toglierle senza toccare le sue.
+  var suggeriti = new Map();  // testo -> {cat}
+  var vociAI = new Map();     // testo minuscolo -> codice gia' assegnato
   // ===== SEGNAPOSTO DELLA STESSA LUNGHEZZA DELL'ORIGINALE =====
   // "Saverio Boretti" (15 caratteri) non diventa "[[PER_01]]" (10) ma
   // "k7f2[[PER_01]]h3x" (15). Le doppie parentesi quadre fanno da marcatori:
@@ -6892,6 +6897,31 @@ if (recognition) {
       out=out.split(v.token).join(vesti(tok, v.value));
       voci.push({tok:tok,col:colorDi.get(tok)||colore(v.token)});
     });
+    // PROPOSTE DEL MODELLO. Si applicano come i termini manuali, ma solo se
+    // l'utente non le ha gia' escluse: la sua decisione vince sempre su quella
+    // del modello.
+    if (suggeriti.size) {
+      Array.from(suggeriti.keys())
+        .sort(function(a,b){ return b.length - a.length; })
+        .forEach(function(testo){
+          if (esclusi.has(testo) || banditi.has(testo)) return;
+          if (!testo || out.indexOf(testo) === -1) return;
+          var cat = (suggeriti.get(testo) || {}).cat || 'per';
+          var chiave = 'ai_' + testo.toLowerCase();
+          var tok = vociAI.get(chiave);
+          if (!tok) {
+            var sig = cat.toUpperCase().replace(/[^A-Z]/g,'').slice(0,4) || 'PER';
+            contatore[sig] = (contatore[sig]||0)+1;
+            tok = sig + '_' + String(contatore[sig]).padStart(2,'0');
+            vociAI.set(chiave, tok);
+          }
+          colorDi.set(tok, cat);
+          if (congela && !vault.has(tok)) vault.set(tok, testo);
+          out = out.split(testo).join(vesti(tok, testo));
+          voci.push({tok:tok, col:cat});
+        });
+    }
+
     // TERMINI COPERTI A MANO. Si applicano dopo il motore, per sostituzione
     // diretta, e valgono su TUTTE le occorrenze: se l'utente copre "Ugolone"
     // una volta, non deve ritrovarselo scoperto tre righe piu' sotto.
@@ -6956,6 +6986,18 @@ if (recognition) {
      ============================================================ */
   var VOCI = {
     it: {
+      motore:'Motore avanzato',
+      motoreOn:'Motore: ON',
+      motoreCarico:'Scarico {p}%',
+      motoreKo:'Motore non disponibile',
+      aiutoMotore:'Riconosce i nomi propri nel testo libero, anche in minuscolo e senza etichetta davanti, dove le regole non arrivano. Gira sul tuo dispositivo: nessun testo esce dal browser.',
+      mTitolo:'Attivare il motore avanzato?',
+      mP1:'Le regole riconoscono con certezza i codici che hanno un calcolo di controllo — IBAN, codici fiscali, carte — e i nomi introdotti da un\'etichetta. Ma un nome scritto in minuscolo, in mezzo a una frase, non lo vedono.',
+      mP2:'Il motore avanzato legge la frase intera e capisce che <b>&laquo;ho parlato con franchino ieri&raquo;</b> contiene un nome, anche se non l\'ha mai visto.',
+      mP3:'Si scarica una volta sola (circa 800 MB) e resta salvato nel browser. Gira <b>sul tuo dispositivo</b>: il testo non esce da qui. Le regole continuano a vincere sui codici verificabili.',
+      mNo:'Non ora',
+      mSi:'Scarica e attiva',
+      mAI:'proposte dal motore',
       pennello:'Pennello', pennelloOn:'Pennello: ON',
       profonda:'Analisi profonda', profondaOn:'Profonda: ON',
       riservato:'Riservato', riservatoOn:'Riservato: ON',
@@ -7023,6 +7065,18 @@ if (recognition) {
       invioBloccato:'\ud83d\udee1\ufe0f Non ho inviato il messaggio: contiene dati che non sono riuscito a proteggere del tutto. Non e\u0027 un problema di rete.'
     },
     es: {
+      motore:'Motor avanzado',
+      motoreOn:'Motor: ON',
+      motoreCarico:'Descargando {p}%',
+      motoreKo:'Motor no disponible',
+      aiutoMotore:'Reconoce los nombres propios en texto libre, incluso en minuscula y sin etiqueta delante, donde las reglas no llegan. Se ejecuta en tu dispositivo: ningun texto sale del navegador.',
+      mTitolo:'Activar el motor avanzado?',
+      mP1:'Las reglas reconocen con certeza los codigos con digito de control — IBAN, DNI, tarjetas — y los nombres introducidos por una etiqueta. Pero un nombre en minuscula, en medio de una frase, no lo ven.',
+      mP2:'El motor avanzado lee la frase entera y entiende que <b>&laquo;ayer hable con franchino&raquo;</b> contiene un nombre, aunque nunca lo haya visto.',
+      mP3:'Se descarga una sola vez (unos 800 MB) y queda guardado en el navegador. Se ejecuta <b>en tu dispositivo</b>: el texto no sale de aqui. Las reglas siguen ganando en los codigos verificables.',
+      mNo:'Ahora no',
+      mSi:'Descargar y activar',
+      mAI:'propuestas por el motor',
       pennello:'Pincel', pennelloOn:'Pincel: ON',
       profonda:'Analisis profundo', profondaOn:'Profundo: ON',
       riservato:'Reservado', riservatoOn:'Reservado: ON',
@@ -7090,6 +7144,18 @@ if (recognition) {
       invioBloccato:'\ud83d\udee1\ufe0f No he enviado el mensaje: contiene datos que no he podido proteger del todo. No es un problema de red.'
     },
     en: {
+      motore:'Advanced engine',
+      motoreOn:'Engine: ON',
+      motoreCarico:'Downloading {p}%',
+      motoreKo:'Engine unavailable',
+      aiutoMotore:'Recognises proper names in free text, even lowercase and with no label in front, where the rules cannot reach. Runs on your device: no text leaves the browser.',
+      mTitolo:'Turn on the advanced engine?',
+      mP1:'The rules reliably catch codes with a check digit — IBAN, tax codes, cards — and names introduced by a label. But a lowercase name in the middle of a sentence is invisible to them.',
+      mP2:'The advanced engine reads the whole sentence and understands that <b>&laquo;I spoke with franchino yesterday&raquo;</b> contains a name, even if it has never seen it.',
+      mP3:'It downloads once (about 800 MB) and stays cached in the browser. It runs <b>on your device</b>: the text never leaves. The rules still win on verifiable codes.',
+      mNo:'Not now',
+      mSi:'Download and enable',
+      mAI:'proposed by the engine',
       pennello:'Brush', pennelloOn:'Brush: ON',
       profonda:'Deep scan', profondaOn:'Deep scan: ON',
       riservato:'Private', riservatoOn:'Private: ON',
@@ -7191,6 +7257,7 @@ if (recognition) {
 
   function nomeCategoria(id){
     if (id === 'tolti') return T('grTolti');
+    if (id === 'ai') return T('mAI');
     var c = CATEGORIE.find(function(x){ return x.id===id; });
     if (c) return T(c.k);
     var p = categoriePersonali.get(id);
@@ -7198,6 +7265,7 @@ if (recognition) {
   }
   function coloreCategoria(id){
     if (id === 'tolti') return 'var(--text-light)';
+    if (id === 'ai') return 'var(--accent)';
     var p = categoriePersonali.get(id);
     if (p) return p.colore;
     return 'var(--c-' + id + ')';
@@ -7358,6 +7426,10 @@ if (recognition) {
       });
     } else if (schedaAttiva === 'aggiunte') {
       banditi.forEach(function(v, testo){ metti(v.cat || 'per', testo, 'aggiunto'); });
+      suggeriti.forEach(function(v, testo){
+        if (banditi.has(testo) || esclusi.has(testo)) return;
+        metti('ai', testo, 'aggiunto');
+      });
     } else {
       esclusi.forEach(function(t){ metti('tolti', t, 'tolto'); });
     }
@@ -7550,6 +7622,44 @@ if (recognition) {
   }
   var autoRiservato = true;
 
+  /* ============== MOTORE CONTESTUALE: AGGANCIO ==============
+     Il modello e' asincrono, la mascheratura no: non si puo' infilare dentro
+     maschera(). Si aggancia nei due punti dove si puo' aspettare - l'anteprima,
+     che gira a intervalli, e l'invio, che e' gia' avvolto - e le sue proposte
+     entrano come un elenco in piu'.
+     ========================================================== */
+  var ultimoAnalizzato = '';
+  var analisiInCorso = false;
+
+  async function chiediAlModello(testo, forza) {
+    var M = window.AEGIS_MODELLO;
+    if (!M || !M.pronto) return false;
+    var t = String(testo || '').trim();
+    if (!t) { if (suggeriti.size) { suggeriti.clear(); return true; } return false; }
+    if (!forza && t === ultimoAnalizzato) return false;
+    if (analisiInCorso) return false;
+    analisiInCorso = true;
+    try {
+      var trovati = await M.analizza(t);
+      ultimoAnalizzato = t;
+      var nuove = new Map();
+      trovati.forEach(function(x){
+        // la decisione dell'utente vince sempre
+        if (esclusi.has(x.valore) || banditi.has(x.valore)) return;
+        nuove.set(x.valore, { cat: x.cat });
+      });
+      var cambiato = (nuove.size !== suggeriti.size);
+      if (!cambiato) nuove.forEach(function(v,k){ if (!suggeriti.has(k)) cambiato = true; });
+      suggeriti = nuove;
+      return cambiato;
+    } catch (e) {
+      console.error('[Aegis] motore contestuale:', e && e.message);
+      return false;
+    } finally {
+      analisiInCorso = false;
+    }
+  }
+
   /* ============== AVVISO PRIMA DELL'INVIO ==============
      Confronta quello che la passata normale ha coperto con quello che la
      passata profonda troverebbe: la differenza sono le parole che stanno per
@@ -7669,6 +7779,11 @@ if (recognition) {
       try {
         var campo = document.getElementById('user-input');
         var testo = campo ? campo.value.trim() : '';
+        // QUI si aspetta: prima di mandare qualcosa, il modello deve aver
+        // detto la sua sul testo completo.
+        if (testo && window.AEGIS_MODELLO && window.AEGIS_MODELLO.pronto) {
+          try { await chiediAlModello(testo, true); } catch (e) {}
+        }
         if (testo && !nonAvvisarePiu) {
           var fuori = sospetti(testo);
           if (fuori.length) {
@@ -7722,6 +7837,7 @@ if (recognition) {
               'ag-ia':['profonda','aiutoProfonda'],
               'ag-riservato-btn':['riservato','aiutoRiservato'],
               'ag-opzioni-btn':['config','aiutoConfig'],
+              'ag-motore-btn':['motore','aiutoMotore'],
               'ag-sp-hl':[null,'aiutoEvidenzia'],
               'ag-doc-btn':[null,'docAiuto'] };
     Object.keys(m).forEach(function(id){
@@ -7734,6 +7850,8 @@ if (recognition) {
         if (b.lastChild && b.lastChild.nodeType === 3) b.lastChild.textContent = pennelloAcceso ? T('pennelloOn') : T('pennello');
       } else if (id === 'ag-ia') {
         b.textContent = PROFONDA ? T('profondaOn') : T('profonda');
+      } else if (id === 'ag-motore-btn') {
+        statoMotore();
       } else if (id === 'ag-riservato-btn') {
         b.textContent = riservato ? T('riservatoOn') : T('riservato');
       } else {
@@ -7810,6 +7928,59 @@ if (recognition) {
         risolvi(b.getAttribute('data-a') === 'si');
       });
     });
+  }
+
+  /* ---------- motore avanzato: spiegazione e accensione ---------- */
+  function spiegaMotore(){
+    return new Promise(function(risolvi){
+      var ov = document.createElement('div');
+      ov.className = 'ag-avviso-ov';
+      ov.innerHTML =
+        '<div class="ag-avviso">' +
+          '<h3>' + T('mTitolo') + '</h3>' +
+          '<p>' + T('mP1') + '</p>' +
+          '<p>' + T('mP2') + '</p>' +
+          '<p>' + T('mP3') + '</p>' +
+          '<div class="ag-av-bottoni">' +
+            '<button type="button" data-a="no">' + T('mNo') + '</button>' +
+            '<button type="button" class="ag-av-primo" data-a="si">' + T('mSi') + '</button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(ov);
+      ov.addEventListener('click', function(e){
+        var b = e.target.closest('button'); if (!b) return;
+        ov.remove();
+        risolvi(b.getAttribute('data-a') === 'si');
+      });
+    });
+  }
+  function statoMotore(){
+    var b = document.getElementById('ag-motore-btn');
+    if (!b) return;
+    var M = window.AEGIS_MODELLO;
+    var st = M ? M.stato : 'spento';
+    b.classList.toggle('on', st === 'pronto');
+    b.disabled = (st === 'carico');
+    if (st === 'pronto')      b.textContent = T('motoreOn');
+    else if (st === 'fallito') b.textContent = T('motoreKo');
+    else                       b.textContent = T('motore');
+    b.setAttribute('data-aiuto', T('aiutoMotore'));
+  }
+  async function accendiMotore(){
+    var M = window.AEGIS_MODELLO;
+    if (!M || M.stato === 'carico') return;
+    if (M.pronto) {          // gia' acceso: si spegne togliendo le proposte
+      suggeriti.clear(); vociAI.clear(); ultimoAnalizzato = '';
+      aggiorna();
+      return;
+    }
+    if (!(await spiegaMotore())) return;
+    try {
+      await M.carica();
+      var i = document.getElementById('user-input');
+      if (i && i.value) { await chiediAlModello(i.value, true); anteprima(i.value); }
+    } catch (e) {}
+    statoMotore();
   }
 
   /* ---------- pannello di configurazione ---------- */
@@ -8021,7 +8192,7 @@ if (recognition) {
     } };
   window.aegisReset=function(){
     vault.clear(); colorDi.clear(); cortiUsati.clear(); contatore={}; righe=[];
-    banditi.clear(); esclusi.clear(); scorda();
+    banditi.clear(); esclusi.clear(); suggeriti.clear(); vociAI.clear(); scorda();
     disegna(); anteprima('');
   };
 
@@ -8247,6 +8418,13 @@ if (recognition) {
     anteprimaEl.innerHTML='<div class="ag-bolla ag-user ag-ghost">'+coloraToken(r.testo)+'</div>';
     if(badge){ badge.textContent=String(r.voci.length); badge.classList.toggle('att', r.voci.length>0); }
     try { disegnaColonna(); } catch(e) {}
+    // il modello risponde quando risponde: se trova qualcosa di nuovo, si
+    // ridisegna. Non blocca mai la scrittura.
+    if (window.AEGIS_MODELLO && window.AEGIS_MODELLO.pronto) {
+      chiediAlModello(testo).then(function(cambiato){
+        if (cambiato) { try { anteprima(testo); } catch(e) {} }
+      });
+    }
     scorri();
     inseguiUltimaRiga();
   }
@@ -8291,6 +8469,7 @@ if (recognition) {
         '<span class="ag-ner" id="ag-ner" title="Riconoscimento avanzato dei nomi"></span>'+
         '<button class="ag-ia" id="ag-pennello-btn" type="button" data-aiuto="Tocca una parola e viene presa tutta: scegli in che categoria coprirla. Tocca un codice gia\u0027 coperto per riportarlo in chiaro. Funziona anche sugli elenchi qui a sinistra."><svg viewBox=\'0 0 24 24\'><path d=\'M18.5 2.5a2.1 2.1 0 0 1 3 3L13 14l-4 1 1-4 8.5-8.5zM6 16c1.7 0 3 1.3 3 3 0 1.7-1.8 3-4 3-1.2 0-2.4-.3-3-1 1.1 0 2-1.3 2-2.5S5 16 6 16z\'/></svg>Pennello</button>'+
         '<button class="ag-ia" id="ag-ia" type="button" data-aiuto="Misura estrema: copre molto di piu\u0027 e sbaglia molto di piu\u0027. Prende anche i nomi in minuscolo che sono parole comuni. Non serve quasi mai."></button>'+
+        '<button class="ag-ia" id="ag-motore-btn" type="button"></button>'+
         '<button class="ag-ia" id="ag-riservato-btn" type="button"></button>'+
         '<button class="ag-ia" id="ag-opzioni-btn" type="button"></button>'+
         '<button class="ag-toggle ag-toggle-sp on" id="ag-sp-hl" data-aiuto="Accende e spegne i colori sui codici nello specchio. Non cambia cio\u0027 che viene inviato."><span class="ag-dot"></span><span class="ag-lbl"></span></button>'+
@@ -8506,7 +8685,16 @@ if (recognition) {
     if (bRis) bRis.addEventListener('click', function(e){ e.stopPropagation(); riservatezza(!riservato); });
     var bOpz = document.getElementById('ag-opzioni-btn');
     if (bOpz) bOpz.addEventListener('click', function(e){ e.stopPropagation(); apriOpzioni(); });
+    var bMot = document.getElementById('ag-motore-btn');
+    if (bMot) bMot.addEventListener('click', function(e){ e.stopPropagation(); accendiMotore(); });
+    window.addEventListener('aegis-modello', function(ev){
+      var d = (ev && ev.detail) || {};
+      var b = document.getElementById('ag-motore-btn');
+      if (b && d.stato === 'carico') { b.disabled = true; b.textContent = T('motoreCarico', { p: d.extra || 0 }); }
+      else statoMotore();
+    });
     etichette();
+    statoMotore();
     avviaNuvolette();
     try { nonAvvisarePiu = avvisoSpento('invio'); } catch(e) {}
 
@@ -9044,6 +9232,176 @@ if (recognition) {
   window.AEGIS_CRONOLOGIA = { leggi: leggi, svuota: function () {
     try { localStorage.removeItem(CHIAVE); } catch (e) {}
   } };
+})();
+</script>
+<script>
+/* =============================================================================
+   AEGIS — MOTORE CONTESTUALE (openai/privacy-filter, Apache 2.0)
+   https://huggingface.co/openai/privacy-filter
+
+   Classificatore bidirezionale: legge tutta la frase in una passata e assegna
+   un'etichetta a ogni parola. NON genera testo: e' la differenza con i modelli
+   provati prima (Qwen), che scrivevano invece di classificare e si
+   impantanavano in ripetizioni.
+
+   Serve a coprire il buco che le regole non possono chiudere: i nomi propri nel
+   testo libero, senza etichetta davanti e senza maiuscola. "ho parlato con
+   franchino ieri" e' il caso tipico.
+
+   REGOLE DI CONVIVENZA con il motore deterministico:
+   1. Le regole vincono sempre. Un IBAN validato dal mod-97 non si discute.
+   2. Ogni proposta del modello viene CERCATA NEL TESTO alla lettera: se non
+      c'e', si butta. I modelli, quando sbagliano, inventano parole.
+   3. Il modello non blocca mai l'invio: se non e' pronto o va in errore,
+      restano le regole e l'utente non se ne accorge.
+   Gira sul dispositivo: nessun testo esce dal browser.
+   ============================================================================= */
+(function () {
+  'use strict';
+
+  var MODELLO = 'openai/privacy-filter';
+  var CDN = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4/+esm';
+
+  var stato = 'spento';       // spento | carico | pronto | fallito
+  var motore = null;
+  var caricamento = null;
+
+  function segnala(s, extra) {
+    stato = s;
+    try {
+      window.dispatchEvent(new CustomEvent('aegis-modello', { detail: { stato: s, extra: extra } }));
+    } catch (e) {}
+  }
+
+  async function carica() {
+    if (caricamento) return caricamento;
+    caricamento = (async function () {
+      segnala('carico', 0);
+      var mod = await import(CDN);
+      var pipeline = mod.pipeline;
+      var conf = { dtype: 'q4f16', device: 'webgpu' };
+      // Il ripiego non e' un dettaglio: senza scheda video compatibile il
+      // modello gira sul processore, piu' lento ma funzionante.
+      try {
+        motore = await pipeline('token-classification', MODELLO, Object.assign({}, conf, {
+          progress_callback: function (d) {
+            if (d && d.status === 'progress' && d.progress) segnala('carico', Math.round(d.progress));
+          }
+        }));
+      } catch (e) {
+        console.warn('[Aegis] scheda video non utilizzabile, passo al processore:', e && e.message);
+        motore = await pipeline('token-classification', MODELLO, {
+          dtype: 'q8', device: 'wasm',
+          progress_callback: function (d) {
+            if (d && d.status === 'progress' && d.progress) segnala('carico', Math.round(d.progress));
+          }
+        });
+      }
+      segnala('pronto');
+      return motore;
+    })().catch(function (e) {
+      console.error('[Aegis] motore contestuale non disponibile:', e && e.message);
+      caricamento = null;
+      segnala('fallito', e && e.message);
+      throw e;
+    });
+    return caricamento;
+  }
+
+  /* ---------- dalle etichette del modello alle nostre categorie ----------
+     Le etichette esatte possono cambiare fra versioni del modello: invece di
+     un elenco fisso si guarda cosa contiene il nome. Cosi' una versione nuova
+     che chiama "private_person_name" quello che oggi si chiama
+     "private_person" continua a funzionare. */
+  function categoria(etichetta) {
+    var e = String(etichetta || '').toLowerCase();
+    if (e.indexOf('person') !== -1 || e.indexOf('name') !== -1) return 'per';
+    if (e.indexOf('email') !== -1 || e.indexOf('phone') !== -1) return 'mail';
+    if (e.indexOf('address') !== -1 || e.indexOf('location') !== -1) return 'addr';
+    if (e.indexOf('date') !== -1 || e.indexOf('birth') !== -1) return 'date';
+    if (e.indexOf('account') !== -1 || e.indexOf('card') !== -1 || e.indexOf('iban') !== -1) return 'bank';
+    if (e.indexOf('secret') !== -1 || e.indexOf('key') !== -1 || e.indexOf('url') !== -1) return 'tech';
+    if (e.indexOf('org') !== -1 || e.indexOf('company') !== -1) return 'org';
+    return 'id';
+  }
+
+  /* ---------- ricomposizione delle entita' ----------
+     Il modello restituisce pezzi di parola ("Mario" puo' arrivare come "Mar" +
+     "##io"). Vanno ricuciti. Se la libreria fornisce le posizioni si usano
+     quelle, che sono esatte; altrimenti si ricompongono i frammenti e il testo
+     ottenuto viene comunque cercato nell'originale. */
+  function ricomponi(pezzi, testo) {
+    var fuori = [], corrente = null;
+
+    function chiudi() {
+      if (!corrente) return;
+      var val = null;
+      if (corrente.da !== null && corrente.a !== null && corrente.a > corrente.da) {
+        val = testo.slice(corrente.da, corrente.a);
+      } else {
+        val = corrente.parole.join('').replace(/##/g, '').replace(/\u2581/g, ' ').trim();
+      }
+      val = String(val || '').trim().replace(/^[.,;:'"()\[\]]+|[.,;:'"()\[\]]+$/g, '');
+      if (val.length >= 2 && testo.indexOf(val) !== -1) {   // deve esistere nel testo
+        fuori.push({ valore: val, cat: categoria(corrente.tipo), punteggio: corrente.punteggio });
+      }
+      corrente = null;
+    }
+
+    (pezzi || []).forEach(function (p) {
+      var et = String(p.entity || p.entity_group || '');
+      if (!et || et === 'O' || et === 'LABEL_0') { chiudi(); return; }
+      var tipo = et.replace(/^[BIES]-/, '');
+      var nuovo = /^B-/.test(et) || !corrente || corrente.tipo !== tipo;
+      var parola = p.word !== undefined ? p.word : (p.text || '');
+      var da = (typeof p.start === 'number') ? p.start : null;
+      var a  = (typeof p.end   === 'number') ? p.end   : null;
+      // frammento attaccato alla parola precedente: non apre una entita' nuova
+      if (corrente && corrente.tipo === tipo && /^##/.test(String(parola))) nuovo = false;
+      if (nuovo) {
+        chiudi();
+        corrente = { tipo: tipo, parole: [parola], da: da, a: a, punteggio: p.score || 1 };
+      } else {
+        corrente.parole.push(parola);
+        if (a !== null) corrente.a = a;
+        if (corrente.da === null && da !== null) corrente.da = da;
+        corrente.punteggio = Math.min(corrente.punteggio, p.score || 1);
+      }
+    });
+    chiudi();
+
+    // niente doppioni, i piu' lunghi per primi
+    var visti = {}, unici = [];
+    fuori.sort(function (a, b) { return b.valore.length - a.valore.length; })
+         .forEach(function (x) {
+           var k = x.valore.toLowerCase();
+           if (visti[k]) return;
+           visti[k] = 1;
+           unici.push(x);
+         });
+    return unici;
+  }
+
+  async function analizza(testo) {
+    if (stato !== 'pronto' || !motore) return [];
+    var t = String(testo || '');
+    if (t.trim().length < 3) return [];
+    try {
+      var pezzi = await motore(t);
+      return ricomponi(pezzi, t);
+    } catch (e) {
+      console.error('[Aegis] analisi contestuale fallita:', e && e.message);
+      return [];
+    }
+  }
+
+  window.AEGIS_MODELLO = {
+    get stato() { return stato; },
+    get pronto() { return stato === 'pronto'; },
+    carica: carica,
+    analizza: analizza,
+    nome: MODELLO
+  };
 })();
 </script>
 <script src="gazetteer.js"></script>
