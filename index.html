@@ -214,7 +214,7 @@ body.ag-sfocato .ag-anteprima{filter:blur(7px);user-select:none;transition:filte
 body.ag-riservato .chat-messages,body.ag-sfocato .chat-messages{filter:blur(7px);transition:filter .18s}
 body.ag-sfocato .ag-scena::after,body.ag-riservato .ag-scena::after{
   content:'Modalita\00a0 riservata \2014 i dati sono nascosti';
-  position:fixed;left:50%;top:18px;transform:translateX(-50%);z-index:2200;
+  position:fixed;left:50%;top:86px;transform:translateX(-50%);z-index:2200;
   background:var(--primary);border:1px solid var(--hairline);border-radius:10px;
   padding:8px 14px;font-family:'Inter',sans-serif;font-size:11.5px;color:var(--text-main);
   box-shadow:0 6px 22px rgba(0,0,0,.12)}
@@ -6886,12 +6886,14 @@ if (recognition) {
   var riservato = false;
 
   function nomeCategoria(id){
+    if (id === 'tolti') return 'lasciati in chiaro da te';
     var c = CATEGORIE.find(function(x){ return x.id===id; });
     if (c) return c.nome;
     var p = categoriePersonali.get(id);
     return p ? p.nome : id;
   }
   function coloreCategoria(id){
+    if (id === 'tolti') return 'var(--text-light)';
     var p = categoriePersonali.get(id);
     if (p) return p.colore;
     return 'var(--c-' + id + ')';
@@ -6953,10 +6955,10 @@ if (recognition) {
       }
       copriTermine(testo, cat);
       chiudiTendina();
-      try { window.getSelection().removeAllRanges(); } catch(err) {}
+      azzeraSelezione();
     });
     if (campo) campo.addEventListener('keydown', function(e){
-      if (e.key === 'Enter') { e.preventDefault(); var c = nuovaCategoria(campo.value); if (c) { copriTermine(testo, c); chiudiTendina(); } }
+      if (e.key === 'Enter') { e.preventDefault(); var c = nuovaCategoria(campo.value); if (c) { copriTermine(testo, c); chiudiTendina(); azzeraSelezione(); } }
     });
   }
   function chiudiTendina(){
@@ -6973,6 +6975,7 @@ if (recognition) {
     v.cat = cat || 'per';
     if (v.tok) colorDi.set(v.tok, v.cat);
     banditi.set(testo, v);
+    vaiA('aggiunte');    // si va dove la parola e' appena finita
     aggiorna();
   }
   function scopriTermine(testo){
@@ -6981,12 +6984,18 @@ if (recognition) {
     if (!confirm('Lasciare "' + testo + '" in chiaro?\n\nDa questo momento partira\u0027 cosi\u0027 com\u0027e\u0027, senza protezione.')) return;
     banditi.delete(testo);
     esclusi.add(testo);
+    vaiA('rimosse');
     aggiorna();
   }
   function disfa(testo){
     banditi.delete(testo);
     esclusi.delete(testo);
     aggiorna();
+  }
+  function vaiA(scheda){
+    schedaAttiva = scheda;
+    var t = document.querySelectorAll('.ag-voci .ag-tab');
+    if (t) t.forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-s')===scheda); });
   }
   function aggiorna(){
     salva();
@@ -7010,6 +7019,7 @@ if (recognition) {
       '<div class="ag-voci-testa">' +
         '<button type="button" class="ag-tab on" data-s="default">Default <span id="ag-conta">0</span></button>' +
         '<button type="button" class="ag-tab" data-s="aggiunte">Aggiunte</button>' +
+        '<button type="button" class="ag-tab" data-s="rimosse">Rimosse</button>' +
       '</div>' +
       '<div class="ag-voci-corpo" id="ag-voci-corpo"></div>';
     scena.insertBefore(col, pannello);
@@ -7032,21 +7042,33 @@ if (recognition) {
       if (!gruppi[cat].some(function(x){ return x.testo===testo; })) gruppi[cat].push({testo:testo, stato:stato});
     }
     if (schedaAttiva === 'default') {
+      // Il vault si riempie all'INVIO. Mentre l'utente scrive, i dati coperti
+      // stanno nell'anteprima: senza questi due elenchi insieme la colonna
+      // restava vuota fino al primo messaggio, e sembrava rotta.
       vault.forEach(function(val, k){
-        var tok = k.split('~')[0];
         if (k.indexOf('~') !== -1) return;
-        metti(colorDi.get(tok) || colore(tok), String(val), 'attivo');
+        metti(colorDi.get(k) || colore(k), String(val), 'attivo');
       });
-      esclusi.forEach(function(t){ metti('per', t, 'tolto'); });
-    } else {
+      valoriPreview.forEach(function(val, k){
+        metti(colorDi.get(k) || colore(k), String(val), 'attivo');
+      });
+    } else if (schedaAttiva === 'aggiunte') {
       banditi.forEach(function(v, testo){ metti(v.cat || 'per', testo, 'aggiunto'); });
+    } else {
+      esclusi.forEach(function(t){ metti('tolti', t, 'tolto'); });
     }
-    var chiavi = Object.keys(gruppi).sort();
+    var chiavi = Object.keys(gruppi).sort(function(a,b){
+      if (a==='tolti') return 1;
+      if (b==='tolti') return -1;
+      return a.localeCompare(b);
+    });
     if (!chiavi.length) {
       corpo.innerHTML = '<div class="ag-voci-vuoto">' +
         (schedaAttiva === 'default'
           ? 'Qui compaiono i dati che il sistema sta coprendo.'
-          : 'Qui compaiono le parole che copri tu con il pennello.') + '</div>';
+          : schedaAttiva === 'aggiunte'
+            ? 'Qui compaiono le parole che copri tu con il pennello.'
+            : 'Qui compaiono le parole che hai riportato in chiaro. Da quel momento partono cosi\u0027 come sono.') + '</div>';
       aggiornaConta();
       return;
     }
@@ -7072,12 +7094,60 @@ if (recognition) {
   function aggiornaConta(){
     var c = document.getElementById('ag-conta');
     if (!c) return;
-    var n = 0;
-    vault.forEach(function(v,k){ if (k.indexOf('~')===-1) n++; });
-    c.textContent = String(n);
+    var visti = {};
+    vault.forEach(function(v,k){ if (k.indexOf('~')===-1) visti[String(v)]=1; });
+    valoriPreview.forEach(function(v){ visti[String(v)]=1; });
+    c.textContent = String(Object.keys(visti).length);
   }
 
   /* ---------- il pennello ---------- */
+  // SELEZIONE A PIU' PAROLE COL PENNELLO.
+  // Ogni tocco aggiunge la parola alla selezione in corso, ma solo se e'
+  // ATTACCATA a quella gia' presa: fra le due puo' esserci solo spazio o
+  // punteggiatura. "Dio" + "cane" di fila fanno "Dio cane"; se in mezzo c'e'
+  // "e" e la salti, la selezione riparte da capo sull'ultima parola toccata.
+  // La selezione si vede: si usa l'evidenziazione del browser.
+  var inCorso = null;   // { nodo, da, a }
+  function azzeraSelezione(){
+    inCorso = null;
+    try { window.getSelection().removeAllRanges(); } catch(e) {}
+  }
+  function mostraSelezione(){
+    if (!inCorso) return '';
+    try {
+      var r = document.createRange();
+      r.setStart(inCorso.nodo, inCorso.da);
+      r.setEnd(inCorso.nodo, inCorso.a);
+      var sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(r);
+    } catch(e) {}
+    return String(inCorso.nodo.nodeValue || '').slice(inCorso.da, inCorso.a).trim();
+  }
+  // Ritorna il testo complessivo selezionato dopo aver aggiunto questa parola.
+  function accumula(nodo, da, a){
+    if (!inCorso || inCorso.nodo !== nodo) { inCorso = { nodo:nodo, da:da, a:a }; return mostraSelezione(); }
+    var t = String(nodo.nodeValue || '');
+    var attaccataDopo  = da >= inCorso.a && /^[\s'\u2019.,;:-]*$/.test(t.slice(inCorso.a, da));
+    var attaccataPrima = a <= inCorso.da && /^[\s'\u2019.,;:-]*$/.test(t.slice(a, inCorso.da));
+    if (attaccataDopo)       inCorso.a = a;
+    else if (attaccataPrima) inCorso.da = da;
+    else                     inCorso = { nodo:nodo, da:da, a:a };   // salto: si riparte
+    return mostraSelezione();
+  }
+
+  function confiniParola(nodo, offset){
+    var t = nodo.nodeValue || '';
+    if (!t) return null;
+    var a = offset, b = offset;
+    var ok = function(c){ return c && /[A-Za-z0-9\u00C0-\u024F'\u2019.@_-]/.test(c); };
+    while (a > 0 && ok(t[a-1])) a--;
+    while (b < t.length && ok(t[b])) b++;
+    while (b > a && /[.,;:'\u2019_-]/.test(t[b-1])) b--;
+    while (a < b && /[.,;:'\u2019_-]/.test(t[a])) a++;
+    return b > a ? { da:a, a:b } : null;
+  }
+
   function parolaSotto(nodo, offset){
     var t = nodo.nodeValue || '';
     if (!t) return null;
@@ -7093,7 +7163,7 @@ if (recognition) {
     b.classList.toggle('on', pennelloAcceso);
     b.textContent = pennelloAcceso ? 'Pennello: ON' : 'Pennello';
     document.body.classList.toggle('ag-pennello-on', pennelloAcceso);
-    if (!pennelloAcceso) chiudiTendina();
+    if (!pennelloAcceso) { chiudiTendina(); azzeraSelezione(); }
   }
   function avviaPennello(){
     document.addEventListener('click', function(e){
@@ -7104,11 +7174,13 @@ if (recognition) {
         if (dentro) {
           var pos = document.caretRangeFromPoint ? document.caretRangeFromPoint(e.clientX, e.clientY) : null;
           if (pos && pos.startContainer && pos.startContainer.nodeType === 3) {
-            var parola = parolaSotto(pos.startContainer, pos.startOffset);
-            if (parola && !/^@[a-z]{1,3}\d{1,3}[a-z]?@$/.test(parola)) {
-              var r = e.target.getBoundingClientRect();
-              tendina(parola, { left:e.clientX, top:e.clientY, bottom:e.clientY, right:e.clientX });
-              return;
+            var c = confiniParola(pos.startContainer, pos.startOffset);
+            if (c) {
+              var testo = accumula(pos.startContainer, c.da, c.a);
+              if (testo && !/^@[a-z]{1,3}\d{1,3}[a-z]?@$/.test(testo)) {
+                tendina(testo, { left:e.clientX, top:e.clientY, bottom:e.clientY, right:e.clientX });
+                return;
+              }
             }
           }
         }
@@ -7521,6 +7593,7 @@ if (recognition) {
     var r=maschera(testo,false);
     anteprimaEl.innerHTML='<div class="ag-bolla ag-user ag-ghost">'+coloraToken(r.testo)+'</div>';
     if(badge){ badge.textContent=String(r.voci.length); badge.classList.toggle('att', r.voci.length>0); }
+    try { disegnaColonna(); } catch(e) {}
     scorri();
     inseguiUltimaRiga();
   }
