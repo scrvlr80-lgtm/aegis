@@ -211,6 +211,10 @@ body.ag-attivo{overflow:hidden;margin:0}
    passare da 9 a 10 a 100 senza spostare di un pixel la scritta accanto. */
 .ag-pc{display:inline-block;min-width:2.4em;text-align:right;
   font-variant-numeric:tabular-nums;font-feature-settings:'tnum'}
+/* Avviso permanente richiesto dall'articolo 50 dell'AI Act. Discreto ma
+   sempre visibile: sta sotto il campo di scrittura e non scorre via. */
+.ag-avviso-ia{padding:6px 18px 10px;text-align:center;font-family:'Inter',sans-serif;
+  font-size:10.5px;line-height:1.5;color:var(--text-light);opacity:.85}
 .ag-nuvola{position:fixed;z-index:2600;max-width:270px;background:var(--text-main);
   color:var(--primary);font-family:'Inter',sans-serif;font-size:11.5px;line-height:1.55;
   padding:9px 12px;border-radius:9px;box-shadow:0 8px 26px rgba(0,0,0,.22);
@@ -1341,7 +1345,7 @@ body {
     }
 
     const LOCAL_ID = "aegis";
-    const AEGIS_BENVENUTO = {"it": "Questa piattaforma protegge automaticamente i tuoi dati sensibili: nomi, indirizzi, date, telefoni, email e documenti vengono sostituiti da codici sul tuo dispositivo prima che il messaggio mi raggiunga, e ricompaiono al loro posto nella risposta. Io non vedo mai i dati originali e non devo anonimizzare nulla. Per il resto rispondo normalmente, come qualsiasi assistente: dimmi pure di cosa hai bisogno.", "es": "Esta plataforma protege automáticamente tus datos sensibles: nombres, direcciones, fechas, teléfonos, correos y documentos se sustituyen por códigos en tu dispositivo antes de que el mensaje me llegue, y vuelven a su sitio en la respuesta. Yo nunca veo los datos originales y no tengo que anonimizar nada. Por lo demás respondo con normalidad, como cualquier asistente: dime qué necesitas.", "en": "This platform automatically protects your sensitive data: names, addresses, dates, phone numbers, emails and documents are replaced with codes on your device before the message reaches me, and they reappear in place in the reply. I never see the original data and I don't have to anonymise anything. Otherwise I answer normally, like any assistant — tell me what you need."};
+    const AEGIS_BENVENUTO = {"it": "Sono un'intelligenza artificiale, non una persona. Questa piattaforma applica una pseudonimizzazione dei tuoi dati sensibili: nomi, indirizzi, date, telefoni, email e documenti vengono sostituiti da codici sul tuo dispositivo prima che il messaggio mi raggiunga, e ricompaiono al loro posto nella risposta. Io non vedo mai i dati originali. Le mie risposte sono generate automaticamente e possono contenere errori: verificale prima di usarle per decisioni importanti. Per il resto rispondo normalmente: dimmi pure di cosa hai bisogno.", "es": "Soy una inteligencia artificial, no una persona. Esta plataforma aplica una seudonimizacion de tus datos sensibles: nombres, direcciones, fechas, telefonos, correos y documentos se sustituyen por codigos en tu dispositivo antes de que el mensaje me llegue, y vuelven a su sitio en la respuesta. Yo nunca veo los datos originales. Mis respuestas se generan automaticamente y pueden contener errores: verificalas antes de usarlas para decisiones importantes. Por lo demas respondo con normalidad: dime que necesitas.", "en": "I am an artificial intelligence, not a person. This platform applies pseudonymisation to your sensitive data: names, addresses, dates, phone numbers, emails and documents are replaced with codes on your device before the message reaches me, and they reappear in place in the reply. I never see the original data. My answers are generated automatically and may contain errors: check them before using them for important decisions. Otherwise I answer normally — tell me what you need."};
     function benvenutoAegis(lang){
         var l=String(lang||'it').slice(0,2).toLowerCase();
         return AEGIS_BENVENUTO[l] || AEGIS_BENVENUTO.en;
@@ -7105,6 +7109,7 @@ if (recognition) {
      ============================================================ */
   var VOCI = {
     it: {
+      avvisoIA:'Risposte generate da un\u0027intelligenza artificiale. Possono contenere errori: verificale.',
       profondaAttiva:'analisi profonda attiva',
       mP4:'<b>Da dove arriva e cosa esce da qui.</b> Il modello si chiama <b>openai/privacy-filter</b>, licenza Apache 2.0, che ne permette l\u0027uso commerciale. Per scaricarlo il browser contatta <b>huggingface.co</b>: quella e\u0027 l\u0027unica connessione, e serve solo a prendere i file. <b>Nessun testo delle tue conversazioni viene inviato</b>, ne\u0027 ora ne\u0027 dopo. Finito lo scaricamento, il modello lavora solo qui.',
       mSpunta:'Ho letto e accetto: scarica il modello e i suoi termini di licenza (Apache 2.0)',
@@ -7189,6 +7194,7 @@ if (recognition) {
       invioBloccato:'\ud83d\udee1\ufe0f Non ho inviato il messaggio: contiene dati che non sono riuscito a proteggere del tutto. Non e\u0027 un problema di rete.'
     },
     es: {
+      avvisoIA:'Respuestas generadas por una inteligencia artificial. Pueden contener errores: verificalas.',
       profondaAttiva:'analisis profundo activo',
       mP4:'<b>De donde viene y que sale de aqui.</b> El modelo se llama <b>openai/privacy-filter</b>, licencia Apache 2.0, que permite el uso comercial. Para descargarlo el navegador contacta con <b>huggingface.co</b>: esa es la unica conexion, y solo sirve para obtener los archivos. <b>No se envia ningun texto de tus conversaciones</b>, ni ahora ni despues. Terminada la descarga, el modelo trabaja solo aqui.',
       mSpunta:'He leido y acepto: descarga el modelo y sus terminos de licencia (Apache 2.0)',
@@ -7273,6 +7279,7 @@ if (recognition) {
       invioBloccato:'\ud83d\udee1\ufe0f No he enviado el mensaje: contiene datos que no he podido proteger del todo. No es un problema de red.'
     },
     en: {
+      avvisoIA:'Answers generated by an artificial intelligence. They may contain errors — check them.',
       profondaAttiva:'deep scan on',
       mP4:'<b>Where it comes from and what leaves this device.</b> The model is <b>openai/privacy-filter</b>, Apache 2.0 licence, which permits commercial use. To download it your browser contacts <b>huggingface.co</b>: that is the only connection, and it only fetches the files. <b>No text from your conversations is sent</b>, now or later. Once downloaded, the model works only here.',
       mSpunta:'I have read and accept: download the model and its licence terms (Apache 2.0)',
@@ -7993,6 +8000,21 @@ if (recognition) {
       }
     });
     try { document.documentElement.style.setProperty('--ag-riservato-testo', '"' + T('riservatoBanner') + '"'); } catch(e) {}
+    // AI Act, articolo 50, in vigore dal 2 agosto 2026: chi usa un sistema di
+    // intelligenza artificiale per interagire con le persone deve dichiararlo
+    // in modo chiaro, e l'avviso deve essere visibile senza doverlo cercare.
+    // Non basta scriverlo nel messaggio di benvenuto, che scorre via.
+    var av = document.getElementById('ag-avviso-ia');
+    if (!av) {
+      var wrap = document.getElementById('chat-input-wrapper');
+      if (wrap && wrap.parentNode) {
+        av = document.createElement('div');
+        av.id = 'ag-avviso-ia';
+        av.className = 'ag-avviso-ia';
+        wrap.parentNode.insertBefore(av, wrap.nextSibling);
+      }
+    }
+    if (av) av.textContent = T('avvisoIA');
     var t = document.querySelectorAll('.ag-voci .ag-tab');
     if (t && t.length >= 3) {
       var c = document.getElementById('ag-conta');
