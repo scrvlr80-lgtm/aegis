@@ -225,6 +225,27 @@ body.ag-attivo{overflow:hidden;margin:0}
    quando si incolla un documento lungo e si vuole leggerlo come testo. */
 .ag-anteprima.ag-senza-colore .ag-t{background:var(--hairline)!important;color:var(--text-light)}
 .ag-anteprima.ag-senza-colore mark.ag-m{background:transparent!important}
+/* --- OMBRA SOTTO IL CAMPO DI SCRITTURA ---
+   Copia esatta del testo, disegnata sotto, con le parti sensibili evidenziate.
+   Il campo vero sta sopra, con lo sfondo trasparente: si scrive normalmente e
+   si vedono le proprie parole marcate mentre si digita. */
+.input-inner{position:relative}
+.ag-ombra{position:absolute;inset:0;overflow:hidden;pointer-events:none;
+  white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;color:transparent;
+  z-index:0;border-radius:inherit}
+#user-input.ag-con-ombra{position:relative;z-index:1;background:transparent!important}
+.ag-ombra mark.ag-om{color:transparent;border-radius:3px;padding:0;
+  background:rgba(229,72,77,.22)}
+.ag-om-per{background:rgba(229,72,77,.22)}   .ag-om-addr{background:rgba(48,164,108,.22)}
+.ag-om-city{background:rgba(0,145,255,.20)}  .ag-om-date{background:rgba(245,165,36,.24)}
+.ag-om-bank{background:rgba(142,78,198,.22)} .ag-om-mail{background:rgba(0,162,199,.22)}
+.ag-om-id{background:rgba(214,64,159,.22)}   .ag-om-tech{background:rgba(91,98,112,.22)}
+.ag-om-med{background:rgba(233,61,130,.22)}  .ag-om-org{background:rgba(139,94,60,.22)}
+/* Quadratino arcobaleno: accende e spegne tutti i gruppi in un colpo solo.
+   Con dieci categorie, scoprire tutto per rileggere il documento voleva dire
+   dieci clic, e altri dieci per tornare indietro. */
+.ag-arcobaleno{background:conic-gradient(#E5484D,#F5A524,#30A46C,#0091FF,#8E4EC6,#E93D82,#E5484D)!important}
+.ag-legenda span.ag-tutti{margin-left:4px;border-left:1px solid var(--hairline);padding-left:9px}
 /* --- COMANDI SOTTO OGNI BOLLA DELLO SPECCHIO --- */
 .ag-bolla-wrap{display:flex;flex-direction:column;gap:2px;max-width:94%}
 .ag-bolla-wrap.ag-w-user{align-self:flex-end;align-items:flex-end}
@@ -7318,6 +7339,7 @@ if (recognition) {
       mSpunta:'Ho letto e accetto: scarica il modello e i suoi termini di licenza (Apache 2.0)',
       mLink:'Leggi la licenza e la scheda del modello',
       mPeso:'Circa 800 MB, una volta sola. Su una connessione lenta puo\u0027 richiedere diversi minuti.',
+      tutti:'tutti',
       ascolta:'Ascolta',
       miPiace:'Utile',
       nonMiPiace:'Non utile',
@@ -7408,6 +7430,7 @@ if (recognition) {
       mSpunta:'He leido y acepto: descarga el modelo y sus terminos de licencia (Apache 2.0)',
       mLink:'Leer la licencia y la ficha del modelo',
       mPeso:'Unos 800 MB, una sola vez. Con conexion lenta puede tardar varios minutos.',
+      tutti:'todos',
       ascolta:'Escuchar',
       miPiace:'Util',
       nonMiPiace:'No util',
@@ -7498,6 +7521,7 @@ if (recognition) {
       mSpunta:'I have read and accept: download the model and its licence terms (Apache 2.0)',
       mLink:'Read the licence and the model card',
       mPeso:'About 800 MB, once only. On a slow connection this can take several minutes.',
+      tutti:'all',
       ascolta:'Listen',
       miPiace:'Helpful',
       nonMiPiace:'Not helpful',
@@ -7996,6 +8020,58 @@ if (recognition) {
   }
   var autoRiservato = true;
 
+  /* ========== EVIDENZIAZIONE DENTRO IL CAMPO DI SCRITTURA ==========
+     Dentro un campo di testo non si puo' colorare nulla: il browser non lo
+     permette. Il trucco e' disegnare sotto una copia esatta del testo, con le
+     parti sensibili evidenziate, e rendere trasparente lo sfondo del campo
+     vero. L'utente scrive normalmente e vede le sue parole marcate sotto il
+     cursore, prima ancora di premere invio.
+     Le due copie devono avere lo STESSO carattere, la stessa spaziatura e lo
+     stesso scorrimento, o il testo balla.
+     ================================================================= */
+  var ombraAttiva = true;
+  var ombraEl = null;
+
+  function creaOmbra() {
+    const campo = document.getElementById('user-input');
+    if (!campo || ombraEl) return ombraEl;
+    const genitore = campo.parentNode;
+    if (!genitore) return null;
+    ombraEl = document.createElement('div');
+    ombraEl.className = 'ag-ombra';
+    ombraEl.setAttribute('aria-hidden', 'true');
+    genitore.insertBefore(ombraEl, campo);
+    const st = window.getComputedStyle(campo);
+    ['fontFamily','fontSize','fontWeight','lineHeight','letterSpacing','wordSpacing',
+     'paddingTop','paddingRight','paddingBottom','paddingLeft','textAlign']
+      .forEach(function (k) { ombraEl.style[k] = st[k]; });
+    campo.addEventListener('scroll', function () {
+      if (ombraEl) ombraEl.scrollTop = campo.scrollTop;
+    });
+    campo.classList.add('ag-con-ombra');
+    return ombraEl;
+  }
+
+  function disegnaOmbra(testo) {
+    if (!ombraEl) return;
+    if (!ombraAttiva || !testo) { ombraEl.innerHTML = ''; return; }
+    let r;
+    try { r = AEGIS.protect(String(testo), opzioni()); } catch (e) { ombraEl.innerHTML = ''; return; }
+    // si lavora sulle posizioni, non sulle parole: cosi' non si sbaglia
+    // occorrenza quando la stessa parola compare piu' volte
+    const punti = (r.matches || []).slice().sort(function (a, b) { return a.start - b.start; });
+    let fuori = '', cursore = 0;
+    punti.forEach(function (m) {
+      if (m.start < cursore) return;
+      fuori += esc(testo.slice(cursore, m.start));
+      fuori += '<mark class="ag-om ag-om-' + (colore(m.token || m.patternId) || 'per') + '">' +
+               esc(testo.slice(m.start, m.end)) + '</mark>';
+      cursore = m.end;
+    });
+    fuori += esc(testo.slice(cursore));
+    ombraEl.innerHTML = fuori + '<br>';
+  }
+
   /* ============== VOCE E GIUDIZIO NELLO SPECCHIO ==============
      La lettura ad alta voce non pronuncia i codici. "@pe01@" letto lettera per
      lettera e' incomprensibile e rompe il ritmo della frase: al suo posto si
@@ -8207,12 +8283,15 @@ if (recognition) {
       hl.setAttribute('data-aiuto', T('aiutoEvidenzia'));
       hl.addEventListener('click', function (e) {
         e.stopPropagation();
-        anteprimaColorata = !anteprimaColorata;
-        hl.classList.toggle('on', anteprimaColorata);
+        // Questo pulsante evidenzia le parole DENTRO il campo dove si scrive,
+        // non i codici nello specchio: quelli hanno il loro interruttore.
+        ombraAttiva = !ombraAttiva;
+        anteprimaColorata = ombraAttiva;
+        hl.classList.toggle('on', ombraAttiva);
         const lbl = hl.querySelector('.ag-lbl');
-        if (lbl) lbl.textContent = anteprimaColorata ? T('evidOn') : T('evidOff');
-        const box = document.getElementById('ag-anteprima');
-        if (box) box.classList.toggle('ag-senza-colore', !anteprimaColorata);
+        if (lbl) lbl.textContent = ombraAttiva ? T('evidOn') : T('evidOff');
+        const campo = document.getElementById('user-input');
+        if (campo) disegnaOmbra(campo.value);
       });
     }
     // Il pulsante che allargava l'anteprima e' stato tolto: occupava spazio
@@ -9150,6 +9229,7 @@ if (recognition) {
     scorri();
   }
   function anteprima(testo){
+    try { disegnaOmbra(testo); } catch(e) {}
     if(!anteprimaEl) return;
     if(!testo || !testo.trim()){
       anteprimaEl.innerHTML='';
@@ -9241,6 +9321,7 @@ if (recognition) {
         '<span data-g="tech"><i class="ag-tech"></i>' + T('catTecnici') + '</span>'+
         '<span data-g="med"><i class="ag-med"></i>' + T('catSanitari') + '</span>'+
         '<span data-g="org"><i class="ag-org"></i>' + T('catAziende') + '</span>'+
+        '<span data-g="__tutti" class="ag-tutti"><i class="ag-arcobaleno"></i>' + T('tutti') + '</span>'+
       '</div>';
 
     scena.appendChild(p);      // finestra 1: lo specchio
@@ -9321,6 +9402,26 @@ if (recognition) {
         var sp = ev.target.closest('span[data-g]');
         if(!sp) return;
         var g = sp.getAttribute('data-g');
+        if (g === '__tutti') {
+          // Se anche uno solo e' acceso, il quadratino arcobaleno li spegne
+          // tutti; se sono gia' tutti spenti, li riaccende.
+          var accesi = [];
+          leg.querySelectorAll('span[data-g]').forEach(function(x){
+            var k = x.getAttribute('data-g');
+            if (k !== '__tutti' && !gruppiSpenti[k]) accesi.push(k);
+          });
+          var spegni = accesi.length > 0;
+          leg.querySelectorAll('span[data-g]').forEach(function(x){
+            var k = x.getAttribute('data-g');
+            if (k === '__tutti') { x.classList.toggle('ag-spento', spegni); return; }
+            gruppiSpenti[k] = spegni;
+            x.classList.toggle('ag-spento', spegni);
+          });
+          disegna();
+          var i0 = document.getElementById('user-input');
+          if (i0) anteprima(i0.value);
+          return;
+        }
         gruppiSpenti[g] = !gruppiSpenti[g];
         sp.classList.toggle('ag-spento', !!gruppiSpenti[g]);
         disegna();
@@ -9475,6 +9576,7 @@ if (recognition) {
     avviaRiservatezza();
     avviaMarcatura();
     avviaComandiSpecchio();
+    creaOmbra();
     avviaAnteprima();
     setTimeout(agganciaAvviso, 300);
     return true;
