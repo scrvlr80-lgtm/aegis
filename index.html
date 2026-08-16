@@ -141,6 +141,8 @@ body.ag-attivo{overflow:hidden;margin:0}
   opacity:.5;font-size:12px}
 
 .ag-bolla{font-family:'SF Mono',ui-monospace,Menlo,monospace;font-size:12px;line-height:1.85;
+  /* lo spazio per le capsule c'e' sempre, anche quando non ci sono capsule:
+     e' l'unico modo perche' il testo non si muova mai di un pixel */
   white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;padding:9px 11px;
   border-radius:10px;max-width:94%;flex:none}
 .ag-bolla.ag-user{background:var(--user-bubble);align-self:flex-end}
@@ -155,10 +157,18 @@ body.ag-attivo{overflow:hidden;margin:0}
    quando si accendono e spengono i gruppi, e la riga resta dov'era.
    Il testo INVIATO non cambia: resta il codice corto, che il modello legge
    meglio. Questa e' solo la sua veste. */
+/* INTERLINEA IMMOBILE.
+   "overflow:hidden" su un elemento in linea sposta la linea di base al suo
+   bordo inferiore: il browser allarga la riga per contenerla, e il testo
+   ballava in verticale ogni volta che una capsula compariva o spariva.
+   Non serve piu', perche' il codice ora si comprime invece di essere tagliato.
+   L'altezza della capsula e' bloccata a quella della riga di testo: cosi'
+   accendere e spegnere un gruppo non tocca ne' la larghezza ne' l'altezza. */
 .ag-t{border-radius:3px;padding:0;font-weight:700;color:#fff;
-  display:inline-block;text-align:center;white-space:nowrap;overflow:hidden;
-  vertical-align:baseline;line-height:inherit;box-sizing:content-box}
-.ag-t > i{display:inline-block;font-style:normal;transform-origin:center center}
+  display:inline-block;text-align:center;white-space:nowrap;overflow:visible;
+  vertical-align:baseline;line-height:inherit;height:1.85em;box-sizing:border-box}
+.ag-t > i{display:inline-block;font-style:normal;transform-origin:center center;
+  line-height:inherit}
 /* proposta del modello: tratteggiata, non piena come le certezze */
 .ag-t.ag-proposta{background:transparent!important;color:var(--c-per)!important;
   border:1px dashed var(--c-per);cursor:help}
@@ -376,6 +386,7 @@ select#ag-model.lang-change-btn{-webkit-appearance:none;appearance:none;cursor:p
 /* Niente spaziatura interna: un solo pixel in piu' sposta la riga quando si
    accende o si spegne un gruppo, ed e' esattamente cio' che si vuole evitare. */
 mark.ag-m{background:transparent;color:inherit;border-radius:3px;padding:0;margin:0;
+  display:inline;line-height:inherit;vertical-align:baseline;
   box-decoration-break:clone;-webkit-box-decoration-break:clone}
 mark.ag-m.per{background:rgba(229,72,77,.24)} mark.ag-m.addr{background:rgba(48,164,108,.24)}
 mark.ag-m.city{background:rgba(0,145,255,.24)} mark.ag-m.date{background:rgba(245,165,36,.30)}
