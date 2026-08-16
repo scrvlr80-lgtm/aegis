@@ -5392,9 +5392,12 @@ if (recognition) {
   /* --- 8. LAVORO / ISTRUZIONE -------------------------------------- */
   C('EMPLOYEE_ID', {
     category: 'LAVORO', sub: 'employee_id', token: 'EMPID', priority: 600, confidence: 0.8,
-    regex: '\\b[A-Z0-9][A-Z0-9\\-]{3:15}\\b'.replace('{3:15}', '{3,15}'),
+    // Senza l'obbligo di una cifra questa regola prendeva qualsiasi parola
+    // maiuscola nelle righe vicine: in un verbale "MEZZI" e "COINVOLTI"
+    // diventavano matricole. Una matricola una cifra ce l'ha sempre.
+    regex: '\\b(?=[^\\s]*\\d)[A-Z0-9][A-Z0-9\\-]{3,15}\\b',
     anchors: { left: ['employee id', 'employee number', 'staff id', 'badge', 'payroll number',
-      'numero de empleado', 'matricula', 'matricola', 'badge n'], right: [], window: 30 },
+      'numero de empleado', 'matricula', 'matricola', 'badge n'], right: [], window: 22 },
     pos: ['Employee ID: EMP-00412'], neg: ['Employee handbook']
   });
   C('STUDENT_ID', {
@@ -5452,9 +5455,14 @@ if (recognition) {
   });
   C('PLATE', {
     category: 'VEICOLO', sub: 'plate', token: 'PLATE', priority: 680, confidence: 0.84,
-    regex: '\\b(?:[A-HJ-NPR-Z]{2}\\s?\\d{3}\\s?[A-HJ-NPR-Z]{2}|\\d{4}\\s?[BCDFGHJKLMNPRSTVWXYZ]{3}|[A-Z]{2}\\d{2}\\s?[A-Z]{3}|[A-Z0-9]{2,7})\\b',
+    // La targa italiana si scrive anche col trattino, "AA-123-BB": senza
+    // prevederlo veniva spezzata in tre pezzi separati, ognuno col suo codice,
+    // e il testo diventava illeggibile. L'ultima alternativa, generica,
+    // pretende almeno una cifra: prima si prendeva qualunque sigla di due
+    // lettere che capitasse vicino alla parola "targa".
+    regex: '\\b(?:[A-HJ-NPR-Z]{2}[\\s\\-]?\\d{3}[\\s\\-]?[A-HJ-NPR-Z]{2}|\\d{4}[\\s\\-]?[BCDFGHJKLMNPRSTVWXYZ]{3}|[A-Z]{2}\\d{2}[\\s\\-]?[A-Z]{3}|(?=[^\\s]*\\d)[A-Z0-9]{4,8})\\b',
     anchors: { left: ['plate', 'license plate', 'number plate', 'registration', 'matricula', 'targa', 'targato'], right: [], window: 28 },
-    pos: ['AB 123 CD', '1234 BCD', 'AB12 XYZ'], neg: ['THE CAR']
+    pos: ['AB 123 CD', 'AA-123-BB', '1234 BCD', 'AB12 XYZ'], neg: ['THE CAR', 'MEZZI COINVOLTI']
   });
   C('POLICY_NUMBER', {
     category: 'VEICOLO', sub: 'policy', token: 'POLICY', priority: 640, confidence: 0.82,
@@ -5969,6 +5977,34 @@ if (recognition) {
         conf += KB.modifiers.inGazetteer * Math.min(1, known.length / words.length);
       }
       if (p.category === 'PERSONA') {
+        // TAGLIO DELLE PAROLE CHE NON SONO NOMI.
+        // I pattern che si agganciano a un'etichetta ("il sig. ...", "mi chiamo
+        // ...") prendono fino a quattro parole di seguito, senza guardare che
+        // cosa siano. Su un verbale veniva fuori "Russo dichiarava di aver" o
+        // "Verdi risultava positivo all'alcoltest": mezza frase coperta, e il
+        // modello riceveva un testo che non si capisce piu'.
+        // Qui si tengono solo le parole che possono essere un nome - stanno
+        // negli elenchi anagrafici, oppure hanno l'iniziale maiuscola - e si
+        // taglia alla prima che non lo e'.
+        if (/LABEL_ANYCASE|AFTER_INTRO|ALIAS_ANYCASE/.test(p.id)) {
+          const pezzi = value.split(/\s+/).filter(Boolean);
+          const buone = [];
+          for (let z = 0; z < pezzi.length; z++) {
+            const nudo = pezzi[z].replace(/^[^A-Za-z\u00C0-\u024F]+|[^A-Za-z\u00C0-\u024F]+$/g, '');
+            const lw = nudo.toLowerCase();
+            const inElenco = GSET.given.has(lw) || GSET.family.has(lw);
+            const maiuscola = /^[A-Z\u00C0-\u00DE]/.test(nudo);
+            const parolaComune = GSET.mai.has(lw) || GSET.not.has(lw);
+            if (!nudo || parolaComune || (!inElenco && !maiuscola)) break;
+            buone.push(pezzi[z]);
+          }
+          if (!buone.length) return;
+          const tenuto = buone.join(' ');
+          if (tenuto !== value) {
+            const dove = value.indexOf(tenuto);
+            if (dove >= 0) { start += dove; value = tenuto; end = start + value.length; }
+          }
+        }
         // Un nome non attraversa un punto: "Paolo Rossi. F.to Marco" non deve
         // diventare "Paolo Rossi. F". Si taglia tutto dal primo punto in poi.
         // "Dr. Wei Zhang" veniva tagliato al primo punto e restava "Dr": il
