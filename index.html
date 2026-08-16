@@ -207,6 +207,10 @@ body.ag-attivo{overflow:hidden;margin:0}
    Non legge piu' da chat_logs (dove non scriviamo piu' nulla): le conversazioni
    restano nel browser dell'utente. Il pulsante torna visibile. */
 /* --- NUVOLETTE DI SPIEGAZIONE --- */
+/* Cifre a passo fisso e scatola di larghezza fissa: la percentuale puo'
+   passare da 9 a 10 a 100 senza spostare di un pixel la scritta accanto. */
+.ag-pc{display:inline-block;min-width:2.4em;text-align:right;
+  font-variant-numeric:tabular-nums;font-feature-settings:'tnum'}
 .ag-nuvola{position:fixed;z-index:2600;max-width:270px;background:var(--text-main);
   color:var(--primary);font-family:'Inter',sans-serif;font-size:11.5px;line-height:1.55;
   padding:9px 12px;border-radius:9px;box-shadow:0 8px 26px rgba(0,0,0,.22);
@@ -7066,6 +7070,10 @@ if (recognition) {
   var VOCI = {
     it: {
       profondaAttiva:'analisi profonda attiva',
+      mP4:'<b>Da dove arriva e cosa esce da qui.</b> Il modello si chiama <b>openai/privacy-filter</b>, licenza Apache 2.0, che ne permette l\u0027uso commerciale. Per scaricarlo il browser contatta <b>huggingface.co</b>: quella e\u0027 l\u0027unica connessione, e serve solo a prendere i file. <b>Nessun testo delle tue conversazioni viene inviato</b>, ne\u0027 ora ne\u0027 dopo. Finito lo scaricamento, il modello lavora solo qui.',
+      mSpunta:'Ho letto e accetto: scarica il modello e i suoi termini di licenza (Apache 2.0)',
+      mLink:'Leggi la licenza e la scheda del modello',
+      mPeso:'Circa 800 MB, una volta sola. Su una connessione lenta puo\u0027 richiedere diversi minuti.',
       motore:'Motore avanzato',
       motoreOn:'Motore: ON',
       motoreCarico:'Scarico {p}%',
@@ -7146,6 +7154,10 @@ if (recognition) {
     },
     es: {
       profondaAttiva:'analisis profundo activo',
+      mP4:'<b>De donde viene y que sale de aqui.</b> El modelo se llama <b>openai/privacy-filter</b>, licencia Apache 2.0, que permite el uso comercial. Para descargarlo el navegador contacta con <b>huggingface.co</b>: esa es la unica conexion, y solo sirve para obtener los archivos. <b>No se envia ningun texto de tus conversaciones</b>, ni ahora ni despues. Terminada la descarga, el modelo trabaja solo aqui.',
+      mSpunta:'He leido y acepto: descarga el modelo y sus terminos de licencia (Apache 2.0)',
+      mLink:'Leer la licencia y la ficha del modelo',
+      mPeso:'Unos 800 MB, una sola vez. Con conexion lenta puede tardar varios minutos.',
       motore:'Motor avanzado',
       motoreOn:'Motor: ON',
       motoreCarico:'Descargando {p}%',
@@ -7226,6 +7238,10 @@ if (recognition) {
     },
     en: {
       profondaAttiva:'deep scan on',
+      mP4:'<b>Where it comes from and what leaves this device.</b> The model is <b>openai/privacy-filter</b>, Apache 2.0 licence, which permits commercial use. To download it your browser contacts <b>huggingface.co</b>: that is the only connection, and it only fetches the files. <b>No text from your conversations is sent</b>, now or later. Once downloaded, the model works only here.',
+      mSpunta:'I have read and accept: download the model and its licence terms (Apache 2.0)',
+      mLink:'Read the licence and the model card',
+      mPeso:'About 800 MB, once only. On a slow connection this can take several minutes.',
       motore:'Advanced engine',
       motoreOn:'Engine: ON',
       motoreCarico:'Downloading {p}%',
@@ -8023,14 +8039,27 @@ if (recognition) {
           '<p>' + T('mP1') + '</p>' +
           '<p>' + T('mP2') + '</p>' +
           '<p>' + T('mP3') + '</p>' +
+          '<p>' + T('mP4') + ' <a href="https://huggingface.co/openai/privacy-filter" ' +
+            'target="_blank" rel="noopener">' + T('mLink') + '</a></p>' +
+          '<label class="ag-av-spunta"><input type="checkbox" id="ag-m-ok"> ' + T('mSpunta') + '</label>' +
+          '<p class="ag-op-nota">' + T('mPeso') + '</p>' +
           '<div class="ag-av-bottoni">' +
             '<button type="button" data-a="no">' + T('mNo') + '</button>' +
-            '<button type="button" class="ag-av-primo" data-a="si">' + T('mSi') + '</button>' +
+            '<button type="button" class="ag-av-primo" data-a="si" disabled>' + T('mSi') + '</button>' +
           '</div>' +
         '</div>';
       document.body.appendChild(ov);
+      // Il consenso e' un atto, non una formalita': finche' non spunta, il
+      // pulsante che scarica resta spento.
+      ov.addEventListener('change', function(e){
+        if (e.target && e.target.id === 'ag-m-ok') {
+          var p = ov.querySelector('.ag-av-primo');
+          if (p) p.disabled = !e.target.checked;
+        }
+      });
       ov.addEventListener('click', function(e){
         var b = e.target.closest('button'); if (!b) return;
+        if (b.disabled) return;
         ov.remove();
         risolvi(b.getAttribute('data-a') === 'si');
       });
@@ -8053,10 +8082,12 @@ if (recognition) {
     if (!M || M.stato === 'carico') return;
     if (M.pronto) {          // gia' acceso: si spegne togliendo le proposte
       suggeriti.clear(); vociAI.clear(); ultimoAnalizzato = '';
+      try { localStorage.removeItem('aegis_motore'); } catch (e) {}
       aggiorna();
       return;
     }
     if (!(await spiegaMotore())) return;
+    try { localStorage.setItem('aegis_motore', '1'); } catch (e) {}
     try {
       await M.carica();
       var i = document.getElementById('user-input');
@@ -8876,10 +8907,31 @@ if (recognition) {
     if (bOpz) bOpz.addEventListener('click', function(e){ e.stopPropagation(); apriOpzioni(); });
     var bMot = document.getElementById('ag-motore-btn');
     if (bMot) bMot.addEventListener('click', function(e){ e.stopPropagation(); accendiMotore(); });
+    // Chi ha gia' accettato e scaricato non deve rivedere ne' l'avviso ne'
+    // l'attesa: i file restano nella memoria del browser, quindi la seconda
+    // volta il motore e' pronto in un attimo e parte da solo.
+    try {
+      if (localStorage.getItem('aegis_motore') === '1' && window.AEGIS_MODELLO) {
+        setTimeout(function(){
+          window.AEGIS_MODELLO.carica().then(function(){
+            statoMotore();
+            var i = document.getElementById('user-input');
+            if (i && i.value) chiediAlModello(i.value, true).then(function(){ anteprima(i.value); });
+          }).catch(function(){ statoMotore(); });
+        }, 1200);
+      }
+    } catch (e) {}
     window.addEventListener('aegis-modello', function(ev){
       var d = (ev && ev.detail) || {};
       var b = document.getElementById('ag-motore-btn');
-      if (b && d.stato === 'carico') { b.disabled = true; b.textContent = T('motoreCarico', { p: d.extra || 0 }); }
+      if (b && d.stato === 'carico') {
+        b.disabled = true;
+        // La percentuale passa da una a tre cifre in pochi secondi: con il
+        // testo centrato la scritta sobbalza a ogni cifra in piu'. Il numero
+        // sta in una scatola di larghezza fissa, allineata a destra, con le
+        // cifre a passo fisso.
+        b.innerHTML = T('motoreCarico', { p: '<span class="ag-pc">' + (d.extra || 0) + '</span>' });
+      }
       else statoMotore();
     });
     etichette();
