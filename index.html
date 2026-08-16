@@ -209,6 +209,8 @@ body.ag-attivo{overflow:hidden;margin:0}
 /* --- BARRA DELL'ANTEPRIMA: evidenziazione e allargamento --- */
 .ag-basso{display:flex;flex-direction:column;min-height:0;transition:flex-basis .22s ease}
 .ag-basso.ag-esteso{flex:1 1 auto}
+/* Il pulsante dei colori sta nel campo dove si scrive. */
+.ag-hl-campo{flex:none;margin:0 4px 4px 0;align-self:flex-end}
 .ag-basso-barra{display:flex;align-items:center;justify-content:flex-end;gap:6px;
   padding:4px 12px 2px;flex:none}
 .ag-espandi{border:1px solid var(--hairline);background:transparent;cursor:pointer;
@@ -7301,6 +7303,8 @@ if (recognition) {
       mSpunta:'Ho letto e accetto: scarica il modello e i suoi termini di licenza (Apache 2.0)',
       mLink:'Leggi la licenza e la scheda del modello',
       mPeso:'Circa 800 MB, una volta sola. Su una connessione lenta puo\u0027 richiedere diversi minuti.',
+      evidOn:'Evidenzia: ON',
+      evidOff:'Evidenzia: OFF',
       motore:'Motore avanzato',
       motoreOn:'Motore: ON',
       motoreCarico:'Scarico {p}%',
@@ -7386,6 +7390,8 @@ if (recognition) {
       mSpunta:'He leido y acepto: descarga el modelo y sus terminos de licencia (Apache 2.0)',
       mLink:'Leer la licencia y la ficha del modelo',
       mPeso:'Unos 800 MB, una sola vez. Con conexion lenta puede tardar varios minutos.',
+      evidOn:'Resaltado: ON',
+      evidOff:'Resaltado: OFF',
       motore:'Motor avanzado',
       motoreOn:'Motor: ON',
       motoreCarico:'Descargando {p}%',
@@ -7471,6 +7477,8 @@ if (recognition) {
       mSpunta:'I have read and accept: download the model and its licence terms (Apache 2.0)',
       mLink:'Read the licence and the model card',
       mPeso:'About 800 MB, once only. On a slow connection this can take several minutes.',
+      evidOn:'Highlight: ON',
+      evidOff:'Highlight: OFF',
       motore:'Advanced engine',
       motoreOn:'Engine: ON',
       motoreCarico:'Downloading {p}%',
@@ -7693,6 +7701,21 @@ if (recognition) {
   }
   function vaiA(scheda){
     schedaAttiva = scheda;
+    // La legenda era in italiano fisso: con l'interfaccia in spagnolo si
+    // leggeva meta' in una lingua e meta' nell'altra.
+    var leg = document.querySelector('.ag-legenda');
+    if (leg) {
+      var mapLeg = { per:'catNomi', addr:'catIndirizzi', city:'catLuoghi', date:'catDate',
+        bank:'catBancari', mail:'catContatti', id:'catDocumenti', tech:'catTecnici',
+        med:'catSanitari', org:'catAziende' };
+      leg.querySelectorAll('span[data-g]').forEach(function(sp){
+        var g = sp.getAttribute('data-g');
+        if (!mapLeg[g]) return;
+        var ic = sp.querySelector('i');
+        sp.textContent = T(mapLeg[g]);
+        if (ic) sp.insertBefore(ic, sp.firstChild);
+      });
+    }
     var t = document.querySelectorAll('.ag-voci .ag-tab');
     if (t) t.forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-s')===scheda); });
   }
@@ -8059,13 +8082,30 @@ if (recognition) {
   /* ---------- anteprima: evidenziazione propria e allargamento ---------- */
   var anteprimaColorata = true;
   function avviaAnteprima() {
-    const hl = document.getElementById('ag-ant-hl');
+    // Il pulsante dei colori vive nel campo dove si scrive - campoporcoddio -
+    // non nello specchio: e' li' che l'utente guarda mentre digita.
+    let hl = document.getElementById('ag-ant-hl');
+    if (!hl) {
+      const dentro = document.querySelector('#chat-input-wrapper .input-inner');
+      const campo = document.getElementById('user-input');
+      if (dentro && campo) {
+        hl = document.createElement('button');
+        hl.id = 'ag-ant-hl';
+        hl.type = 'button';
+        hl.className = 'ag-toggle ag-toggle-sp ag-hl-campo on';
+        dentro.insertBefore(hl, campo);
+      }
+    }
     if (hl) {
-      hl.innerHTML = '<span class="ag-dot"></span><span class="ag-lbl"></span>';
+      hl.innerHTML = '<span class="ag-dot"></span><span class="ag-lbl">' +
+        (anteprimaColorata ? T('evidOn') : T('evidOff')) + '</span>';
+      hl.setAttribute('data-aiuto', T('aiutoEvidenzia'));
       hl.addEventListener('click', function (e) {
         e.stopPropagation();
         anteprimaColorata = !anteprimaColorata;
         hl.classList.toggle('on', anteprimaColorata);
+        const lbl = hl.querySelector('.ag-lbl');
+        if (lbl) lbl.textContent = anteprimaColorata ? T('evidOn') : T('evidOff');
         const box = document.getElementById('ag-anteprima');
         if (box) box.classList.toggle('ag-senza-colore', !anteprimaColorata);
       });
@@ -9078,24 +9118,22 @@ if (recognition) {
       '</div>'+
       '<div class="ag-basso" id="ag-basso">'+
         '<div class="ag-basso-barra">'+
-          '<button class="ag-toggle ag-toggle-sp on" id="ag-ant-hl" type="button" ' +
-            'data-aiuto="Accende e spegne i colori nell\u0027anteprima di cio\u0027 che stai scrivendo."></button>'+
           '<button class="ag-espandi" id="ag-espandi" type="button" ' +
             'data-aiuto="Allarga l\u0027anteprima a tutta l\u0027altezza, per leggere comodamente un documento lungo."></button>'+
         '</div>'+
         '<div class="ag-anteprima" id="ag-anteprima"></div>'+
       '</div>'+
       '<div class="ag-legenda">'+
-        '<span data-g="per"><i class="ag-per"></i>nomi</span>'+
-        '<span data-g="addr"><i class="ag-addr"></i>indirizzi</span>'+
-        '<span data-g="city"><i class="ag-city"></i>luoghi</span>'+
-        '<span data-g="date"><i class="ag-date"></i>date</span>'+
-        '<span data-g="bank"><i class="ag-bank"></i>bancari</span>'+
-        '<span data-g="mail"><i class="ag-mail"></i>contatti</span>'+
-        '<span data-g="id"><i class="ag-id"></i>documenti</span>'+
-        '<span data-g="tech"><i class="ag-tech"></i>tecnici</span>'+
-        '<span data-g="med"><i class="ag-med"></i>sanitari</span>'+
-        '<span data-g="org"><i class="ag-org"></i>aziende</span>'+
+        '<span data-g="per"><i class="ag-per"></i>' + T('catNomi') + '</span>'+
+        '<span data-g="addr"><i class="ag-addr"></i>' + T('catIndirizzi') + '</span>'+
+        '<span data-g="city"><i class="ag-city"></i>' + T('catLuoghi') + '</span>'+
+        '<span data-g="date"><i class="ag-date"></i>' + T('catDate') + '</span>'+
+        '<span data-g="bank"><i class="ag-bank"></i>' + T('catBancari') + '</span>'+
+        '<span data-g="mail"><i class="ag-mail"></i>' + T('catContatti') + '</span>'+
+        '<span data-g="id"><i class="ag-id"></i>' + T('catDocumenti') + '</span>'+
+        '<span data-g="tech"><i class="ag-tech"></i>' + T('catTecnici') + '</span>'+
+        '<span data-g="med"><i class="ag-med"></i>' + T('catSanitari') + '</span>'+
+        '<span data-g="org"><i class="ag-org"></i>' + T('catAziende') + '</span>'+
       '</div>';
 
     scena.appendChild(p);      // finestra 1: lo specchio
