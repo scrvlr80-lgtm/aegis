@@ -155,9 +155,10 @@ body.ag-attivo{overflow:hidden;margin:0}
    quando si accendono e spengono i gruppi, e la riga resta dov'era.
    Il testo INVIATO non cambia: resta il codice corto, che il modello legge
    meglio. Questa e' solo la sua veste. */
-.ag-t{border-radius:3px;padding:1px 3px;font-weight:700;color:#fff;
-  display:inline-block;text-align:center;white-space:nowrap;
-  vertical-align:baseline;line-height:inherit}
+.ag-t{border-radius:3px;padding:0;font-weight:700;color:#fff;
+  display:inline-block;text-align:center;white-space:nowrap;overflow:hidden;
+  vertical-align:baseline;line-height:inherit;box-sizing:content-box}
+.ag-t > i{display:inline-block;font-style:normal;transform-origin:center center}
 /* proposta del modello: tratteggiata, non piena come le certezze */
 .ag-t.ag-proposta{background:transparent!important;color:var(--c-per)!important;
   border:1px dashed var(--c-per);cursor:help}
@@ -372,7 +373,9 @@ select#ag-model.lang-change-btn{-webkit-appearance:none;appearance:none;cursor:p
 .ag-lbl{flex:1;text-align:center}
 .ag-dot{width:7px;height:7px;border-radius:50%;background:var(--hairline);flex:none;transition:.18s}
 .ag-toggle.on .ag-dot{background:var(--accent)}
-mark.ag-m{background:transparent;color:inherit;border-radius:3px;padding:0 3px;
+/* Niente spaziatura interna: un solo pixel in piu' sposta la riga quando si
+   accende o si spegne un gruppo, ed e' esattamente cio' che si vuole evitare. */
+mark.ag-m{background:transparent;color:inherit;border-radius:3px;padding:0;margin:0;
   box-decoration-break:clone;-webkit-box-decoration-break:clone}
 mark.ag-m.per{background:rgba(229,72,77,.24)} mark.ag-m.addr{background:rgba(48,164,108,.24)}
 mark.ag-m.city{background:rgba(0,145,255,.24)} mark.ag-m.date{background:rgba(245,165,36,.30)}
@@ -8420,7 +8423,12 @@ if (recognition) {
       var col=colorDi.get(tok)||colore(tok);
       if(!gruppiSpenti[col]) return full;
       var v=valoreDi(tok);
-      return v!==null ? v : full;
+      if (v === null) return full;
+      // Il valore scoperto e' l'ANCORA: la sua larghezza e' quella che il testo
+      // deve avere sempre, con o senza codice. Si marca con un carattere di
+      // servizio che il disegno riconosce, per non confonderlo col testo
+      // normale quando poi si colora.
+      return '\u0002' + v + '\u0003';
     });
   }
   function coloraToken(t){
@@ -8430,13 +8438,21 @@ if (recognition) {
       // meglio uno specchio senza colori che un invio bloccato. E' successo:
       // una variabile rimasta indietro ha buttato giu' tutto.
       console.error('[Aegis] disegno dello specchio in errore:', e && e.message);
-      return esc(applicaGruppi(t));
+      // ripiego: si tolgono i caratteri di servizio, che non devono mai
+      // comparire a schermo nemmeno quando il disegno va in errore
+      return esc(String(applicaGruppi(t)).replace(/[\u0002\u0003]/g, ''));
     }
   }
   function coloraTokenInterno(t){
     t = applicaGruppi(t);
     if(!codiciAccesi) return esc(t);
-    return esc(t).replace(/[A-Za-z0-9]{0,40}@([a-z]{1,3})(\d{1,3})([a-z]?)@[A-Za-z0-9]{0,40}/g,function(full,sg,num,vr){
+    return esc(t)
+      .replace(/\u0002([\s\S]*?)\u0003/g, function(_, v){
+        // valore scoperto: evidenziato, ma senza margini ne' riquadri che
+        // possano spostare il testo di mezzo carattere
+        return '<mark class="ag-m">' + v + '</mark>';
+      })
+      .replace(/[A-Za-z0-9]{0,40}@([a-z]{1,3})(\d{1,3})([a-z]?)@[A-Za-z0-9]{0,40}/g,function(full,sg,num,vr){
       var tok=tokenDaSigla(sg,num,vr);
       if(!tok) return full;
       // I codici NER sono PROPOSTE del modello, non certezze verificate:
@@ -8450,9 +8466,17 @@ if (recognition) {
       // coperta, ma se il codice e' piu' lungo si allarga invece di tagliarlo.
       // Un codice tagliato ("@pe01" senza chiocciola finale) non e' piu' un
       // codice: non si capisce, non si copia, e sembra un errore.
-      var stile = 'min-width:' + largo + 'ch';
+      // LARGHEZZA FISSA, uguale a quella del valore vero. Il codice non allarga
+      // e non taglia: si stringe con una scalatura orizzontale finche' ci sta.
+      // Cosi' accendere e spegnere un gruppo non muove NIENTE: sotto c'e'
+      // sempre lo stesso numero di caratteri.
+      var stile = 'width:' + largo + 'ch';
+      var scala = largo / Math.max(1, full.length);
       var titolo = ' title="' + T('copre', { n: largo }) + '"';
-      return '<span class="ag-t ag-'+(colorDi.get(tok)||colore(tok))+extra+'" style="'+stile+'"'+titolo+'>'+full+'</span>';
+      var dentro = scala < 0.995
+        ? '<i style="transform:scaleX(' + scala.toFixed(3) + ')">' + full + '</i>'
+        : full;
+      return '<span class="ag-t ag-'+(colorDi.get(tok)||colore(tok))+extra+'" style="'+stile+'"'+titolo+'>'+dentro+'</span>';
     });
   }
   function disegna(){
