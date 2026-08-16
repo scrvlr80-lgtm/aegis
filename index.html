@@ -229,10 +229,13 @@ body.ag-attivo{overflow:hidden;margin:0}
    Copia esatta del testo, disegnata sotto, con le parti sensibili evidenziate.
    Il campo vero sta sopra, con lo sfondo trasparente: si scrive normalmente e
    si vedono le proprie parole marcate mentre si digita. */
-.input-inner{position:relative}
-.ag-ombra{position:absolute;inset:0;overflow:hidden;pointer-events:none;
-  white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;color:transparent;
-  z-index:0;border-radius:inherit}
+/* Scatola dedicata attorno al solo campo di testo: l'ombra si appoggia qui,
+   non sull'intera barra, altrimenti microfono e graffetta la spostano. */
+.ag-scatola-campo{position:relative;flex:1 1 auto;min-width:0;display:flex}
+.ag-scatola-campo > textarea{flex:1 1 auto;width:100%}
+.ag-ombra{position:absolute;top:0;left:0;right:0;bottom:0;overflow:hidden;
+  pointer-events:none;white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;
+  color:transparent;z-index:0;margin:0}
 #user-input.ag-con-ombra{position:relative;z-index:1;background:transparent!important}
 .ag-ombra mark.ag-om{color:transparent;border-radius:3px;padding:0;
   background:rgba(229,72,77,.22)}
@@ -8035,19 +8038,35 @@ if (recognition) {
   function creaOmbra() {
     const campo = document.getElementById('user-input');
     if (!campo || ombraEl) return ombraEl;
+    // L'ombra deve stare ESATTAMENTE sopra il campo di testo, non sopra tutta
+    // la barra: microfono e graffetta occupano spazio a sinistra, e appoggiare
+    // l'ombra sull'intera barra sfasava ogni evidenziazione di alcuni
+    // centimetri. Si crea quindi una scatola dedicata attorno al solo campo.
     const genitore = campo.parentNode;
     if (!genitore) return null;
+    const scatola = document.createElement('div');
+    scatola.className = 'ag-scatola-campo';
+    genitore.insertBefore(scatola, campo);
+    scatola.appendChild(campo);
     ombraEl = document.createElement('div');
     ombraEl.className = 'ag-ombra';
     ombraEl.setAttribute('aria-hidden', 'true');
-    genitore.insertBefore(ombraEl, campo);
+    scatola.insertBefore(ombraEl, campo);
     const st = window.getComputedStyle(campo);
-    ['fontFamily','fontSize','fontWeight','lineHeight','letterSpacing','wordSpacing',
-     'paddingTop','paddingRight','paddingBottom','paddingLeft','textAlign']
+    ['fontFamily','fontSize','fontWeight','fontStyle','lineHeight','letterSpacing','wordSpacing',
+     'paddingTop','paddingRight','paddingBottom','paddingLeft','textAlign','textIndent',
+     'borderTopWidth','borderRightWidth','borderBottomWidth','borderLeftWidth','boxSizing']
       .forEach(function (k) { ombraEl.style[k] = st[k]; });
-    campo.addEventListener('scroll', function () {
-      if (ombraEl) ombraEl.scrollTop = campo.scrollTop;
-    });
+    // Il testo scorre dentro il campo: l'ombra deve scorrere insieme, altrimenti
+    // le evidenziazioni restano ferme mentre le parole scappano via.
+    const segui = function () {
+      if (!ombraEl) return;
+      ombraEl.scrollTop = campo.scrollTop;
+      ombraEl.scrollLeft = campo.scrollLeft;
+    };
+    campo.addEventListener('scroll', segui);
+    campo.addEventListener('input', segui);
+    campo.addEventListener('keyup', segui);
     campo.classList.add('ag-con-ombra');
     return ombraEl;
   }
@@ -8064,7 +8083,7 @@ if (recognition) {
     punti.forEach(function (m) {
       if (m.start < cursore) return;
       fuori += esc(testo.slice(cursore, m.start));
-      fuori += '<mark class="ag-om ag-om-' + (colore(m.token || m.patternId) || 'per') + '">' +
+      fuori += '<mark class="ag-om ag-om-' + (colore(m.token) || 'per') + '">' +
                esc(testo.slice(m.start, m.end)) + '</mark>';
       cursore = m.end;
     });
