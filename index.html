@@ -225,6 +225,21 @@ body.ag-attivo{overflow:hidden;margin:0}
    quando si incolla un documento lungo e si vuole leggerlo come testo. */
 .ag-anteprima.ag-senza-colore .ag-t{background:var(--hairline)!important;color:var(--text-light)}
 .ag-anteprima.ag-senza-colore mark.ag-m{background:transparent!important}
+/* --- COMANDI SOTTO OGNI BOLLA DELLO SPECCHIO --- */
+.ag-bolla-wrap{display:flex;flex-direction:column;gap:2px;max-width:94%}
+.ag-bolla-wrap.ag-w-user{align-self:flex-end;align-items:flex-end}
+.ag-bolla-wrap.ag-w-bot{align-self:flex-start;align-items:flex-start}
+.ag-bolla-wrap .ag-bolla{max-width:100%;align-self:auto}
+/* Distanziati: prima erano appiccicati e si sbagliava pulsante. */
+.ag-cmd{display:flex;gap:14px;padding:2px 6px 6px;opacity:.55;transition:opacity .15s}
+.ag-bolla-wrap:hover .ag-cmd{opacity:1}
+.ag-cmd-b{background:transparent;border:none;padding:3px;cursor:pointer;
+  color:var(--text-light);border-radius:5px;display:flex;transition:.15s}
+.ag-cmd-b:hover{color:var(--accent);background:rgba(0,113,227,.08)}
+.ag-cmd-b svg{width:15px;height:15px;fill:currentColor}
+.ag-cmd-b.scelto{color:var(--accent)}
+/* la fila sotto il campo di scrittura, allineata a destra come i comandi */
+.ag-barra-campo{display:flex;justify-content:flex-end;padding:6px 24px 0}
 /* --- MARCATURA TEMPORANEA: dove sta questo dato --- */
 @keyframes ag-pulsa{0%{box-shadow:0 0 0 0 rgba(255,159,10,.65)}
   70%{box-shadow:0 0 0 7px rgba(255,159,10,0)}100%{box-shadow:0 0 0 0 rgba(255,159,10,0)}}
@@ -553,7 +568,7 @@ body {
 
 .bot-actions-container { display: flex; flex-direction: column; margin-top: 10px; width: 100%; font-family: 'Inter', sans-serif; }
 .bot-action-bar { display: flex; align-items: center; justify-content: space-between; width: 100%; }
-.action-btn { background: transparent; border: none; padding: 6px; cursor: pointer; color: var(--text-light); border-radius: 4px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+/* Mi piace e non mi piace tolti dalla chat a destra: la valutazione si da\n   nello specchio, dove si vede anche cosa e' partito davvero. */\n#chat-messages .like-btn, #chat-messages .dislike-btn { display: none !important; }\n.action-btn { background: transparent; border: none; padding: 6px; cursor: pointer; color: var(--text-light); border-radius: 4px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
 .action-btn:hover { color: var(--accent); background: rgba(0, 229, 255, 0.1); }
 .action-btn svg { width: 16px; height: 16px; fill: currentColor; }
 
@@ -7303,6 +7318,9 @@ if (recognition) {
       mSpunta:'Ho letto e accetto: scarica il modello e i suoi termini di licenza (Apache 2.0)',
       mLink:'Leggi la licenza e la scheda del modello',
       mPeso:'Circa 800 MB, una volta sola. Su una connessione lenta puo\u0027 richiedere diversi minuti.',
+      ascolta:'Ascolta',
+      miPiace:'Utile',
+      nonMiPiace:'Non utile',
       evidOn:'Evidenzia: ON',
       evidOff:'Evidenzia: OFF',
       motore:'Motore avanzato',
@@ -7390,6 +7408,9 @@ if (recognition) {
       mSpunta:'He leido y acepto: descarga el modelo y sus terminos de licencia (Apache 2.0)',
       mLink:'Leer la licencia y la ficha del modelo',
       mPeso:'Unos 800 MB, una sola vez. Con conexion lenta puede tardar varios minutos.',
+      ascolta:'Escuchar',
+      miPiace:'Util',
+      nonMiPiace:'No util',
       evidOn:'Resaltado: ON',
       evidOff:'Resaltado: OFF',
       motore:'Motor avanzado',
@@ -7477,6 +7498,9 @@ if (recognition) {
       mSpunta:'I have read and accept: download the model and its licence terms (Apache 2.0)',
       mLink:'Read the licence and the model card',
       mPeso:'About 800 MB, once only. On a slow connection this can take several minutes.',
+      ascolta:'Listen',
+      miPiace:'Helpful',
+      nonMiPiace:'Not helpful',
       evidOn:'Highlight: ON',
       evidOff:'Highlight: OFF',
       motore:'Advanced engine',
@@ -7972,6 +7996,78 @@ if (recognition) {
   }
   var autoRiservato = true;
 
+  /* ============== VOCE E GIUDIZIO NELLO SPECCHIO ==============
+     La lettura ad alta voce non pronuncia i codici. "@pe01@" letto lettera per
+     lettera e' incomprensibile e rompe il ritmo della frase: al suo posto si
+     sente un breve segnale acustico, che dice "qui c'e' un dato coperto"
+     senza dire quale. La voce e il segnale si alternano nell'ordine giusto.
+     ============================================================ */
+  var audioCtx = null;
+  function bip(durata) {
+    return new Promise(function (fine) {
+      try {
+        audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const vol = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = 660;
+        vol.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+        vol.gain.exponentialRampToValueAtTime(0.12, audioCtx.currentTime + 0.02);
+        vol.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + durata);
+        osc.connect(vol); vol.connect(audioCtx.destination);
+        osc.start(); osc.stop(audioCtx.currentTime + durata);
+        osc.onended = fine;
+        setTimeout(fine, durata * 1000 + 60);
+      } catch (e) { fine(); }
+    });
+  }
+  function pronuncia(testo) {
+    return new Promise(function (fine) {
+      const s = window.speechSynthesis;
+      if (!s || !testo.trim()) return fine();
+      const v = new SpeechSynthesisUtterance(testo);
+      v.lang = (typeof activeLanguageCode !== 'undefined' && activeLanguageCode) || 'it-IT';
+      v.rate = 1.05;
+      v.onend = fine; v.onerror = fine;
+      s.speak(v);
+    });
+  }
+  var lettura = false;
+  async function leggiRiga(i) {
+    const r = righe[i];
+    if (!r) return;
+    try { window.speechSynthesis.cancel(); } catch (e) {}
+    if (lettura) { lettura = false; return; }
+    lettura = true;
+    // si spezza il testo sui codici: prosa, segnale, prosa, segnale...
+    const pezzi = String(r.testo).split(/([A-Za-z0-9]{0,40}@[a-z]{1,3}\d{1,3}[a-z]?@[A-Za-z0-9]{0,40})/);
+    for (const p of pezzi) {
+      if (!lettura) break;
+      if (!p) continue;
+      if (/@[a-z]{1,3}\d{1,3}[a-z]?@/.test(p)) await bip(0.14);
+      else await pronuncia(p);
+    }
+    lettura = false;
+  }
+  function avviaComandiSpecchio() {
+    document.addEventListener('click', function (e) {
+      const b = e.target.closest && e.target.closest('.ag-cmd-b');
+      if (!b) return;
+      e.stopPropagation();
+      const i = Number(b.getAttribute('data-i'));
+      const a = b.getAttribute('data-a');
+      if (a === 'voce') { leggiRiga(i); return; }
+      // il giudizio e' una scelta sola: su oppure giu'
+      const gruppo = b.parentNode;
+      gruppo.querySelectorAll('.ag-cmd-b[data-a="su"], .ag-cmd-b[data-a="giu"]')
+        .forEach(function (x) { if (x !== b) x.classList.remove('scelto'); });
+      b.classList.toggle('scelto');
+      if (typeof sendFeedback === 'function') {
+        try { sendFeedback(a === 'su' ? 'like' : 'dislike', righe[i] && righe[i].testo); } catch (err) {}
+      }
+    });
+  }
+
   /* ================== "DOVE STA QUESTO DATO" ==================
      Cliccando una voce dell'elenco a sinistra, lo specchio scorre fino al
      punto in cui quel dato compare e lo segna. Cliccando un codice nello
@@ -8086,14 +8182,23 @@ if (recognition) {
     // non nello specchio: e' li' che l'utente guarda mentre digita.
     let hl = document.getElementById('ag-ant-hl');
     if (!hl) {
-      const dentro = document.querySelector('#chat-input-wrapper .input-inner');
-      const campo = document.getElementById('user-input');
-      if (dentro && campo) {
+      // SOTTO il campo, non dentro: dentro rubava spazio a quello che si
+      // scrive, ed e' proprio lo spazio che serve di piu'. Allineato a destra
+      // come i comandi delle risposte, cosi' la fila e' una sola.
+      const wrap = document.getElementById('chat-input-wrapper');
+      if (wrap && wrap.parentNode) {
+        let barra = document.getElementById('ag-barra-campo');
+        if (!barra) {
+          barra = document.createElement('div');
+          barra.id = 'ag-barra-campo';
+          barra.className = 'ag-barra-campo';
+          wrap.parentNode.insertBefore(barra, wrap.nextSibling);
+        }
         hl = document.createElement('button');
         hl.id = 'ag-ant-hl';
         hl.type = 'button';
-        hl.className = 'ag-toggle ag-toggle-sp ag-hl-campo on';
-        dentro.insertBefore(hl, campo);
+        hl.className = 'ag-toggle ag-toggle-sp on';
+        barra.appendChild(hl);
       }
     }
     if (hl) {
@@ -8110,17 +8215,8 @@ if (recognition) {
         if (box) box.classList.toggle('ag-senza-colore', !anteprimaColorata);
       });
     }
-    const esp = document.getElementById('ag-espandi');
-    if (esp) esp.addEventListener('click', function (e) {
-      e.stopPropagation();
-      const basso = document.getElementById('ag-basso');
-      const corpo = document.querySelector('.ag-corpo');
-      if (!basso) return;
-      const esteso = basso.classList.toggle('ag-esteso');
-      // Quando l'anteprima si allarga, lo specchio si stringe: e' lo stesso
-      // spazio, diviso in modo diverso a seconda di cosa si sta facendo.
-      if (corpo) corpo.style.flex = esteso ? '0 1 34%' : '';
-    });
+    // Il pulsante che allargava l'anteprima e' stato tolto: occupava spazio
+    // e non serviva a niente che non facesse gia' la barra di scorrimento.
   }
 
   /* ============== MOTORE CONTESTUALE: AGGANCIO ==============
@@ -9036,8 +9132,20 @@ if (recognition) {
     try { disegnaColonna(); } catch(e) {}
     if(!lista) return;
     if(!righe.length){ lista.innerHTML=''; lista.appendChild(vuoto); return; }
-    lista.innerHTML=righe.map(function(r){
-      return '<div class="ag-bolla ag-'+r.ruolo+'">'+coloraToken(r.testo)+'</div>';
+    lista.innerHTML=righe.map(function(r,i){
+      // I comandi stanno qui, non nella chat a destra: e' in questo riquadro
+      // che si vede cosa e' partito davvero, quindi e' qui che ha senso dare
+      // un giudizio. Valgono sia per le domande sia per le risposte.
+      return '<div class="ag-bolla-wrap ag-w-'+r.ruolo+'">'+
+             '<div class="ag-bolla ag-'+r.ruolo+'" data-i="'+i+'">'+coloraToken(r.testo)+'</div>'+
+             '<div class="ag-cmd">'+
+               '<button type="button" class="ag-cmd-b" data-a="voce" data-i="'+i+'" title="'+T('ascolta')+'">'+
+                 '<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg></button>'+
+               '<button type="button" class="ag-cmd-b" data-a="su" data-i="'+i+'" title="'+T('miPiace')+'">'+
+                 '<svg viewBox="0 0 24 24"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"/></svg></button>'+
+               '<button type="button" class="ag-cmd-b" data-a="giu" data-i="'+i+'" title="'+T('nonMiPiace')+'">'+
+                 '<svg viewBox="0 0 24 24"><path d="M15 3H6c-.83 0-1.54.5-1.84 1.22l-3.02 7.05c-.09.23-.14.47-.14.73v2c0 1.1.9 2 2 2h6.31l-.95 4.57-.03.32c0 .41.17.79.44 1.06L9.83 23l6.59-6.59c.36-.36.58-.86.58-1.41V5c0-1.1-.9-2-2-2z"/></svg></button>'+
+             '</div></div>';
     }).join('');
     scorri();
   }
@@ -9118,8 +9226,7 @@ if (recognition) {
       '</div>'+
       '<div class="ag-basso" id="ag-basso">'+
         '<div class="ag-basso-barra">'+
-          '<button class="ag-espandi" id="ag-espandi" type="button" ' +
-            'data-aiuto="Allarga l\u0027anteprima a tutta l\u0027altezza, per leggere comodamente un documento lungo."></button>'+
+
         '</div>'+
         '<div class="ag-anteprima" id="ag-anteprima"></div>'+
       '</div>'+
@@ -9367,6 +9474,7 @@ if (recognition) {
     avviaPennello();
     avviaRiservatezza();
     avviaMarcatura();
+    avviaComandiSpecchio();
     avviaAnteprima();
     setTimeout(agganciaAvviso, 300);
     return true;
