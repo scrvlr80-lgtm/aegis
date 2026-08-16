@@ -169,6 +169,19 @@ body.ag-attivo{overflow:hidden;margin:0}
   vertical-align:baseline;line-height:inherit;height:1.85em;box-sizing:border-box}
 .ag-t > i{display:inline-block;font-style:normal;transform-origin:center center;
   line-height:inherit}
+/* La capsula "scorrevole" e' un elemento in linea puro: va a capo come il testo
+   che ha sostituito, e lo sfondo la segue su entrambe le righe. Non ha
+   larghezza ne' altezza proprie, quindi non puo' in nessun caso spostare il
+   testo, ne' in orizzontale ne' in verticale. */
+.ag-t.ag-scorre{display:inline;width:auto;height:auto;padding:0;
+  box-decoration-break:clone;-webkit-box-decoration-break:clone}
+/* La sola parola che ospita il codice puo' avere una scatola propria, larga
+   quanto la parola che sostituisce: serve a comprimere il codice quando e'
+   piu' lungo. Niente overflow nascosto, o la riga tornerebbe a spostarsi. */
+.ag-cod{display:inline-block;overflow:visible;text-align:center;white-space:nowrap;
+  vertical-align:baseline;line-height:inherit}
+.ag-cod > i{display:inline-block;font-style:normal;transform-origin:center center;
+  line-height:inherit}
 /* proposta del modello: tratteggiata, non piena come le certezze */
 .ag-t.ag-proposta{background:transparent!important;color:var(--c-per)!important;
   border:1px dashed var(--c-per);cursor:help}
@@ -8481,6 +8494,85 @@ if (recognition) {
       // e non taglia: si stringe con una scalatura orizzontale finche' ci sta.
       // Cosi' accendere e spegnere un gruppo non muove NIENTE: sotto c'e'
       // sempre lo stesso numero di caratteri.
+      // CAPSULA UNICA CHE SI SPEZZA DA SOLA.
+      // Un elemento in linea va a capo per conto suo e lo sfondo lo segue: e'
+      // il browser a dividere la capsula, e solo quando serve davvero. Il
+      // vincolo era la larghezza fissa, che a un elemento in linea non si puo'
+      // dare. Si risolve al contrario: si scrive dentro la capsula una stringa
+      // con lo STESSO numero di caratteri e gli STESSI spazi del valore vero.
+      // La larghezza viene da se', e i punti dove puo' andare a capo sono gli
+      // stessi identici. Il codice occupa i primi caratteri, il resto e'
+      // riempimento discreto.
+      // Il codice va scritto tutto dentro UNA parola, mai a cavallo di uno
+      // spazio: "@pe09 @····" non e' piu' un codice, e per giunta puo' andare
+      // a capo nel mezzo. Si cerca la prima parola abbastanza lunga da
+      // contenerlo; tutto il resto e' riempimento.
+      var parole = [], rx = /\S+/g, mm;
+      while ((mm = rx.exec(String(valore || '')))) parole.push({ da: mm.index, a: mm.index + mm[0].length });
+      // Ospita il codice la parola PIU' LUNGA: se non ci sta per intero viene
+      // compressa solo lei, dentro una scatola larga quanto la parola che
+      // sostituisce. Il resto della capsula resta testo in linea, quindi va a
+      // capo da solo negli stessi punti dell'originale.
+      var ospite = null;
+      for (var pi = 0; pi < parole.length; pi++) {
+        if (!ospite || (parole[pi].a - parole[pi].da) > (ospite.a - ospite.da)) ospite = parole[pi];
+      }
+      if (valore && ospite) {
+        var larghOspite = ospite.a - ospite.da;
+        var dentro = '';
+        for (var ci = 0; ci < valore.length; ci++) {
+          if (ci === ospite.da) {
+            if (larghOspite >= full.length) {
+              dentro += full + new Array(larghOspite - full.length + 1).join('\u00b7');
+            } else {
+              var sc = larghOspite / full.length;
+              dentro += '<span class="ag-cod" style="width:' + larghOspite + 'ch">' +
+                        '<i style="transform:scaleX(' + sc.toFixed(3) + ')">' + full + '</i></span>';
+            }
+            ci = ospite.a - 1;
+            continue;
+          }
+          var ch = valore[ci];
+          dentro += /\s/.test(ch) ? ch : '\u00b7';           // spazi al loro posto
+        }
+        return '<span class="ag-t ag-scorre ag-' + (colorDi.get(tok)||colore(tok)) + extra + '"' +
+               titolo + '>' + dentro + '</span>';
+      }
+
+      // Valore piu' corto del codice: non c'e' modo di farcelo stare per
+      // intero, quindi si torna alla capsula a larghezza fissa col codice
+      // compresso. Sono parole singole e corte: il ritorno a capo non le
+      // riguarda.
+      // UNA CAPSULA PER PAROLA.
+      // "Giuseppe Verdi" sono due parole: se il gruppo e' spento e la riga
+      // finisce in mezzo, il testo vero va a capo fra le due. Una capsula
+      // unica non puo' andare a capo, quindi la riga si allungava e
+      // l'impaginazione saltava proprio nel caso peggiore.
+      // Qui si disegna un segmento per parola, largo quanto quella parola, con
+      // gli stessi spazi in mezzo: il punto di ritorno a capo e' lo stesso.
+      // Il codice sta nel primo segmento, gli altri portano solo il colore.
+      var col = colorDi.get(tok) || colore(tok);
+      var pezzi = String(valore || '').split(/(\s+)/);
+      if (valore && pezzi.length > 1) {
+        var primo = true, fuori = '';
+        pezzi.forEach(function (p) {
+          if (/^\s+$/.test(p)) { fuori += p; return; }       // lo spazio resta spazio
+          if (!p.length) return;
+          if (primo) {
+            var sc = p.length / Math.max(1, full.length);
+            var dentroP = sc < 0.995
+              ? '<i style="transform:scaleX(' + sc.toFixed(3) + ')">' + full + '</i>'
+              : full;
+            fuori += '<span class="ag-t ag-' + col + extra + '" style="width:' + p.length + 'ch"' +
+                     titolo + '>' + dentroP + '</span>';
+            primo = false;
+          } else {
+            fuori += '<span class="ag-t ag-' + col + extra + '" style="width:' + p.length + 'ch"' +
+                     titolo + '></span>';
+          }
+        });
+        return fuori;
+      }
       var stile = 'width:' + largo + 'ch';
       var scala = largo / Math.max(1, full.length);
       var titolo = ' title="' + T('copre', { n: largo }) + '"';
