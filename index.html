@@ -306,6 +306,9 @@ body.ag-attivo{overflow:hidden;margin:0}
   color:var(--text-main);cursor:pointer;font-family:inherit;font-size:11.5px;
   padding:7px 12px;border-radius:8px}
 .ag-op-azioni button:hover{border-color:var(--c-per);color:var(--c-per)}
+/* Il passaggio che l'utente non deve poter dire di non aver letto. */
+.ag-forte{background:rgba(245,165,36,.12);border-left:3px solid #F5A524;
+  padding:9px 11px;border-radius:6px;font-size:12px;line-height:1.55}
 .ag-op-nota{margin:9px 0 0;font-size:10.5px;line-height:1.5;color:var(--text-light)}
 /* --- AVVISO PRIMA DELL'INVIO --- */
 .ag-avviso-ov{position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.38);
@@ -1563,6 +1566,13 @@ body {
             // ai reload. Si azzera solo se l'utente svuota i dati del browser, nel
             // qual caso dovra' riautenticarsi (comportamento voluto).
             safeStorage.set('gdpr_consent_email', userEmail);
+            // Subito dopo il consenso si propone il motore: e' il momento in cui
+            // l'utente sta decidendo quanto proteggersi, ed e' l'unico in cui
+            // quella scelta e' davvero informata. Se rifiuta, il pulsante resta
+            // in alto e puo' cambiare idea quando vuole.
+            setTimeout(function () {
+              try { if (window.aegisInvitaMotore) window.aegisInvitaMotore(); } catch (e) {}
+            }, 900);
             const response = await fetch('https://chatbot-backend-dev.onrender.com/api/gdpr_consent', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: userEmail, local_id: LOCAL_ID, terms_version: "1.0", marketing_opt_in: false, verified_by: viaGoogle ? 'google' : 'manual' })
@@ -7349,6 +7359,15 @@ if (recognition) {
       mSpunta:'Ho letto e accetto: scarica il modello e i suoi termini di licenza (Apache 2.0)',
       mLink:'Leggi la licenza e la scheda del modello',
       mPeso:'Circa 800 MB, una volta sola. Su una connessione lenta puo\u0027 richiedere diversi minuti.',
+      mSpiegaOnOff:'<b>Attenzione: ON significa INSTALLA, OFF significa DISINSTALLA.</b> Spegnendo il pulsante i file vengono cancellati dal tuo dispositivo e per riaverli occorre scaricarli di nuovo. <b>Si consiglia di lasciarlo acceso:</b> senza il motore i nomi propri nel testo libero vengono riconosciuti molto meno. Alla riapertura della pagina il sistema si accorge che e\u0027 gia\u0027 installato e resta acceso da solo, senza riscaricare nulla.',
+      mDisinstalla:'Disinstallare il motore avanzato?\n\nI file (circa 800 MB) verranno cancellati da questo dispositivo. Per riaverlo dovrai scaricarlo di nuovo.\n\nSenza il motore i nomi propri scritti in mezzo a una frase, senza etichetta davanti, vengono riconosciuti molto meno.',
+      mRimuovo:'Disinstallo\u2026',
+      gTitolo:'Attiva il motore avanzato',
+      gTesto:'Le regole riconoscono con certezza i codici verificabili: IBAN, codici fiscali, carte, telefoni. Ma un nome proprio scritto in mezzo a una frase, senza etichetta davanti, le regole non lo vedono.',
+      gTesto2:'Il motore avanzato colma proprio quel vuoto e <b>gira sul tuo dispositivo</b>: nessun testo esce dal browser. Si scarica una volta sola e resta installato.',
+      gTesto3:'Puoi attivarlo adesso o in qualsiasi momento dal pulsante <b>Motore avanzato</b> in alto. Senza di lui la protezione dei nomi e\u0027 sensibilmente piu\u0027 debole.',
+      gDopo:'Non ora',
+      gSubito:'Attiva adesso',
       tutti:'tutti',
       ascolta:'Ascolta',
       miPiace:'Utile',
@@ -7440,6 +7459,15 @@ if (recognition) {
       mSpunta:'He leido y acepto: descarga el modelo y sus terminos de licencia (Apache 2.0)',
       mLink:'Leer la licencia y la ficha del modelo',
       mPeso:'Unos 800 MB, una sola vez. Con conexion lenta puede tardar varios minutos.',
+      mSpiegaOnOff:'<b>Atencion: ON significa INSTALAR, OFF significa DESINSTALAR.</b> Al apagar el boton los archivos se borran de tu dispositivo y para recuperarlos habra que descargarlos de nuevo. <b>Se recomienda dejarlo encendido:</b> sin el motor los nombres propios en texto libre se reconocen mucho peor. Al volver a abrir la pagina el sistema detecta que ya esta instalado y lo deja encendido, sin descargar nada.',
+      mDisinstalla:'Desinstalar el motor avanzado?\n\nLos archivos (unos 800 MB) se borraran de este dispositivo. Para recuperarlo tendras que descargarlo otra vez.\n\nSin el motor los nombres propios escritos en medio de una frase, sin etiqueta delante, se reconocen mucho peor.',
+      mRimuovo:'Desinstalando\u2026',
+      gTitolo:'Activa el motor avanzado',
+      gTesto:'Las reglas reconocen con certeza los codigos verificables: IBAN, DNI, tarjetas, telefonos. Pero un nombre propio escrito en medio de una frase, sin etiqueta delante, las reglas no lo ven.',
+      gTesto2:'El motor avanzado cubre justo ese hueco y <b>se ejecuta en tu dispositivo</b>: ningun texto sale del navegador. Se descarga una sola vez y queda instalado.',
+      gTesto3:'Puedes activarlo ahora o en cualquier momento desde el boton <b>Motor avanzado</b> arriba. Sin el, la proteccion de los nombres es notablemente mas debil.',
+      gDopo:'Ahora no',
+      gSubito:'Activar ahora',
       tutti:'todos',
       ascolta:'Escuchar',
       miPiace:'Util',
@@ -7531,6 +7559,15 @@ if (recognition) {
       mSpunta:'I have read and accept: download the model and its licence terms (Apache 2.0)',
       mLink:'Read the licence and the model card',
       mPeso:'About 800 MB, once only. On a slow connection this can take several minutes.',
+      mSpiegaOnOff:'<b>Note: ON means INSTALL, OFF means UNINSTALL.</b> Switching the button off deletes the files from your device, and getting them back means downloading again. <b>Leaving it on is recommended:</b> without the engine, proper names in free text are recognised far less well. When you reopen the page the system sees it is already installed and leaves it on, downloading nothing.',
+      mDisinstalla:'Uninstall the advanced engine?\n\nThe files (about 800 MB) will be deleted from this device. To get it back you will have to download it again.\n\nWithout the engine, proper names written mid-sentence with no label in front are recognised far less well.',
+      mRimuovo:'Uninstalling\u2026',
+      gTitolo:'Turn on the advanced engine',
+      gTesto:'The rules reliably catch verifiable codes: IBAN, tax codes, cards, phone numbers. But a proper name written mid-sentence, with no label in front, the rules cannot see.',
+      gTesto2:'The advanced engine fills exactly that gap and <b>runs on your device</b>: no text leaves the browser. It downloads once and stays installed.',
+      gTesto3:'You can turn it on now, or any time from the <b>Advanced engine</b> button above. Without it, name protection is noticeably weaker.',
+      gDopo:'Not now',
+      gSubito:'Turn it on',
       tutti:'all',
       ascolta:'Listen',
       miPiace:'Helpful',
@@ -8658,6 +8695,7 @@ if (recognition) {
           '<p>' + T('mP1') + '</p>' +
           '<p>' + T('mP2') + '</p>' +
           '<p>' + T('mP3') + '</p>' +
+          '<p class="ag-forte">' + T('mSpiegaOnOff') + '</p>' +
           '<p>' + T('mP4') + ' <a href="https://huggingface.co/openai/privacy-filter" ' +
             'target="_blank" rel="noopener">' + T('mLink') + '</a></p>' +
           '<label class="ag-av-spunta"><input type="checkbox" id="ag-m-ok"> ' + T('mSpunta') + '</label>' +
@@ -8699,9 +8737,17 @@ if (recognition) {
   async function accendiMotore(){
     var M = window.AEGIS_MODELLO;
     if (!M || M.stato === 'carico') return;
-    if (M.pronto) {          // gia' acceso: si spegne togliendo le proposte
+    if (M.pronto) {
+      // ON e OFF non sono "attiva" e "sospendi": sono INSTALLA e DISINSTALLA.
+      // Chi spegne si aspetta che i file spariscano dal suo dispositivo, e
+      // deve saperlo prima di farlo.
+      if (!confirm(T('mDisinstalla'))) return;
       suggeriti.clear(); vociAI.clear(); ultimoAnalizzato = '';
       try { localStorage.removeItem('aegis_motore'); } catch (e) {}
+      const b = document.getElementById('ag-motore-btn');
+      if (b) { b.disabled = true; b.textContent = T('mRimuovo'); }
+      try { await M.disinstalla(); } catch (e) {}
+      statoMotore();
       aggiorna();
       return;
     }
@@ -8714,6 +8760,37 @@ if (recognition) {
     } catch (e) {}
     statoMotore();
   }
+
+  // Invito dopo l'informativa: si propone una volta sola per dispositivo.
+  window.aegisInvitaMotore = async function () {
+    try {
+      if (localStorage.getItem('aegis_motore') === '1') return;   // gia' installato
+      if (localStorage.getItem('aegis_invito_motore') === '1') return;  // gia' proposto
+      localStorage.setItem('aegis_invito_motore', '1');
+    } catch (e) {}
+    const scelto = await new Promise(function (risolvi) {
+      const ov = document.createElement('div');
+      ov.className = 'ag-avviso-ov';
+      ov.innerHTML =
+        '<div class="ag-avviso">' +
+          '<h3>' + T('gTitolo') + '</h3>' +
+          '<p>' + T('gTesto') + '</p>' +
+          '<p>' + T('gTesto2') + '</p>' +
+          '<p class="ag-forte">' + T('gTesto3') + '</p>' +
+          '<div class="ag-av-bottoni">' +
+            '<button type="button" data-a="no">' + T('gDopo') + '</button>' +
+            '<button type="button" class="ag-av-primo" data-a="si">' + T('gSubito') + '</button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(ov);
+      ov.addEventListener('click', function (e) {
+        const b = e.target.closest('button'); if (!b) return;
+        ov.remove();
+        risolvi(b.getAttribute('data-a') === 'si');
+      });
+    });
+    if (scelto) accendiMotore();
+  };
 
   /* ---------- pannello di configurazione ---------- */
   function apriOpzioni(){
@@ -10307,10 +10384,36 @@ if (recognition) {
     }
   }
 
+  // DISINSTALLAZIONE VERA. Spegnere non basta: i file del modello restano nella
+  // memoria del browser, e chi lo ha attivato per prova si ritrova 800 MB
+  // occupati senza sapere come toglierli. Qui si scaricano davvero: si svuota
+  // la cache dove la libreria li deposita e si dimentica il modello.
+  async function disinstalla() {
+    motore = null;
+    caricamento = null;
+    let liberati = 0;
+    try {
+      if (window.caches && caches.keys) {
+        const chiavi = await caches.keys();
+        for (const k of chiavi) {
+          if (/transformers|onnx|huggingface|hf-/i.test(k)) {
+            await caches.delete(k);
+            liberati++;
+          }
+        }
+      }
+    } catch (e) { console.warn('[Aegis] non ho potuto svuotare la cache:', e && e.message); }
+    segnala('spento');
+    console.log('%c[Aegis] motore disinstallato', 'color:#E5484D;font-weight:700',
+      liberati + ' archivi rimossi');
+    return liberati;
+  }
+
   window.AEGIS_MODELLO = {
     get stato() { return stato; },
     get pronto() { return stato === 'pronto'; },
     carica: carica,
+    disinstalla: disinstalla,
     analizza: analizza,
     nome: MODELLO
   };
