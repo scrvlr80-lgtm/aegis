@@ -4845,7 +4845,9 @@ if (recognition) {
   D('ES_DNI', {
     category: 'ID_STATALE', sub: 'dni', token: 'DNI', priority: 890, locale: ['es'],
     regex: '\\b\\d{8}[ -]?[A-HJ-NP-TV-Z]\\b', validator: 'dni', confidence: 0.96,
-    anchors: { left: ['dni', 'nif', 'documento nacional', 'documento de identidad'], right: [], window: 30 },
+    anchors: { left: ['dni', 'nif', 'documento nacional', 'documento de identidad',
+      'documento di identita', 'documento d identita', 'documento:', 'carta d identita',
+      'identity document', 'id document'], right: [], window: 30 },
     pos: ['12345678Z', '00000023T'], neg: ['12345678A']
   });
   D('ES_NIE', {
@@ -5365,7 +5367,10 @@ if (recognition) {
     truncatable: true, category: 'SANITARIO', sub: 'diagnosis', token: 'DIAGNOSIS', priority: 500, confidence: 0.74,
     regex: '[^\\n\\r.;]{4,120}', anchorAdjacent: true,
     anchors: { left: ['diagnosis:', 'diagnosed with', 'presenting with', 'impression:', 'condition:',
-      'diagnostico:', 'diagnosticado con', 'padece', 'diagnosi:', 'affetto da', 'affetta da', 'patologia:'], right: [], window: 140 },
+      'diagnostico:', 'diagnosticado con', 'padece', 'diagnosi:', 'affetto da', 'affetta da',
+      'patologia:', 'diagnosi di', 'diagnosi', 'per sospetta', 'per sospetto',
+      'compatibili con', 'compatibile con', 'ricoverato per', 'ricoverata per',
+      'quadro di', 'sospecha de', 'diagnostico de'], right: [], window: 140 },
     sensitiveExtra: true,
     hint: 'cattura la frase, non singole parole: liste di parole producono un colabrodo (bug v1)',
     pos: ['Diagnosis: stage II ductal carcinoma'], neg: ['Diagnosis pending']
@@ -5394,6 +5399,28 @@ if (recognition) {
   });
 
   /* --- 8. LAVORO / ISTRUZIONE -------------------------------------- */
+  D('ORG_SOCIETA', {
+    category: 'LAVORO', sub: 'organizzazione', token: 'ORG', priority: 700, confidence: 0.92,
+    flags: 'gu',
+    // Una societa' si riconosce dalla sua forma giuridica, che e' una sigla
+    // fissa e inequivocabile: S.r.l., S.p.A., S.L., GmbH, Ltd, PLC. Non serve
+    // un'ancora e non serve un elenco di nomi: la sigla E' l'ancora, ed e' il
+    // motivo per cui questo riconoscimento non produce falsi positivi.
+    // Prima le aziende venivano riconosciute solo dopo "datore di lavoro":
+    // in un contratto, in una fattura o in un curriculum non compaiono mai
+    // cosi', e restavano tutte in chiaro.
+    regex: '(?:[A-Z\u00C0-\u00DE][\\w&\u00C0-\u024F.\'-]*(?:[ \\t]+(?:[A-Z\u00C0-\u00DE][\\w&\u00C0-\u024F.\'-]*|di|de|del|della|e|y|and|of)){0,4})' +
+           '[ \\t]*,?[ \\t]*(?:S\\.?r\\.?l\\.?(?:s\\.?)?|S\\.?p\\.?A\\.?|S\\.?a\\.?s\\.?|S\\.?n\\.?c\\.?|' +
+           'S\\.?L\\.?U?\\.?|S\\.?A\\.?U?\\.?|S\\.?C\\.?|' +
+           'Ltd|LLC|LLP|PLC|Inc|Corp|GmbH|AG|BV|NV|SARL|SAS|Oy|AB)\\.?(?![\\w])',
+    hint: 'la forma giuridica fa da ancora: senza di quella non si maschera nulla',
+    pos: ['Innovatech S.r.l.', 'Nordtech Solutions S.L.', 'Rivers Insurance PLC', 'Acme Ltd'],
+    neg: ['la societa e stata costituita', 'S.r.l.']
+  });
+  /* La regola "azienda dopo un'etichetta" e' stata provata e tolta: con ancore
+     come "azienda" o "presso la" si portava dietro tutto quello che seguiva,
+     citta' comprese, e la copertura dei luoghi e' crollata dal 100% al 60%.
+     Resta solo il riconoscimento dalla forma giuridica, che non sbaglia. */
   C('EMPLOYEE_ID', {
     category: 'LAVORO', sub: 'employee_id', token: 'EMPID', priority: 600, confidence: 0.8,
     // Senza l'obbligo di una cifra questa regola prendeva qualsiasi parola
@@ -5464,7 +5491,7 @@ if (recognition) {
     // e il testo diventava illeggibile. L'ultima alternativa, generica,
     // pretende almeno una cifra: prima si prendeva qualunque sigla di due
     // lettere che capitasse vicino alla parola "targa".
-    regex: '\\b(?:[A-HJ-NPR-Z]{2}[\\s\\-]?\\d{3}[\\s\\-]?[A-HJ-NPR-Z]{2}|\\d{4}[\\s\\-]?[BCDFGHJKLMNPRSTVWXYZ]{3}|[A-Z]{2}\\d{2}[\\s\\-]?[A-Z]{3}|(?=[^\\s]*\\d)[A-Z0-9]{4,8})\\b',
+    regex: '\\b(?:[A-HJ-NPR-Z]{2}[\\s\\-]?\\d{3}[\\s\\-]?[A-HJ-NPR-Z]{2}|\\d{4}[\\s\\-]?[BCDFGHJKLMNPRSTVWXYZ]{3}|[A-Z]{2}\\d{2}[\\s\\-]?[A-Z]{3}|(?=[A-Z0-9]*\\d)(?=[A-Z0-9]*[A-Z])[A-Z0-9]{5,8})\\b',
     anchors: { left: ['plate', 'license plate', 'number plate', 'registration', 'matricula', 'targa', 'targato'], right: [], window: 28 },
     pos: ['AB 123 CD', 'AA-123-BB', '1234 BCD', 'AB12 XYZ'], neg: ['THE CAR', 'MEZZI COINVOLTI']
   });
@@ -6431,7 +6458,12 @@ if (recognition) {
     const cache = {};
     KB.patterns.forEach(p => {
       if (disabled.has(p.id)) return;
-      if (LINGUA && p.locale && p.locale.indexOf('*') === -1 &&
+      // Il filtro per lingua vale solo per i pattern che INDOVINANO. Un DNI
+      // spagnolo o un NHS britannico hanno un calcolo di controllo: sono
+      // quel documento in qualunque lingua sia scritto il testo intorno, e un
+      // cittadino straniero compare eccome in un referto italiano. Escluderli
+      // per lingua li faceva sparire del tutto.
+      if (LINGUA && p.locale && !p.validator && p.locale.indexOf('*') === -1 &&
           p.locale.indexOf(LINGUA) === -1) return;
       runPattern(foldedAnchors(p), text, anchorIdx, ctx, level, found, cache, folded);
     });
