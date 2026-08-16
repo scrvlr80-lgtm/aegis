@@ -237,13 +237,20 @@ body.ag-attivo{overflow:hidden;margin:0}
   pointer-events:none;white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;
   color:transparent;z-index:0;margin:0}
 #user-input.ag-con-ombra{position:relative;z-index:1;background:transparent!important}
-.ag-ombra mark.ag-om{color:transparent;border-radius:3px;padding:0;
-  background:rgba(229,72,77,.22)}
-.ag-om-per{background:rgba(229,72,77,.22)}   .ag-om-addr{background:rgba(48,164,108,.22)}
-.ag-om-city{background:rgba(0,145,255,.20)}  .ag-om-date{background:rgba(245,165,36,.24)}
-.ag-om-bank{background:rgba(142,78,198,.22)} .ag-om-mail{background:rgba(0,162,199,.22)}
-.ag-om-id{background:rgba(214,64,159,.22)}   .ag-om-tech{background:rgba(91,98,112,.22)}
-.ag-om-med{background:rgba(233,61,130,.22)}  .ag-om-org{background:rgba(139,94,60,.22)}
+/* I colori per categoria vanno scritti con la stessa precisione della regola
+   generica, altrimenti quella vince e resta tutto rosso: e' la precedenza
+   delle regole di stile, non un errore di riconoscimento. */
+.ag-ombra mark.ag-om{color:transparent;border-radius:3px;padding:0;background:transparent}
+.ag-ombra mark.ag-om-per{background:rgba(229,72,77,.26)}
+.ag-ombra mark.ag-om-addr{background:rgba(48,164,108,.26)}
+.ag-ombra mark.ag-om-city{background:rgba(0,145,255,.24)}
+.ag-ombra mark.ag-om-date{background:rgba(245,165,36,.30)}
+.ag-ombra mark.ag-om-bank{background:rgba(142,78,198,.26)}
+.ag-ombra mark.ag-om-mail{background:rgba(0,162,199,.26)}
+.ag-ombra mark.ag-om-id{background:rgba(214,64,159,.26)}
+.ag-ombra mark.ag-om-tech{background:rgba(91,98,112,.26)}
+.ag-ombra mark.ag-om-med{background:rgba(233,61,130,.26)}
+.ag-ombra mark.ag-om-org{background:rgba(139,94,60,.26)}
 /* Quadratino arcobaleno: accende e spegne tutti i gruppi in un colpo solo.
    Con dieci categorie, scoprire tutto per rileggere il documento voleva dire
    dieci clic, e altri dieci per tornare indietro. */
