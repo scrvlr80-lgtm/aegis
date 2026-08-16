@@ -206,6 +206,29 @@ body.ag-attivo{overflow:hidden;margin:0}
 /* --- CRONOLOGIA LOCALE ---
    Non legge piu' da chat_logs (dove non scriviamo piu' nulla): le conversazioni
    restano nel browser dell'utente. Il pulsante torna visibile. */
+/* --- BARRA DELL'ANTEPRIMA: evidenziazione e allargamento --- */
+.ag-basso{display:flex;flex-direction:column;min-height:0;transition:flex-basis .22s ease}
+.ag-basso.ag-esteso{flex:1 1 auto}
+.ag-basso-barra{display:flex;align-items:center;justify-content:flex-end;gap:6px;
+  padding:4px 12px 2px;flex:none}
+.ag-espandi{border:1px solid var(--hairline);background:transparent;cursor:pointer;
+  width:26px;height:22px;border-radius:6px;color:var(--text-light);display:flex;
+  align-items:center;justify-content:center;padding:0;transition:.15s}
+.ag-espandi:hover{border-color:var(--accent);color:var(--accent)}
+.ag-espandi::before{content:'';width:9px;height:9px;border:1.6px solid currentColor;
+  border-top-width:3px;border-radius:2px}
+.ag-basso.ag-esteso .ag-espandi::before{border-top-width:1.6px;border-bottom-width:3px}
+.ag-anteprima{overflow-y:auto;min-height:0}
+/* Anteprima senza colori: i codici restano leggibili ma non gridano. Utile
+   quando si incolla un documento lungo e si vuole leggerlo come testo. */
+.ag-anteprima.ag-senza-colore .ag-t{background:var(--hairline)!important;color:var(--text-light)}
+.ag-anteprima.ag-senza-colore mark.ag-m{background:transparent!important}
+/* --- MARCATURA TEMPORANEA: dove sta questo dato --- */
+@keyframes ag-pulsa{0%{box-shadow:0 0 0 0 rgba(255,159,10,.65)}
+  70%{box-shadow:0 0 0 7px rgba(255,159,10,0)}100%{box-shadow:0 0 0 0 rgba(255,159,10,0)}}
+.ag-marca{outline:2px solid #FF9F0A;outline-offset:1px;border-radius:4px;
+  animation:ag-pulsa 1.1s ease-out 2}
+.ag-gr-voce.ag-marca{outline-offset:-1px;background:rgba(255,159,10,.14)}
 /* --- NUVOLETTE DI SPIEGAZIONE --- */
 /* Cifre a passo fisso e scatola di larghezza fissa: la percentuale puo'
    passare da 9 a 10 a 100 senza spostare di un pixel la scritta accanto. */
@@ -7926,6 +7949,140 @@ if (recognition) {
   }
   var autoRiservato = true;
 
+  /* ================== "DOVE STA QUESTO DATO" ==================
+     Cliccando una voce dell'elenco a sinistra, lo specchio scorre fino al
+     punto in cui quel dato compare e lo segna. Cliccando un codice nello
+     specchio, si illumina la voce corrispondente nell'elenco.
+     La marcatura e' temporanea e si spegne al primo clic nel vuoto o con
+     Invio: e' un modo per orientarsi in un documento lungo, non uno stato.
+
+     Vale SOLO a pennello spento. Col pennello acceso quegli stessi clic
+     significano gia' "copri" e "riporta in chiaro": dare due significati allo
+     stesso gesto sarebbe la cosa piu' confusa che si possa fare.
+     =========================================================== */
+  function spegniMarche() {
+    document.querySelectorAll('.ag-marca').forEach(function (e) {
+      e.classList.remove('ag-marca');
+      if (e.dataset && e.dataset.agTemp === '1' && e.parentNode) {
+        e.parentNode.replaceChild(document.createTextNode(e.textContent), e);
+      }
+    });
+  }
+
+  // Marca tutte le capsule di un certo codice e porta in vista la piu' vicina.
+  function marcaNelloSpecchio(tok) {
+    if (!tok) return 0;
+    const cod = nudoDi(tok, valoreDi(tok));
+    let primi = null, quante = 0;
+    ['ag-lista', 'ag-anteprima'].forEach(function (id) {
+      const box = document.getElementById(id);
+      if (!box) return;
+      box.querySelectorAll('.ag-t').forEach(function (sp) {
+        if (String(sp.textContent || '').indexOf(cod) === -1) return;
+        sp.classList.add('ag-marca');
+        quante++;
+        if (!primi) primi = sp;
+      });
+    });
+    if (primi && primi.scrollIntoView) {
+      try { primi.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+    }
+    return quante;
+  }
+
+  // Marca la voce dell'elenco che corrisponde a un valore.
+  function marcaNellElenco(valore) {
+    const box = document.getElementById('ag-voci-corpo');
+    if (!box || !valore) return;
+    let primo = null;
+    box.querySelectorAll('.ag-gr-voce').forEach(function (r) {
+      const t = r.querySelector('.t');
+      if (!t || String(t.textContent || '').trim() !== String(valore).trim()) return;
+      r.classList.add('ag-marca');
+      if (!primo) primo = r;
+    });
+    if (primo && primo.scrollIntoView) {
+      try { primo.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (e) {}
+    }
+  }
+
+  // Dal valore al codice: serve per andare dall'elenco allo specchio.
+  function tokenDiValore(valore) {
+    let trovato = null;
+    const v = String(valore).trim();
+    vault.forEach(function (val, k) {
+      if (!trovato && String(val).trim() === v) trovato = k.split('~')[0];
+    });
+    if (!trovato) valoriPreview.forEach(function (val, k) {
+      if (!trovato && String(val).trim() === v) trovato = k;
+    });
+    return trovato;
+  }
+
+  function avviaMarcatura() {
+    document.addEventListener('click', function (e) {
+      if (pennelloAcceso) return;                 // col pennello i clic hanno gia' un senso
+
+      const voce = e.target.closest && e.target.closest('.ag-gr-voce');
+      if (voce) {
+        const t = voce.querySelector('.t');
+        const valore = t ? String(t.textContent || '').trim() : '';
+        spegniMarche();
+        if (!valore) return;
+        voce.classList.add('ag-marca');           // anche l'elemento cliccato
+        marcaNelloSpecchio(tokenDiValore(valore));
+        e.stopPropagation();
+        return;
+      }
+
+      const caps = e.target.closest && e.target.closest('.ag-t');
+      if (caps) {
+        const cod = String(caps.textContent || '').trim();
+        const m = cod.match(/@([a-z]{1,3})(\d{1,3})([a-z]?)@/);
+        spegniMarche();
+        if (!m) return;
+        const tok = tokenDaSigla(m[1], m[2], m[3]);
+        if (!tok) return;
+        marcaNelloSpecchio(tok);                  // tutte le occorrenze, quella cliccata compresa
+        marcaNellElenco(valoreDi(tok));
+        e.stopPropagation();
+        return;
+      }
+
+      spegniMarche();                             // clic nel vuoto: si spegne tutto
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === 'Escape') spegniMarche();
+    });
+  }
+
+  /* ---------- anteprima: evidenziazione propria e allargamento ---------- */
+  var anteprimaColorata = true;
+  function avviaAnteprima() {
+    const hl = document.getElementById('ag-ant-hl');
+    if (hl) {
+      hl.innerHTML = '<span class="ag-dot"></span><span class="ag-lbl"></span>';
+      hl.addEventListener('click', function (e) {
+        e.stopPropagation();
+        anteprimaColorata = !anteprimaColorata;
+        hl.classList.toggle('on', anteprimaColorata);
+        const box = document.getElementById('ag-anteprima');
+        if (box) box.classList.toggle('ag-senza-colore', !anteprimaColorata);
+      });
+    }
+    const esp = document.getElementById('ag-espandi');
+    if (esp) esp.addEventListener('click', function (e) {
+      e.stopPropagation();
+      const basso = document.getElementById('ag-basso');
+      const corpo = document.querySelector('.ag-corpo');
+      if (!basso) return;
+      const esteso = basso.classList.toggle('ag-esteso');
+      // Quando l'anteprima si allarga, lo specchio si stringe: e' lo stesso
+      // spazio, diviso in modo diverso a seconda di cosa si sta facendo.
+      if (corpo) corpo.style.flex = esteso ? '0 1 34%' : '';
+    });
+  }
+
   /* ============== MOTORE CONTESTUALE: AGGANCIO ==============
      Il modello e' asincrono, la mascheratura no: non si puo' infilare dentro
      maschera(). Si aggancia nei due punti dove si puo' aspettare - l'anteprima,
@@ -8835,6 +8992,7 @@ if (recognition) {
     });
   }
   function disegna(){
+    try { spegniMarche(); } catch(e) {}
     try { disegnaColonna(); } catch(e) {}
     if(!lista) return;
     if(!righe.length){ lista.innerHTML=''; lista.appendChild(vuoto); return; }
@@ -8918,7 +9076,13 @@ if (recognition) {
       '<div class="ag-corpo">'+
         '<div class="ag-lista" id="ag-lista"></div>'+
       '</div>'+
-      '<div class="ag-basso">'+
+      '<div class="ag-basso" id="ag-basso">'+
+        '<div class="ag-basso-barra">'+
+          '<button class="ag-toggle ag-toggle-sp on" id="ag-ant-hl" type="button" ' +
+            'data-aiuto="Accende e spegne i colori nell\u0027anteprima di cio\u0027 che stai scrivendo."></button>'+
+          '<button class="ag-espandi" id="ag-espandi" type="button" ' +
+            'data-aiuto="Allarga l\u0027anteprima a tutta l\u0027altezza, per leggere comodamente un documento lungo."></button>'+
+        '</div>'+
         '<div class="ag-anteprima" id="ag-anteprima"></div>'+
       '</div>'+
       '<div class="ag-legenda">'+
@@ -9164,6 +9328,8 @@ if (recognition) {
     disegna();
     avviaPennello();
     avviaRiservatezza();
+    avviaMarcatura();
+    avviaAnteprima();
     setTimeout(agganciaAvviso, 300);
     return true;
   }
