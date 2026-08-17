@@ -8121,10 +8121,22 @@ if (recognition) {
     // centimetri. Si crea quindi una scatola dedicata attorno al solo campo.
     const genitore = campo.parentNode;
     if (!genitore) return null;
-    const scatola = document.createElement('div');
-    scatola.className = 'ag-scatola-campo';
-    genitore.insertBefore(scatola, campo);
-    scatola.appendChild(campo);
+    // Se la scatola c'e' gia' - la funzione puo' essere richiamata - non si
+    // rifa': rifarla significherebbe spostare di nuovo il campo e far fallire
+    // chi si riferisce alla sua vecchia posizione.
+    let scatola = genitore.classList && genitore.classList.contains('ag-scatola-campo')
+      ? genitore : null;
+    if (!scatola) {
+      scatola = document.createElement('div');
+      scatola.className = 'ag-scatola-campo';
+      try {
+        genitore.insertBefore(scatola, campo);
+        scatola.appendChild(campo);
+      } catch (e) {
+        console.error('[Aegis] non ho potuto preparare l\'ombra:', e && e.message);
+        return null;
+      }
+    }
     ombraEl = document.createElement('div');
     ombraEl.className = 'ag-ombra';
     ombraEl.setAttribute('aria-hidden', 'true');
@@ -8364,7 +8376,7 @@ if (recognition) {
           barra = document.createElement('div');
           barra.id = 'ag-barra-campo';
           barra.className = 'ag-barra-campo';
-          wrap.parentNode.insertBefore(barra, wrap.nextSibling);
+          try { wrap.parentNode.insertBefore(barra, wrap.nextSibling); } catch (e) { wrap.parentNode.appendChild(barra); }
         }
         hl = document.createElement('button');
         hl.id = 'ag-ant-hl';
@@ -8669,7 +8681,7 @@ if (recognition) {
           av = document.createElement('div');
           av.id = 'ag-avviso-ia';
           av.className = 'ag-avviso-ia';
-          wrap.parentNode.insertBefore(av, wrap.nextSibling);
+          try { wrap.parentNode.insertBefore(av, wrap.nextSibling); } catch (e) { wrap.parentNode.appendChild(av); }
         }
       }
       if (av) av.textContent = T('avvisoIA');
@@ -8712,6 +8724,22 @@ if (recognition) {
   }
 
   window.aegisLingua = etichette;
+
+  // RETE DI SICUREZZA. Il pannello puo' restare indietro per mille motivi: un
+  // elemento non ancora creato, un errore in un altro blocco, un pezzo di chat
+  // ricostruito dopo. Invece di sperare che il richiamo arrivi sempre al
+  // momento giusto, si controlla: se la lingua dell'applicazione e' cambiata e
+  // il pannello e' rimasto in quella vecchia, si riscrive da solo.
+  var linguaVista = null;
+  setInterval(function () {
+    try {
+      var ora = lingua();
+      if (ora !== linguaVista) {
+        linguaVista = ora;
+        etichette();
+      }
+    } catch (e) {}
+  }, 700);
 
   function avviaNuvolette(){
     var nuvola = null, timer = null;
@@ -10001,13 +10029,20 @@ if (recognition) {
     inp.addEventListener('change', function () { scelto(inp); });
 
     b.addEventListener('click', function (e) { e.preventDefault(); inp.click(); });
-    inner.insertBefore(b, campo);
+    // Il campo di scrittura puo' essere stato spostato dentro la scatola
+    // dell'ombra: in quel caso non e' piu' figlio di "inner", e inserire
+    // qualcosa prima di lui manda in errore tutto il blocco. Ci si riferisce
+    // quindi al contenitore che sta davvero dentro "inner".
+    var riferimento = (campo.parentNode === inner) ? campo
+                    : (campo.closest && campo.closest('.ag-scatola-campo'));
+    if (!riferimento || riferimento.parentNode !== inner) riferimento = null;
+    try { inner.insertBefore(b, riferimento); } catch (e) { inner.appendChild(b); }
     inner.appendChild(inp);
 
     var barra = document.createElement('div');
     barra.id = 'ag-doc-stato';
     var wrap = document.getElementById('chat-input-wrapper');
-    if (wrap && wrap.parentNode) wrap.parentNode.insertBefore(barra, wrap);
+    if (wrap && wrap.parentNode) { try { wrap.parentNode.insertBefore(barra, wrap); } catch (e) { wrap.parentNode.appendChild(barra); } }
 
     // trascinamento sul campo di scrittura
     ['dragenter', 'dragover'].forEach(function (ev) {
