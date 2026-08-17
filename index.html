@@ -1692,7 +1692,18 @@ body {
         // Il pannello di protezione ha i suoi testi (pulsanti, schede, avvisi,
         // configurazione): si riscrivono insieme al resto, altrimenti resta
         // meta' interfaccia in una lingua e meta' in un'altra.
-        setTimeout(function(){ try { if (window.aegisLingua) window.aegisLingua(); } catch(e){} }, 0);
+        // Il pannello si riscrive subito e poi di nuovo poco dopo: la seconda
+        // passata serve perche' alcuni elementi della chat vengono ricostruiti
+        // dopo questa funzione, e nascerebbero nella lingua vecchia.
+        (function(){
+          var riscrivi = function(){
+            try { if (window.aegisLingua) window.aegisLingua(); }
+            catch(e){ console.error('[Aegis] cambio lingua:', e && e.message); }
+          };
+          riscrivi();
+          setTimeout(riscrivi, 60);
+          setTimeout(riscrivi, 400);
+        })();
         const ui = UI_STRINGS[langCode] || UI_DEFAULT;
         currentTypingMsg = ui.typingMsg;
         // Se e' un VERO cambio di lingua (non il caricamento iniziale), ritira i
@@ -7670,11 +7681,16 @@ if (recognition) {
       invioBloccato:'\ud83d\udee1\ufe0f I did not send the message: it contains data I could not fully protect. This is not a network problem.'
     }
   };
+  // UNA SOLA FONTE. La lingua e' quella dell'applicazione, non una copia tenuta
+  // dal pannello: due stati separati significano due lingue diverse sullo
+  // stesso schermo, ed e' esattamente il difetto che si vedeva.
   function lingua(){
     var c = '';
-    try { c = String(activeLanguageCode || document.documentElement.lang || 'it'); } catch(e) { c = 'it'; }
+    try { if (typeof activeLanguageCode !== 'undefined' && activeLanguageCode) c = String(activeLanguageCode); } catch(e) {}
+    if (!c) { try { c = String(document.documentElement.lang || ''); } catch(e) {} }
+    if (!c) { try { c = String(localStorage.getItem('bistro_mic_lang') || ''); } catch(e) {} }
     c = c.slice(0,2).toLowerCase();
-    return VOCI[c] ? c : 'en';
+    return VOCI[c] ? c : 'it';
   }
   function T(chiave, dati){
     var v = (VOCI[lingua()] || VOCI.en)[chiave];
@@ -8588,76 +8604,113 @@ if (recognition) {
   var ATTESA_NUVOLA = 1200;
   // Etichette e spiegazioni dei pulsanti: si riscrivono a ogni cambio di lingua,
   // insieme al banner della modalita' riservata, che vive in una regola CSS.
-  function etichette(){
-    var m = { 'ag-pennello-btn':['pennello','aiutoPennello'],
-              'ag-ia':['profonda','aiutoProfonda'],
-              'ag-riservato-btn':['riservato','aiutoRiservato'],
-              'ag-opzioni-btn':[null,'aiutoConfig'],
-              'ag-motore-btn':['motore','aiutoMotore'],
-              'ag-sp-hl':[null,'aiutoEvidenzia'],
-              'ag-doc-btn':[null,'docAiuto'] };
-    Object.keys(m).forEach(function(id){
-      var b = document.getElementById(id);
-      if (!b) return;
-      b.setAttribute('data-aiuto', T(m[id][1]));
-      b.removeAttribute('title');
-      if (!m[id][0]) return;
-      if (id === 'ag-pennello-btn') {
-        if (b.lastChild && b.lastChild.nodeType === 3) b.lastChild.textContent = pennelloAcceso ? T('pennelloOn') : T('pennello');
-      } else if (id === 'ag-ia') {
-        b.textContent = PROFONDA ? T('profondaOn') : T('profonda');
-      } else if (id === 'ag-motore-btn') {
-        statoMotore();
-      } else if (id === 'ag-riservato-btn') {
-        b.textContent = riservato ? T('riservatoOn') : T('riservato');
-      } else {
-        b.textContent = T(m[id][0]);
-      }
-    });
-    try { document.documentElement.style.setProperty('--ag-riservato-testo', '"' + T('riservatoBanner') + '"'); } catch(e) {}
+  // Ogni pezzo e' indipendente: se uno fallisce, gli altri devono comunque
+  // aggiornarsi. Prima erano in fila dentro un unico blocco, e il primo errore
+  // lasciava meta' interfaccia nella lingua vecchia senza dire niente.
+  function passo(nome, fn) {
+    try { fn(); } catch (e) {
+      console.error('[Aegis] lingua, passo "' + nome + '" fallito:', e && e.message);
+    }
+  }
 
-    // TITOLO, MESSAGGIO A VUOTO, SEGNAPOSTO. Erano scritti in italiano dentro
-    // il codice e dentro il foglio di stile: restavano fermi qualunque lingua
-    // si scegliesse. Ora passano di qui come tutto il resto.
-    var tit = document.getElementById('ag-tit');
-    if (tit) tit.textContent = T('titoloSpecchio');
-    if (vuoto) vuoto.innerHTML = T('vuoto1') + '<br>' + T('vuoto2') + '<br>' + T('vuoto3');
-    var ant = document.getElementById('ag-anteprima');
-    if (ant) ant.setAttribute('data-vuoto', T('altraFinestra'));
-    var avvIA = document.getElementById('ag-avviso-ia');
-    if (avvIA) avvIA.textContent = T('avvisoIA');
-    var hlb = document.getElementById('ag-ant-hl');
-    if (hlb) {
+  function etichette(){
+    passo('pulsanti', function () {
+      var m = { 'ag-pennello-btn':['pennello','aiutoPennello'],
+                'ag-ia':['profonda','aiutoProfonda'],
+                'ag-riservato-btn':['riservato','aiutoRiservato'],
+                'ag-opzioni-btn':[null,'aiutoConfig'],
+                'ag-motore-btn':['motore','aiutoMotore'],
+                'ag-sp-hl':[null,'aiutoEvidenzia'],
+                'ag-doc-btn':[null,'docAiuto'] };
+      Object.keys(m).forEach(function(id){
+        var b = document.getElementById(id);
+        if (!b) return;
+        b.setAttribute('data-aiuto', T(m[id][1]));
+        b.removeAttribute('title');
+        if (!m[id][0]) return;
+        if (id === 'ag-pennello-btn') {
+          if (b.lastChild && b.lastChild.nodeType === 3) {
+            b.lastChild.textContent = pennelloAcceso ? T('pennelloOn') : T('pennello');
+          } else { b.textContent = pennelloAcceso ? T('pennelloOn') : T('pennello'); }
+        } else if (id === 'ag-ia') {
+          b.textContent = PROFONDA ? T('profondaOn') : T('profonda');
+        } else if (id === 'ag-motore-btn') {
+          passo('motore', statoMotore);
+        } else if (id === 'ag-riservato-btn') {
+          b.textContent = riservato ? T('riservatoOn') : T('riservato');
+        } else {
+          b.textContent = T(m[id][0]);
+        }
+      });
+    });
+
+    passo('banner riservato', function () {
+      document.documentElement.style.setProperty('--ag-riservato-testo', '"' + T('riservatoBanner') + '"');
+    });
+
+    passo('titolo', function () {
+      var tit = document.getElementById('ag-tit');
+      if (tit) tit.textContent = T('titoloSpecchio');
+    });
+
+    passo('specchio vuoto', function () {
+      if (typeof vuoto !== 'undefined' && vuoto) {
+        vuoto.innerHTML = T('vuoto1') + '<br>' + T('vuoto2') + '<br>' + T('vuoto3');
+      }
+      var ant = document.getElementById('ag-anteprima');
+      if (ant) ant.setAttribute('data-vuoto', T('altraFinestra'));
+    });
+
+    passo('avviso IA', function () {
+      var av = document.getElementById('ag-avviso-ia');
+      if (!av) {
+        var wrap = document.getElementById('chat-input-wrapper');
+        if (wrap && wrap.parentNode) {
+          av = document.createElement('div');
+          av.id = 'ag-avviso-ia';
+          av.className = 'ag-avviso-ia';
+          wrap.parentNode.insertBefore(av, wrap.nextSibling);
+        }
+      }
+      if (av) av.textContent = T('avvisoIA');
+    });
+
+    passo('evidenziatore', function () {
+      var hlb = document.getElementById('ag-ant-hl');
+      if (!hlb) return;
       var l2 = hlb.querySelector('.ag-lbl');
       if (l2) l2.textContent = ombraAttiva ? T('evidOn') : T('evidOff');
       hlb.setAttribute('data-aiuto', T('aiutoEvidenzia'));
-    }
-    // i comandi sotto le bolle hanno i titoli nella lingua vecchia: si ridisegnano
-    try { disegna(); } catch(e) {}
-    // AI Act, articolo 50, in vigore dal 2 agosto 2026: chi usa un sistema di
-    // intelligenza artificiale per interagire con le persone deve dichiararlo
-    // in modo chiaro, e l'avviso deve essere visibile senza doverlo cercare.
-    // Non basta scriverlo nel messaggio di benvenuto, che scorre via.
-    var av = document.getElementById('ag-avviso-ia');
-    if (!av) {
-      var wrap = document.getElementById('chat-input-wrapper');
-      if (wrap && wrap.parentNode) {
-        av = document.createElement('div');
-        av.id = 'ag-avviso-ia';
-        av.className = 'ag-avviso-ia';
-        wrap.parentNode.insertBefore(av, wrap.nextSibling);
-      }
-    }
-    if (av) av.textContent = T('avvisoIA');
-    var t = document.querySelectorAll('.ag-voci .ag-tab');
-    if (t && t.length >= 3) {
+    });
+
+    passo('legenda', function () {
+      var leg = document.querySelector('.ag-legenda');
+      if (!leg) return;
+      var mapLeg = { per:'catNomi', addr:'catIndirizzi', city:'catLuoghi', date:'catDate',
+        bank:'catBancari', mail:'catContatti', id:'catDocumenti', tech:'catTecnici',
+        med:'catSanitari', org:'catAziende', __tutti:'tutti' };
+      leg.querySelectorAll('span[data-g]').forEach(function(sp){
+        var g = sp.getAttribute('data-g');
+        if (!mapLeg[g]) return;
+        var ic = sp.querySelector('i');
+        sp.textContent = T(mapLeg[g]);
+        if (ic) sp.insertBefore(ic, sp.firstChild);
+      });
+    });
+
+    passo('schede', function () {
+      var t = document.querySelectorAll('.ag-voci .ag-tab');
+      if (!t || t.length < 3) return;
       var c = document.getElementById('ag-conta');
       t[0].innerHTML = T('tabDefault') + ' <span id="ag-conta">' + (c ? c.textContent : '0') + '</span>';
       t[1].textContent = T('tabAggiunte');
       t[2].textContent = T('tabRimosse');
-    }
-    try { disegnaColonna(); } catch(e) {}
+    });
+
+    passo('colonna', function () { disegnaColonna(); });
+    passo('bolle', function () { disegna(); });
   }
+
   window.aegisLingua = etichette;
 
   function avviaNuvolette(){
