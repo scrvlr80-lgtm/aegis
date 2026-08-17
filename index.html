@@ -1686,6 +1686,9 @@ body {
         const isLangSwitch = (typeof activeLanguageCode !== 'undefined') && activeLanguageCode && activeLanguageCode !== langCode;
         userLangPicked = true;   // l'utente ha scelto/cambiato lingua: il pannello puo' partire
         activeLanguageCode = langCode;
+        // L'attributo lang del documento era fermo sul valore iniziale: i
+        // lettori di schermo annunciavano la pagina nella lingua sbagliata.
+        try { document.documentElement.lang = String(langCode).slice(0,2).toLowerCase(); } catch(e) {}
         safeStorage.set('bistro_mic_lang', langCode);
         safeStorage.setSession('bistro_session_lang', langCode);
         applyUITranslations(langCode);
@@ -9220,10 +9223,15 @@ if (recognition) {
   };
   var ETICHETTE={ it:['Evidenzia: on','Evidenzia: off'],
     es:['Resaltado: on','Resaltado: off'], en:['Highlight: on','Highlight: off'] };
-  function lingua(){
-    var l=(document.documentElement.lang||navigator.language||'it').slice(0,2).toLowerCase();
-    return ETICHETTE[l]?l:'en';
-  }
+  /* Qui c'era una SECONDA function lingua(). Essendo dichiarata nello stesso
+     blocco della prima, la sovrascriveva per tutto il file: ogni T() finiva a
+     leggere document.documentElement.lang, che nel documento e' fisso a "es" e
+     non cambia mai. Il pannello restava quindi in spagnolo qualunque lingua si
+     scegliesse, senza produrre alcun errore - e per lo stesso motivo il
+     controllo periodico non scattava: confrontava un valore immutabile.
+     Rimossa: resta la lingua() di sopra, che legge activeLanguageCode.
+     Nota: due funzioni con lo stesso nome nello stesso blocco non danno
+     nessun avviso. Prima di aggiungerne una, cercare se esiste gia'. */
   // L'interruttore vale per l'INTERA conversazione: i dati stanno anche nei
   // messaggi dell'utente, che non hanno un pulsante proprio.
   // EVIDENZIATORE PER COPPIA DI MESSAGGI, SPECCHIO INDIPENDENTE.
