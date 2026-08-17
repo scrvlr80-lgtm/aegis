@@ -137,7 +137,9 @@ body.ag-attivo{overflow:hidden;margin:0}
 .ag-basso{flex:none;padding:14px;background:var(--primary);border-top:1px solid var(--hairline)}
 .ag-anteprima{min-height:56px;max-height:34vh;overflow-y:auto;padding:12px 14px;
   border:1px solid var(--hairline);border-radius:14px;background:var(--console-bg)}
-.ag-anteprima:empty::before{content:'Scrivi nell altra finestra';color:var(--text-light);
+/* Il testo vive in un attributo, non nel foglio di stile: una regola CSS non
+   puo' cambiare lingua. */
+.ag-anteprima:empty::before{content:attr(data-vuoto);color:var(--text-light);
   opacity:.5;font-size:12px}
 
 .ag-bolla{font-family:'SF Mono',ui-monospace,Menlo,monospace;font-size:12px;line-height:1.85;
@@ -1419,7 +1421,7 @@ body {
     }
 
     const LOCAL_ID = "aegis";
-    const AEGIS_BENVENUTO = {"it": "Sono un’intelligenza artificiale che ti permette di usare i modelli di frontiera più avanzati, proteggendo i tuoi dati sensibili attraverso una pseudonimizzazione selettiva: nomi, indirizzi, date, telefoni, email e documenti vengono sostituiti da codici sul tuo dispositivo prima che il messaggio mi raggiunga, e ricompaiono al loro posto nella risposta. Io non vedo mai i dati originali. Le mie risposte sono generate automaticamente e possono contenere errori: verificale prima di usarle per decisioni importanti. Per il resto rispondo normalmente: dimmi pure di cosa hai bisogno.", "es": "Soy una inteligencia artificial que te permite utilizar los modelos de frontera más avanzados, protegiendo tus datos sensibles mediante una pseudonimización selectiva: nombres, direcciones, fechas, telefonos, correos y documentos se sustituyen por codigos en tu dispositivo antes de que el mensaje me llegue, y vuelven a su sitio en la respuesta. Yo nunca veo los datos originales. Mis respuestas se generan automaticamente y pueden contener errores: verificalas antes de usarlas para decisiones importantes. Por lo demas respondo con normalidad: dime que necesitas.", "en": "I’m an AI that lets you use the most advanced frontier models while protecting your sensitive data through selective pseudonymization: names, addresses, dates, phone numbers, emails and documents are replaced with codes on your device before the message reaches me, and they reappear in place in the reply. I never see the original data. My answers are generated automatically and may contain errors: check them before using them for important decisions. Otherwise I answer normally — tell me what you need."};
+    const AEGIS_BENVENUTO = {"it": "Sono un'intelligenza artificiale, non una persona. Questa piattaforma applica una pseudonimizzazione dei tuoi dati sensibili: nomi, indirizzi, date, telefoni, email e documenti vengono sostituiti da codici sul tuo dispositivo prima che il messaggio mi raggiunga, e ricompaiono al loro posto nella risposta. Io non vedo mai i dati originali. Le mie risposte sono generate automaticamente e possono contenere errori: verificale prima di usarle per decisioni importanti. Per il resto rispondo normalmente: dimmi pure di cosa hai bisogno.", "es": "Soy una inteligencia artificial, no una persona. Esta plataforma aplica una seudonimizacion de tus datos sensibles: nombres, direcciones, fechas, telefonos, correos y documentos se sustituyen por codigos en tu dispositivo antes de que el mensaje me llegue, y vuelven a su sitio en la respuesta. Yo nunca veo los datos originales. Mis respuestas se generan automaticamente y pueden contener errores: verificalas antes de usarlas para decisiones importantes. Por lo demas respondo con normalidad: dime que necesitas.", "en": "I am an artificial intelligence, not a person. This platform applies pseudonymisation to your sensitive data: names, addresses, dates, phone numbers, emails and documents are replaced with codes on your device before the message reaches me, and they reappear in place in the reply. I never see the original data. My answers are generated automatically and may contain errors: check them before using them for important decisions. Otherwise I answer normally — tell me what you need."};
     function benvenutoAegis(lang){
         var l=String(lang||'it').slice(0,2).toLowerCase();
         return AEGIS_BENVENUTO[l] || AEGIS_BENVENUTO.en;
@@ -7368,6 +7370,11 @@ if (recognition) {
       gTesto3:'Puoi attivarlo adesso o in qualsiasi momento dal pulsante <b>Motore avanzato</b> in alto. Senza di lui la protezione dei nomi e\u0027 sensibilmente piu\u0027 debole.',
       gDopo:'Non ora',
       gSubito:'Attiva adesso',
+      titoloSpecchio:'Cio\u0027 che riceve il modello',
+      vuoto1:'Scrivi nella chat.',
+      vuoto2:'Qui compare esattamente cio\u0027 che viene inviato,',
+      vuoto3:'con i dati sostituiti da codici.',
+      altraFinestra:'Scrivi nell\u0027altra finestra',
       tutti:'tutti',
       ascolta:'Ascolta',
       miPiace:'Utile',
@@ -7395,7 +7402,7 @@ if (recognition) {
       aiutoRiservato:'Sfoca i dati sullo schermo. Utile prima di condividere lo schermo o mostrare il monitor a qualcuno.',
       aiutoConfig:'Avvisi, preferenze di protezione, dati salvati su questo dispositivo, uscita dall\u0027account.',
       aiutoEvidenzia:'Accende e spegne i colori sui codici nello specchio. Non cambia cio\u0027 che viene inviato.',
-      tabDefault:'Default', tabAggiunte:'Aggiunte', tabRimosse:'Rimosse',
+      tabDefault:'Predefinito', tabAggiunte:'Aggiunte', tabRimosse:'Rimosse',
       vuotoDefault:'Qui compaiono i dati che il sistema sta coprendo.',
       vuotoAggiunte:'Qui compaiono le parole che copri tu con il pennello.',
       vuotoRimosse:'Qui compaiono le parole che hai riportato in chiaro. Da quel momento partono cosi\u0027 come sono.',
@@ -7453,7 +7460,7 @@ if (recognition) {
       invioBloccato:'\ud83d\udee1\ufe0f Non ho inviato il messaggio: contiene dati che non sono riuscito a proteggere del tutto. Non e\u0027 un problema di rete.'
     },
     es: {
-      avvisoIA:'Respuestas generadas por una inteligencia artificial. Pueden contener errores: verificalas.',
+      avvisoIA:'Respuestas generadas por una inteligencia artificial. Pueden contener errores: verif\u00edcalas.',
       profondaAttiva:'analisis profundo activo',
       mP4:'<b>De donde viene y que sale de aqui.</b> El modelo se llama <b>openai/privacy-filter</b>, licencia Apache 2.0, que permite el uso comercial. Para descargarlo el navegador contacta con <b>huggingface.co</b>: esa es la unica conexion, y solo sirve para obtener los archivos. <b>No se envia ningun texto de tus conversaciones</b>, ni ahora ni despues. Terminada la descarga, el modelo trabaja solo aqui.',
       mSpunta:'He leido y acepto: descarga el modelo y sus terminos de licencia (Apache 2.0)',
@@ -7468,10 +7475,15 @@ if (recognition) {
       gTesto3:'Puedes activarlo ahora o en cualquier momento desde el boton <b>Motor avanzado</b> arriba. Sin el, la proteccion de los nombres es notablemente mas debil.',
       gDopo:'Ahora no',
       gSubito:'Activar ahora',
+      titoloSpecchio:'Lo que recibe el modelo',
+      vuoto1:'Escribe en el chat.',
+      vuoto2:'Aqu\u00ed aparece exactamente lo que sale,',
+      vuoto3:'con los datos sustituidos por c\u00f3digos.',
+      altraFinestra:'Escribe en la otra ventana',
       tutti:'todos',
       ascolta:'Escuchar',
-      miPiace:'Util',
-      nonMiPiace:'No util',
+      miPiace:'\u00datil',
+      nonMiPiace:'No \u00fatil',
       evidOn:'Resaltado: ON',
       evidOff:'Resaltado: OFF',
       motore:'Motor avanzado',
@@ -7487,16 +7499,16 @@ if (recognition) {
       mSi:'Descargar y activar',
       mAI:'propuestas por el motor',
       pennello:'Pincel', pennelloOn:'Pincel: ON',
-      profonda:'Analisis profundo', profondaOn:'Profundo: ON',
+      profonda:'An\u00e1lisis profundo', profondaOn:'Profundo: ON',
       riservato:'Reservado', riservatoOn:'Reservado: ON',
-      config:'Configuracion',
+      config:'Configuraci\u00f3n',
       aiutoPennello:'Toca una palabra y se selecciona entera: elige en que categoria ocultarla. Toca un codigo ya oculto para devolverlo a la vista. Funciona tambien en las listas de la izquierda.',
       aiutoProfonda:'Medida extrema: oculta mucho mas y se equivoca mucho mas. Toma tambien los nombres en minuscula que son palabras comunes. Casi nunca hace falta.',
       aiutoRiservato:'Difumina los datos en pantalla. Util antes de compartir pantalla o ensenar el monitor a alguien.',
       aiutoConfig:'Avisos, preferencias de proteccion, datos guardados en este dispositivo, cierre de sesion.',
       aiutoEvidenzia:'Enciende y apaga los colores de los codigos en el espejo. No cambia lo que se envia.',
-      tabDefault:'Default', tabAggiunte:'Anadidas', tabRimosse:'Quitadas',
-      vuotoDefault:'Aqui aparecen los datos que el sistema esta ocultando.',
+      tabDefault:'Predeterminado', tabAggiunte:'A\u00f1adidas', tabRimosse:'Quitadas',
+      vuotoDefault:'Aqu\u00ed aparecen los datos que el sistema est\u00e1 ocultando.',
       vuotoAggiunte:'Aqui aparecen las palabras que ocultas tu con el pincel.',
       vuotoRimosse:'Aqui aparecen las palabras que has devuelto a la vista. A partir de ese momento se envian tal cual.',
       grTolti:'dejadas a la vista por ti',
@@ -7506,7 +7518,7 @@ if (recognition) {
       confScopri:'Dejar "{v}" a la vista?\n\nA partir de ahora se enviara tal cual, sin proteccion.',
       catNomi:'nombres', catIndirizzi:'direcciones', catLuoghi:'lugares', catDate:'fechas',
       catBancari:'bancarios', catContatti:'contactos', catDocumenti:'documentos',
-      catTecnici:'tecnicos', catSanitari:'sanitarios', catAziende:'empresas',
+      catTecnici:'t\u00e9cnicos', catSanitari:'sanitarios', catAziende:'empresas',
       avvTitolo:'Estas {n} palabras se enviarian sin proteger',
       avvTesto:'El sistema no las reconoce como datos protegidos, pero podrian serlo. Haz clic en las filas para elegir cuales ocultar: las apagadas se envian tal cual.',
       avvTutte:'Seleccionar todas', avvNessuna:'Ninguna',
@@ -7519,7 +7531,7 @@ if (recognition) {
       pfP3:'Usalo cuando el documento contenga nombres raros o extranjeros que la pasada normal no reconoce, y aceptes releer el resultado antes de enviar.',
       pfMai:'No mostrar mas esta explicacion',
       pfNo:'Dejarlo apagado', pfSi:'Entendido, activalo',
-      opTitolo:'Configuracion',
+      opTitolo:'Configuraci\u00f3n',
       opAvvisi:'Avisos', opProtezione:'Proteccion', opDati:'Datos en este dispositivo',
       opAvvisoInvio:'Aviso antes de enviar',
       opAvvisoInvioD:'Enumera las palabras que se enviarian sin proteger y te deja elegir cuales ocultar.',
@@ -7568,6 +7580,11 @@ if (recognition) {
       gTesto3:'You can turn it on now, or any time from the <b>Advanced engine</b> button above. Without it, name protection is noticeably weaker.',
       gDopo:'Not now',
       gSubito:'Turn it on',
+      titoloSpecchio:'What the model receives',
+      vuoto1:'Write in the chat.',
+      vuoto2:'Here appears exactly what is sent,',
+      vuoto3:'with the data replaced by codes.',
+      altraFinestra:'Write in the other window',
       tutti:'all',
       ascolta:'Listen',
       miPiace:'Helpful',
@@ -8598,6 +8615,25 @@ if (recognition) {
       }
     });
     try { document.documentElement.style.setProperty('--ag-riservato-testo', '"' + T('riservatoBanner') + '"'); } catch(e) {}
+
+    // TITOLO, MESSAGGIO A VUOTO, SEGNAPOSTO. Erano scritti in italiano dentro
+    // il codice e dentro il foglio di stile: restavano fermi qualunque lingua
+    // si scegliesse. Ora passano di qui come tutto il resto.
+    var tit = document.getElementById('ag-tit');
+    if (tit) tit.textContent = T('titoloSpecchio');
+    if (vuoto) vuoto.innerHTML = T('vuoto1') + '<br>' + T('vuoto2') + '<br>' + T('vuoto3');
+    var ant = document.getElementById('ag-anteprima');
+    if (ant) ant.setAttribute('data-vuoto', T('altraFinestra'));
+    var avvIA = document.getElementById('ag-avviso-ia');
+    if (avvIA) avvIA.textContent = T('avvisoIA');
+    var hlb = document.getElementById('ag-ant-hl');
+    if (hlb) {
+      var l2 = hlb.querySelector('.ag-lbl');
+      if (l2) l2.textContent = ombraAttiva ? T('evidOn') : T('evidOff');
+      hlb.setAttribute('data-aiuto', T('aiutoEvidenzia'));
+    }
+    // i comandi sotto le bolle hanno i titoli nella lingua vecchia: si ridisegnano
+    try { disegna(); } catch(e) {}
     // AI Act, articolo 50, in vigore dal 2 agosto 2026: chi usa un sistema di
     // intelligenza artificiale per interagire con le persone deve dichiararlo
     // in modo chiaro, e l'avviso deve essere visibile senza doverlo cercare.
@@ -9395,7 +9431,7 @@ if (recognition) {
             '<circle cx="12" cy="12" r="3.2"/>' +
             '<path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/>' +
           '</svg></button>'+
-        '<span class="ag-tit">Quello che riceve il modello</span>'+
+        '<span class="ag-tit" id="ag-tit">' + T('titoloSpecchio') + '</span>'+
         '<span class="ag-ner" id="ag-ner" title="Riconoscimento avanzato dei nomi"></span>'+
         '<button class="ag-ia" id="ag-pennello-btn" type="button" data-aiuto="Tocca una parola e viene presa tutta: scegli in che categoria coprirla. Tocca un codice gia\u0027 coperto per riportarlo in chiaro. Funziona anche sugli elenchi qui a sinistra."><svg viewBox=\'0 0 24 24\'><path d=\'M18.5 2.5a2.1 2.1 0 0 1 3 3L13 14l-4 1 1-4 8.5-8.5zM6 16c1.7 0 3 1.3 3 3 0 1.7-1.8 3-4 3-1.2 0-2.4-.3-3-1 1.1 0 2-1.3 2-2.5S5 16 6 16z\'/></svg>Pennello</button>'+
         '<button class="ag-ia" id="ag-ia" type="button" data-aiuto="Misura estrema: copre molto di piu\u0027 e sbaglia molto di piu\u0027. Prende anche i nomi in minuscolo che sono parole comuni. Non serve quasi mai."></button>'+
@@ -9596,7 +9632,7 @@ if (recognition) {
     badge=document.getElementById('ag-badge');   // puo' non esistere: il conto sta nella colonna
     vuoto=document.createElement('div');
     vuoto.className='ag-vuoto';
-    vuoto.innerHTML='Scrivi nella chat.<br>Qui compare esattamente cio\u0027 che parte,<br>con i dati sostituiti da codici.';
+    vuoto.innerHTML = T('vuoto1') + '<br>' + T('vuoto2') + '<br>' + T('vuoto3');
 
     // Se per qualche motivo un pezzo manca, meglio un pannello parziale che
     // uno script che muore e porta giu' tutto (mascheratura compresa).
