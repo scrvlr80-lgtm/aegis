@@ -7250,7 +7250,10 @@ if (recognition) {
     return { total: r.length, failed: r.filter(x => !x.pass), results: r };
   }
 
-  root.AEGIS = { protect, restore, verify, split, normalize, selfTest, loadGazetteer, KB };
+  // GSET esce dal motore perche' il controllo della scrittura, che vive nel
+  // pannello, deve poter chiedere "questo nome esiste?". Sola lettura: chi lo
+  // consulta non lo modifica, e il motore non cambia comportamento.
+  root.AEGIS = { protect, restore, verify, split, normalize, selfTest, loadGazetteer, KB, GSET };
 })(typeof window !== 'undefined' ? window : globalThis);
 
 </script>
@@ -7496,9 +7499,15 @@ if (recognition) {
       var v=[]; vault.forEach(function(val,k){ v.push([k,val]); });
       var c=[]; colorDi.forEach(function(val,k){ c.push([k,val]); });
       var b=[]; banditi.forEach(function(v,testo){ b.push([testo,v]); });
+      // I codici delle proposte del motore vivevano solo in memoria: dopo un
+      // ricaricamento la stessa parola riceveva un codice nuovo, e la
+      // corrispondenza fra codice e dato - che e' la promessa del sistema -
+      // si spezzava fra una sessione e l'altra.
+      var ai=[]; vociAI.forEach(function(tok,k){ ai.push([k,tok]); });
+      var pv=[]; provenienza.forEach(function(chi,k){ pv.push([k,chi]); });
       var cu=[]; categoriePersonali.forEach(function(c,id){ cu.push([id,c]); });
       sessionStorage.setItem(CHIAVE, JSON.stringify({v:v,c:c,n:contatore,r:righe,
-        b:b, e:Array.from(esclusi), cu:cu}));
+        b:b, e:Array.from(esclusi), cu:cu, ai:ai, pv:pv}));
     }catch(e){}
   }
   function ripristina(){
@@ -7515,6 +7524,8 @@ if (recognition) {
       (d.b||[]).forEach(function(p){ banditi.set(p[0], typeof p[1]==='string'?{tok:p[1],cat:'per'}:p[1]); });
       (d.cu||[]).forEach(function(p){ categoriePersonali.set(p[0],p[1]); });
       (d.e||[]).forEach(function(x){ esclusi.add(x); });
+      (d.ai||[]).forEach(function(p){ vociAI.set(p[0],p[1]); });
+      (d.pv||[]).forEach(function(p){ provenienza.set(p[0],p[1]); });
     }catch(e){}
   }
   function scorda(){ try{ sessionStorage.removeItem(CHIAVE); }catch(e){} }
@@ -7791,6 +7802,22 @@ if (recognition) {
       provRegole:'Trovato dalle regole',
       provMotore:'Trovato dal motore',
       provEntrambi:'Trovato dalle regole e dal motore',
+      opEtichette:'Etichette che hai creato tu',
+      opEtichetteVuoto:'Non ne hai ancora create. Le crei dalla tendina del pennello.',
+      opEtichetteAzzera:'Elimina tutte le etichette',
+      confEtichetta:'Elimino l\u0027etichetta "{v}"?\n\nLe parole coperte sotto questa etichetta passano a "nomi".',
+      confEtichetteTutte:'Elimino tutte le etichette che hai creato?\n\nLe parole coperte sotto quelle etichette passano a "nomi".',
+      numTitolo:'{n} sequenze numeriche non coperte',
+      numTesto:'Questo documento contiene numeri che il sistema non ha riconosciuto come dati personali: protocolli, matricole, riferimenti interni. Scegli quali coprire. Quelli che lasci spenti partono cosi\u0027 come sono.',
+      ortTitolo:'Prima di inviare: {n} valori da ricontrollare',
+      ortTesto:'Sembrano scritti male. Un dato scritto male viene coperto lo stesso, ma resta sbagliato nella risposta. Controlla tu: correggo solo quelli che spunti.',
+      ortSimile:'assomiglia a',
+      ortControllo:'il carattere di controllo non torna',
+      ortAtteso:'dovrebbe finire con',
+      ortCorreggi:'Correggi i selezionati e invia',
+      ortIgnora:'Va bene cosi\u0027, invia',
+      opOrtografia:'Controllo della scrittura prima dell\u0027invio',
+      opOrtografiaD:'Segnala nomi che sembrano scritti male e documenti il cui carattere di controllo non torna.',
       mSpegni:'Spegnere e disinstallare il motore?',
       mP4:'<b>Da dove arriva e cosa esce da qui.</b> Il modello si chiama <b>openai/privacy-filter</b>, licenza Apache 2.0, che ne permette l\u0027uso commerciale. Per scaricarlo il browser contatta <b>huggingface.co</b>: quella e\u0027 l\u0027unica connessione, e serve solo a prendere i file. <b>Nessun testo delle tue conversazioni viene inviato</b>, ne\u0027 ora ne\u0027 dopo. Finito lo scaricamento, il modello lavora solo qui.',
       mSpunta:'Ho letto e accetto: scarica il modello e i suoi termini di licenza (Apache 2.0)',
@@ -7900,6 +7927,22 @@ if (recognition) {
       provRegole:'Encontrado por las reglas',
       provMotore:'Encontrado por el motor',
       provEntrambi:'Encontrado por las reglas y por el motor',
+      opEtichette:'Etiquetas creadas por ti',
+      opEtichetteVuoto:'Aun no has creado ninguna. Se crean desde el desplegable del pincel.',
+      opEtichetteAzzera:'Eliminar todas las etiquetas',
+      confEtichetta:'Elimino la etiqueta "{v}"?\n\nLas palabras ocultas bajo esta etiqueta pasan a "nombres".',
+      confEtichetteTutte:'Elimino todas las etiquetas que has creado?\n\nLas palabras ocultas bajo ellas pasan a "nombres".',
+      numTitolo:'{n} secuencias numericas sin cubrir',
+      numTesto:'Este documento contiene numeros que el sistema no ha reconocido como datos personales: protocolos, matriculas, referencias internas. Elige cuales ocultar. Los que dejes apagados se envian tal cual.',
+      ortTitolo:'Antes de enviar: {n} valores para revisar',
+      ortTesto:'Parecen mal escritos. Un dato mal escrito se oculta igualmente, pero sigue estando mal en la respuesta. Revisalo tu: solo corrijo los que marques.',
+      ortSimile:'se parece a',
+      ortControllo:'el caracter de control no cuadra',
+      ortAtteso:'deberia terminar en',
+      ortCorreggi:'Corregir los marcados y enviar',
+      ortIgnora:'Esta bien asi, enviar',
+      opOrtografia:'Revision de la escritura antes de enviar',
+      opOrtografiaD:'Avisa de nombres que parecen mal escritos y de documentos cuyo caracter de control no cuadra.',
       mSpegni:'Apagar y desinstalar el motor?',
       mP4:'<b>De donde viene y que sale de aqui.</b> El modelo se llama <b>openai/privacy-filter</b>, licencia Apache 2.0, que permite el uso comercial. Para descargarlo el navegador contacta con <b>huggingface.co</b>: esa es la unica conexion, y solo sirve para obtener los archivos. <b>No se envia ningun texto de tus conversaciones</b>, ni ahora ni despues. Terminada la descarga, el modelo trabaja solo aqui.',
       mSpunta:'He leido y acepto: descarga el modelo y sus terminos de licencia (Apache 2.0)',
@@ -8009,6 +8052,22 @@ if (recognition) {
       provRegole:'Found by the rules',
       provMotore:'Found by the engine',
       provEntrambi:'Found by both the rules and the engine',
+      opEtichette:'Labels you created',
+      opEtichetteVuoto:'You have not created any yet. You create them from the brush menu.',
+      opEtichetteAzzera:'Delete every label',
+      confEtichetta:'Delete the label "{v}"?\n\nWords masked under it move to "names".',
+      confEtichetteTutte:'Delete every label you created?\n\nWords masked under them move to "names".',
+      numTitolo:'{n} number sequences left uncovered',
+      numTesto:'This document contains numbers the system did not recognise as personal data: protocols, reference numbers, internal codes. Choose which to mask. The ones you leave off are sent as they are.',
+      ortTitolo:'Before sending: {n} values worth a second look',
+      ortTesto:'They look misspelled. A misspelled value still gets masked, but it stays wrong in the reply. Check them yourself: I only correct the ones you tick.',
+      ortSimile:'looks like',
+      ortControllo:'the check character does not match',
+      ortAtteso:'it should end with',
+      ortCorreggi:'Correct the ticked ones and send',
+      ortIgnora:'It is fine, send',
+      opOrtografia:'Spelling check before sending',
+      opOrtografiaD:'Flags names that look misspelled and documents whose check character does not match.',
       mSpegni:'Turn off and uninstall the engine?',
       mP4:'<b>Where it comes from and what leaves this device.</b> The model is <b>openai/privacy-filter</b>, Apache 2.0 licence, which permits commercial use. To download it your browser contacts <b>huggingface.co</b>: that is the only connection, and it only fetches the files. <b>No text from your conversations is sent</b>, now or later. Once downloaded, the model works only here.',
       mSpunta:'I have read and accept: download the model and its licence terms (Apache 2.0)',
@@ -8187,6 +8246,15 @@ if (recognition) {
       '.ag-prov i{width:7px;height:7px;border-radius:50%;display:block}' +
       '.ag-p-reg{background:var(--text-light)}' +
       '.ag-p-mot{border:1.5px solid var(--accent);background:transparent;box-sizing:border-box}' +
+      '.ag-et-lista{display:flex;flex-direction:column;gap:2px}' +
+      '.ag-et-riga{display:flex;align-items:center;gap:8px;padding:5px 2px;font-size:12.5px}' +
+      '.ag-et-riga i{width:9px;height:9px;border-radius:2px;flex:none}' +
+      '.ag-et-nome{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+      '.ag-et-n{font-size:10px;color:var(--text-light);background:var(--hairline);' +
+        'border-radius:9px;padding:1px 7px}' +
+      '.ag-et-riga button{border:none;background:transparent;color:var(--text-light);' +
+        'cursor:pointer;font-size:15px;line-height:1;padding:0 3px}' +
+      '.ag-et-riga button:hover{color:var(--c-per)}' +
       '\n';
     categoriePersonali.forEach(function(c,id){
       css += '.ag-'+id+'{background:'+c.colore+'}\n';
@@ -8924,6 +8992,276 @@ if (recognition) {
     }
   }
 
+  /* ============== SPAZZATA DEI NUMERI ==============
+     Un documento vero e' pieno di sequenze numeriche che non sono ne' un IBAN
+     ne' una data ne' un telefono: protocolli, matricole, riferimenti interni
+     dello studio, numeri di pratica. Il motore non puo' indovinarle - senza
+     etichetta un numero e' un numero - ma chi ha scritto il documento sa
+     benissimo quali sono.
+     Appena il testo entra, quindi, si chiede. Una volta sola, prima di
+     scrivere qualsiasi cosa, con l'elenco completo davanti.
+
+     Partono TUTTE SPENTE apposta: sono cose che il motore ha deliberatamente
+     lasciato stare, non sospetti. Accenderle d'ufficio riempirebbe il
+     documento di codici al posto di date e importi, e la prima cosa che
+     farebbe l'utente sarebbe spegnerle una per una.
+     ================================================= */
+  var RX_NUMERICO = /\b(?=[A-Za-z0-9][A-Za-z0-9 .\/-]*\d)[A-Za-z0-9][A-Za-z0-9]*(?:[ .\/-][A-Za-z0-9]+){0,4}\b/g;
+
+  function sequenzeNumeriche(testo){
+    var t = String(testo || '');
+    if (!t.trim()) return [];
+    var coperti = [];
+    try {
+      var r = AEGIS.protect(t, opzioni());
+      (r.vault || []).forEach(function(v){ coperti.push(String(v.value).toLowerCase()); });
+      (r.proposte || []).forEach(function(v){ coperti.push(String(v.value).toLowerCase()); });
+    } catch (e) {}
+    banditi.forEach(function(v, k){ coperti.push(String(k).toLowerCase()); });
+    suggeriti.forEach(function(v, k){ coperti.push(String(k).toLowerCase()); });
+    var visti = {}, fuori = [], m;
+    RX_NUMERICO.lastIndex = 0;
+    while ((m = RX_NUMERICO.exec(t)) !== null) {
+      var val = String(m[0]).replace(/^[\s.\/-]+|[\s.\/-]+$/g, '');
+      if (val.length < 4 || val.length > 40) continue;
+      var cifre = (val.match(/\d/g) || []).length;
+      if (cifre < 3) continue;
+      var basso = val.toLowerCase();
+      if (visti[basso]) continue;
+      if (esclusi.has(val)) continue;
+      var dentro = coperti.some(function(c){ return c.indexOf(basso) !== -1 || basso.indexOf(c) !== -1; });
+      if (dentro) continue;
+      visti[basso] = 1;
+      fuori.push({ valore: val });
+      if (fuori.length >= 40) break;
+    }
+    return fuori;
+  }
+
+  function avvisoNumeri(elenco){
+    return new Promise(function(risolvi){
+      var ov = document.createElement('div');
+      ov.className = 'ag-avviso-ov';
+      var scelte = elenco.map(function(){ return false; });   // spente: vedi sopra
+      var righe = elenco.map(function(x, i){
+        return '<div class="ag-av-riga" data-i="' + i + '">' +
+               '<span class="ck"></span><span class="n">' + (i+1) + '</span>' +
+               '<span class="v">' + esc(x.valore) + '</span>' +
+               '<span class="c" style="background:' + coloreCategoria('id') + '"></span></div>';
+      }).join('');
+      ov.innerHTML =
+        '<div class="ag-avviso">' +
+          '<h3>' + T('numTitolo', { n: elenco.length }) + '</h3>' +
+          '<p>' + T('numTesto') + '</p>' +
+          '<div class="ag-av-strumenti">' +
+            '<button type="button" class="ag-av-mini" data-a="tutte">' + T('avvTutte') + '</button>' +
+            '<button type="button" class="ag-av-mini" data-a="nessuna">' + T('avvNessuna') + '</button>' +
+          '</div>' +
+          '<div class="ag-av-lista">' + righe + '</div>' +
+          '<div class="ag-av-bottoni">' +
+            '<button type="button" data-a="niente">' + T('avvInvia') + '</button>' +
+            '<button type="button" class="ag-av-primo" data-a="copri" disabled>' +
+              T('avvCopri', { n: 0 }) + '</button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(ov);
+      function conta(){
+        var q = scelte.filter(Boolean).length;
+        var e = document.getElementById('ag-av-n');
+        if (e) e.textContent = String(q);
+        var pr = ov.querySelector('.ag-av-primo');
+        if (pr) pr.disabled = (q === 0);
+      }
+      function segna(i, val){
+        scelte[i] = val;
+        var r = ov.querySelector('.ag-av-riga[data-i="' + i + '"]');
+        if (r) r.classList.toggle('sel', val);
+      }
+      ov.addEventListener('click', function(e){
+        var riga = e.target.closest('.ag-av-riga');
+        if (riga) { var i = +riga.getAttribute('data-i'); segna(i, !scelte[i]); conta(); return; }
+        var b = e.target.closest('button'); if (!b) return;
+        var a = b.getAttribute('data-a');
+        if (a === 'tutte' || a === 'nessuna') {
+          elenco.forEach(function(x, i){ segna(i, a === 'tutte'); });
+          conta(); return;
+        }
+        ov.remove();
+        risolvi(a === 'copri' ? elenco.filter(function(x, i){ return scelte[i]; }) : []);
+      });
+    });
+  }
+
+  window.aegisControlloNumeri = async function(testo){
+    try {
+      var elenco = sequenzeNumeriche(testo);
+      if (!elenco.length) return 0;
+      var scelti = await avvisoNumeri(elenco);
+      if (!scelti.length) return 0;
+      scelti.forEach(function(x){
+        var v = banditi.get(x.valore) || {};
+        v.cat = v.cat || 'id';
+        banditi.set(x.valore, v);
+      });
+      vaiA('aggiunte');
+      aggiorna();
+      return scelti.length;
+    } catch (e) { console.error('[Aegis] controllo dei numeri:', e && e.message); return 0; }
+  };
+
+  /* ============== CONTROLLO DELLA SCRITTURA ==============
+     Un dato scritto male viene coperto lo stesso - il codice funziona - ma
+     resta sbagliato nella risposta, e l'utente se ne accorge quando ormai
+     l'ha mandata al cliente.
+     Due controlli, e solo due, perche' sono gli unici che possono dire
+     qualcosa di VERO:
+       1. i documenti con carattere di controllo (DNI, NIE, codice fiscale):
+          se non torna, il carattere giusto si CALCOLA. Non e' un'ipotesi.
+       2. i nomi a un carattere di distanza da un nome che esiste negli
+          elenchi, quando la parola scritta non esiste in nessun elenco e non
+          e' una parola della lingua.
+     Quello che NON si fa: indovinare le cifre. Da "X7498553A" non si puo'
+     sapere se il numero giusto fosse 552 o 554: si puo' solo dire che il
+     documento cosi' com'e' non e' valido. Dire di piu' sarebbe inventare, e
+     inventare su un documento d'identita' e' peggio che tacere.
+     ======================================================= */
+  var ALFA_NOMI = 'abcdefghijklmnopqrstuvwxyz\u00e0\u00e1\u00e8\u00e9\u00ec\u00ed\u00f2\u00f3\u00f9\u00fa\u00f1';
+  // Gli elenchi anagrafici stanno nel motore: qui si leggono, non si toccano.
+  // Se per qualsiasi motivo non ci fossero, il controllo si spegne da solo
+  // invece di fermare l'invio.
+  function ELENCHI(){
+    var g = (window.AEGIS && window.AEGIS.GSET) || null;
+    return (g && g.given && g.family) ? g : null;
+  }
+
+  function vicini(parola){
+    var w = String(parola).toLowerCase(), out = [];
+    for (var i = 0; i < w.length; i++) out.push(w.slice(0, i) + w.slice(i + 1));               // manca una lettera
+    for (var j = 0; j < w.length - 1; j++)                                                     // due lettere invertite
+      out.push(w.slice(0, j) + w[j + 1] + w[j] + w.slice(j + 2));
+    for (var k = 0; k < w.length; k++)
+      for (var a = 0; a < ALFA_NOMI.length; a++) {
+        if (ALFA_NOMI[a] === w[k]) continue;
+        out.push(w.slice(0, k) + ALFA_NOMI[a] + w.slice(k + 1));                               // una lettera sbagliata
+      }
+    for (var h = 0; h <= w.length; h++)
+      for (var b = 0; b < ALFA_NOMI.length; b++)
+        out.push(w.slice(0, h) + ALFA_NOMI[b] + w.slice(h));                                   // una lettera di troppo
+    return out;
+  }
+
+  var DNI_LETT = 'TRWAGMYFPDXBNJZSQVHLCKE';
+
+  function controlloScrittura(testo){
+    var t = String(testo || ''), fuori = [], visti = {};
+    var V = (window.PII_KB && window.PII_KB.validators) || {};
+
+    // 1) documenti con carattere di controllo
+    var mDni;
+    var rxDni = /\b(\d{8})[ -]?([A-HJ-NP-TV-Z])\b/g;
+    while ((mDni = rxDni.exec(t)) !== null) {
+      var vD = mDni[0].replace(/[ -]/g, '');
+      if (V.dni && V.dni(vD)) continue;
+      var attesa = DNI_LETT[Number(mDni[1]) % 23];
+      if (!visti[vD]) { visti[vD] = 1;
+        fuori.push({ valore: mDni[0], proposta: mDni[1] + attesa,
+                     motivo: T('ortControllo') + ' \u2014 ' + T('ortAtteso') + ' ' + attesa }); }
+    }
+    var mNie;
+    var rxNie = /\b([XYZ])[ -]?(\d{7})[ -]?([A-HJ-NP-TV-Z])\b/g;
+    while ((mNie = rxNie.exec(t)) !== null) {
+      var vN = mNie[0].replace(/[ -]/g, '');
+      if (V.nie && V.nie(vN)) continue;
+      var base = ({ X:'0', Y:'1', Z:'2' })[mNie[1]] + mNie[2];
+      var attN = DNI_LETT[Number(base) % 23];
+      if (!visti[vN]) { visti[vN] = 1;
+        fuori.push({ valore: mNie[0], proposta: mNie[1] + mNie[2] + attN,
+                     motivo: T('ortControllo') + ' \u2014 ' + T('ortAtteso') + ' ' + attN }); }
+    }
+    var mCf;
+    var rxCf = /\b[A-Z]{6}[0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{3}[A-Z]\b/g;
+    while ((mCf = rxCf.exec(t)) !== null) {
+      var vC = mCf[0];
+      if (V.codiceFiscale && V.codiceFiscale(vC)) continue;
+      if (!visti[vC]) { visti[vC] = 1;
+        fuori.push({ valore: vC, proposta: null, motivo: T('ortControllo') }); }
+    }
+
+    // 2) nomi a un carattere di distanza da un nome che esiste
+    var G = ELENCHI();
+    if (!G) return fuori.slice(0, 12);
+    var mNome, rxNome = /\b[A-Z\u00C0-\u00DE][A-Za-z\u00C0-\u024F'\u2019-]{3,20}\b/g;
+    var provati = 0;
+    var LX = window.AEGIS_LEX || null;
+    var lingua = LX ? LX.lingua(t) : null;
+    while ((mNome = rxNome.exec(t)) !== null && provati < 14) {
+      var w = mNome[0], lw = w.toLowerCase();
+      if (visti[w]) continue;
+      if (G.given.has(lw) || G.family.has(lw)) continue;            // il nome esiste: nulla da dire
+      if (G.not.has(lw) || G.mai.has(lw) || G.tech.has(lw)) continue;
+      if (LX && LX.fascia(lw, lingua)) continue;                    // e' una parola della lingua
+      if (esclusi.has(w)) continue;
+      provati++;
+      var cand = null;
+      var lista = vicini(lw);
+      for (var z = 0; z < lista.length; z++) {
+        var c = lista[z];
+        if (c.length < 3) continue;
+        if (G.given.has(c)) { cand = c; break; }                    // i nomi di battesimo per primi
+        if (!cand && G.family.has(c)) cand = c;
+      }
+      if (!cand) continue;
+      var suggerito = cand.charAt(0).toUpperCase() + cand.slice(1);
+      visti[w] = 1;
+      fuori.push({ valore: w, proposta: suggerito,
+                   motivo: T('ortSimile') + ' \u201c' + suggerito + '\u201d' });
+    }
+    return fuori.slice(0, 12);
+  }
+
+  function avvisoScrittura(elenco){
+    return new Promise(function(risolvi){
+      var ov = document.createElement('div');
+      ov.className = 'ag-avviso-ov';
+      var scelte = elenco.map(function(x){ return !!x.proposta; });
+      var righe = elenco.map(function(x, i){
+        return '<div class="ag-av-riga' + (x.proposta ? ' sel' : '') + '" data-i="' + i + '"' +
+               (x.proposta ? '' : ' data-fisso="1"') + '>' +
+               '<span class="ck"></span>' +
+               '<span class="v">' + esc(x.valore) +
+                 (x.proposta ? ' \u2192 <b>' + esc(x.proposta) + '</b>' : '') + '</span>' +
+               '<span class="n" style="min-width:auto">' + esc(x.motivo) + '</span></div>';
+      }).join('');
+      ov.innerHTML =
+        '<div class="ag-avviso">' +
+          '<h3>' + T('ortTitolo', { n: elenco.length }) + '</h3>' +
+          '<p>' + T('ortTesto') + '</p>' +
+          '<div class="ag-av-lista">' + righe + '</div>' +
+          '<label class="ag-av-spunta"><input type="checkbox" id="ag-ort-mai"> ' + T('avvMai') + '</label>' +
+          '<div class="ag-av-bottoni">' +
+            '<button type="button" data-a="indietro">' + T('avvIndietro') + '</button>' +
+            '<button type="button" data-a="ignora">' + T('ortIgnora') + '</button>' +
+            '<button type="button" class="ag-av-primo" data-a="correggi">' + T('ortCorreggi') + '</button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(ov);
+      ov.addEventListener('click', function(e){
+        var riga = e.target.closest('.ag-av-riga');
+        if (riga && !riga.getAttribute('data-fisso')) {
+          var i = +riga.getAttribute('data-i');
+          scelte[i] = !scelte[i];
+          riga.classList.toggle('sel', scelte[i]);
+          return;
+        }
+        var b = e.target.closest('button'); if (!b) return;
+        var a = b.getAttribute('data-a');
+        if (document.getElementById('ag-ort-mai').checked) spegniAvviso('ortografia', true);
+        ov.remove();
+        risolvi({ scelta: a, quali: elenco.filter(function(x, i){ return scelte[i] && x.proposta; }) });
+      });
+    });
+  }
+
   /* ============== AVVISO PRIMA DELL'INVIO ==============
      Confronta quello che la passata normale ha coperto con quello che la
      passata profonda troverebbe: la differenza sono le parole che stanno per
@@ -9044,6 +9382,24 @@ if (recognition) {
         if (testo && window.AEGIS_MODELLO && window.AEGIS_MODELLO.pronto) {
           try { await chiediAlModello(testo, true); } catch (e) {}
         }
+        // Controllo della scrittura: prima di tutto il resto, perche' se
+        // l'utente corregge una parola cambia anche cio' che va coperto.
+        if (testo && !avvisoSpento('ortografia')) {
+          var storti = controlloScrittura(testo);
+          if (storti.length) {
+            var esitoOrt = await avvisoScrittura(storti);
+            if (esitoOrt.scelta === 'indietro') return;
+            if (esitoOrt.scelta === 'correggi' && esitoOrt.quali.length) {
+              var nuovo = campo.value;
+              esitoOrt.quali.forEach(function(x){
+                nuovo = sostituisciIntero(nuovo, x.valore, x.proposta);
+              });
+              campo.value = nuovo;
+              campo.dispatchEvent(new Event('input', { bubbles: true }));
+              testo = nuovo.trim();
+            }
+          }
+        }
         if (testo && !nonAvvisarePiu) {
           var fuori = sospetti(testo);
           if (fuori.length) {
@@ -9073,7 +9429,8 @@ if (recognition) {
   // giorno non lo rivede mai piu'.
   var AVVISI = [
     { id:'invio',    k:'opAvvisoInvio', kd:'opAvvisoInvioD' },
-    { id:'profonda', k:'opAvvisoProf',  kd:'opAvvisoProfD'  }
+    { id:'profonda', k:'opAvvisoProf',  kd:'opAvvisoProfD'  },
+    { id:'ortografia', k:'opOrtografia', kd:'opOrtografiaD' }
   ];
   function avvisoSpento(id){
     try { return localStorage.getItem('aegis_no_' + id) === '1'; } catch(e) { return false; }
@@ -9416,6 +9773,55 @@ if (recognition) {
   };
 
   /* ---------- pannello di configurazione ---------- */
+  /* ETICHETTE INVENTATE DALL'UTENTE.
+     Si creano in un secondo dalla tendina del pennello, e prima non c'era
+     nessun modo di toglierle: restavano li' per sempre, anche quelle nate per
+     sbaglio o per prova. Qui si eliminano una per una o tutte insieme, e le
+     parole che stavano sotto quell'etichetta non si perdono: passano a "nomi",
+     cioe' restano coperte. Cancellare un'etichetta non deve mai scoprire un
+     dato. */
+  function righeEtichette(){
+    if (!categoriePersonali.size) return '<p class="ag-op-nota">' + T('opEtichetteVuoto') + '</p>';
+    var h = '<div class="ag-et-lista">';
+    categoriePersonali.forEach(function(c, id){
+      var quante = 0;
+      banditi.forEach(function(v){ if (v.cat === id) quante++; });
+      h += '<div class="ag-et-riga">' +
+             '<i style="background:' + c.colore + '"></i>' +
+             '<span class="ag-et-nome">' + esc(c.nome) + '</span>' +
+             (quante ? '<span class="ag-et-n">' + quante + '</span>' : '') +
+             '<button type="button" data-et="' + esc(id) + '" title="' + esc(c.nome) + '">&times;</button>' +
+           '</div>';
+    });
+    h += '</div><div class="ag-op-azioni" style="margin-top:8px">' +
+         '<button type="button" data-a="etichette-tutte">' + T('opEtichetteAzzera') + '</button></div>';
+    return h;
+  }
+
+  function eliminaEtichetta(id){
+    var c = categoriePersonali.get(id);
+    if (!c) return;
+    if (!confirm(T('confEtichetta', { v: c.nome }))) return;
+    categoriePersonali.delete(id);
+    banditi.forEach(function(v, testo){
+      if (v.cat === id) { v.cat = 'per'; if (v.tok) colorDi.set(v.tok, 'per'); banditi.set(testo, v); }
+    });
+    stileCategorie();
+    aggiorna();
+  }
+
+  function eliminaTutteLeEtichette(){
+    if (!categoriePersonali.size) return;
+    if (!confirm(T('confEtichetteTutte'))) return;
+    var ids = Array.from(categoriePersonali.keys());
+    categoriePersonali.clear();
+    banditi.forEach(function(v, testo){
+      if (ids.indexOf(v.cat) !== -1) { v.cat = 'per'; if (v.tok) colorDi.set(v.tok, 'per'); banditi.set(testo, v); }
+    });
+    stileCategorie();
+    aggiorna();
+  }
+
   function apriOpzioni(){
     var ov = document.createElement('div');
     ov.className = 'ag-avviso-ov';
@@ -9433,6 +9839,9 @@ if (recognition) {
             '<span><b>' + T('opRiempi') + '</b><i>' + T('opRiempiD') + '</i></span></label>' +
           '<label class="ag-op-riga"><input type="checkbox" id="op-riservato-auto"' + (autoRiservato ? ' checked' : '') + '>' +
             '<span><b>' + T('opSfoca') + '</b><i>' + T('opSfocaD') + '</i></span></label>' +
+        '</div>' +
+        '<div class="ag-op-sez"><h4>' + T('opEtichette') + '</h4>' +
+          righeEtichette() +
         '</div>' +
         '<div class="ag-op-sez"><h4>' + T('opDati') + '</h4>' +
           '<div class="ag-op-azioni">' +
@@ -9458,7 +9867,20 @@ if (recognition) {
     });
     ov.addEventListener('click', function(e){
       var b = e.target.closest('button'); if (!b) return;
+      if (b.getAttribute('data-et')) {
+        var idEt = b.getAttribute('data-et');
+        eliminaEtichetta(idEt);
+        var sez = b.closest('.ag-op-sez');
+        if (sez) sez.innerHTML = '<h4>' + T('opEtichette') + '</h4>' + righeEtichette();
+        return;
+      }
       var a = b.getAttribute('data-a');
+      if (a === 'etichette-tutte') {
+        eliminaTutteLeEtichette();
+        var sez2 = b.closest('.ag-op-sez');
+        if (sez2) sez2.innerHTML = '<h4>' + T('opEtichette') + '</h4>' + righeEtichette();
+        return;
+      }
       if (a === 'scelte') {
         if (confirm(T('confAzzera'))) {
           banditi.clear(); esclusi.clear(); aggiorna();
@@ -10518,6 +10940,12 @@ if (recognition) {
       campo.value = prima + testo.trim();
       campo.dispatchEvent(new Event('input', { bubbles: true }));
       campo.focus();
+      // Appena il documento e' dentro, si chiede una volta sola quali
+      // sequenze numeriche vanno coperte: e' il momento in cui l'utente ha
+      // ancora in testa che cos'e' ciascuna.
+      if (window.aegisControlloNumeri) {
+        setTimeout(function(){ window.aegisControlloNumeri(testo); }, 400);
+      }
       try { campo.setSelectionRange(campo.value.length, campo.value.length); } catch (e) {}
       stato((window.aegisT || function(k){return k;})('docFatto', { f: file.name, n: testo.trim().length.toLocaleString() }));
       setTimeout(function () { stato(''); }, 9000);
