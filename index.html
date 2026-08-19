@@ -4993,7 +4993,14 @@ if (recognition) {
   C('IT_CIE', {
     category: 'ID_STATALE', sub: 'carta_identita', token: 'DOCID', priority: 800, locale: ['it'],
     regex: '\\b[A-Z]{2}\\d{5}[A-Z]{2}\\b', confidence: 0.88,
-    anchors: { left: ['carta di identita', "carta d'identita", 'cie', 'documento di identita', 'carta identita'], right: [], window: 40 },
+    // Le ancore erano solo italiane: una carta d'identita' italiana citata in
+    // una lettera spagnola o inglese non veniva riconosciuta. Un documento
+    // straniero compare eccome in un testo scritto in un'altra lingua.
+    anchors: { left: ['carta di identita', "carta d'identita", 'cie', 'documento di identita',
+      'carta identita', 'documento di riconoscimento',
+      'documento de identidad', 'carta de identidad', 'carne de identidad',
+      'documento nacional de identidad italiano', 'identidad italiano',
+      'identity card', 'identity document', 'id card', 'id document'], right: [], window: 48 },
     hint: 'CIE formato CA00000AA (la v1 usava un formato inesistente)',
     pos: ['CA12345AB'], neg: ['AB123CD']
   });
@@ -5035,7 +5042,11 @@ if (recognition) {
   });
   C('PHONE_NATIONAL', {
     category: 'RECAPITI', sub: 'phone', token: 'PHONE', priority: 640, confidence: 0.82,
-    regex: '\\b(?:\\(\\d{2,4}\\)[ .\\-]?)?\\d{2,4}(?:[ .\\-]\\d{2,7}){1,4}\\b',
+    // Primo gruppo fino a CINQUE cifre: i prefissi mobili britannici e
+    // spagnoli ne hanno cinque ("07700 900123") e il numero restava scoperto
+    // perche' il gruppo si fermava a quattro e il confine di parola cadeva
+    // in mezzo alle cifre. Con l'ancora obbligatoria non allarga niente altro.
+    regex: '\\b(?:\\(\\d{2,4}\\)[ .\\-]?)?\\d{2,5}(?:[ .\\-]\\d{2,7}){1,4}\\b',
     anchors: { left: ['phone', 'tel', 'telephone', 'mobile', 'cell', 'fax', 'movil', 'telefono', 'cellulare', 'whatsapp', 'contact number',
       // "il mio numero e 335...": senza queste il telefono finiva nel secchio
       // generico dei numeri, con categoria e colore sbagliati
@@ -5043,6 +5054,19 @@ if (recognition) {
       'contattami', 'contattare', 'llamame', 'llamar', 'call me', 'reach me', 'recapito'], right: [], window: 26 },
     hint: 'anchorRequired: senza ancora catturerebbe P.IVA, date, importi (bug v1)',
     pos: ['(415) 555-0132', '06 1234 5678', '612 34 56 78'], neg: ['2024 2025']
+  });
+  C('PHONE_COMPACT', {
+    // "tel. 3391234567", "movil 611223344": i cellulari scritti senza spazi
+    // non li prendeva nessuno dei due pattern, perche' PHONE_NATIONAL pretende
+    // un separatore fra i gruppi. Restava un recapito in chiaro.
+    // Ancora obbligatoria: senza, prenderebbe importi e numeri di protocollo.
+    category: 'RECAPITI', sub: 'phone', token: 'PHONE', priority: 660, confidence: 0.82,
+    regex: '\\b\\d{9,11}\\b',
+    anchors: { left: ['phone', 'tel', 'telefono', 'telephone', 'mobile', 'cell', 'cellulare',
+      'movil', 'fax', 'whatsapp', 'numero', 'number', 'recapito', 'contacto', 'contatto',
+      'chiamami', 'llamame', 'call me'], right: [], window: 24 },
+    hint: 'anchorRequired: senza ancora prenderebbe importi, protocolli, matricole',
+    pos: ['3391234567', '611223344'], neg: ['2024']
   });
   D('SOCIAL_PROFILE_URL', {
     category: 'RECAPITI', sub: 'profile_url', token: 'PROFILE', priority: 720, confidence: 0.85,
@@ -5138,6 +5162,15 @@ if (recognition) {
     'sig', 'sig.ra', 'sig.na', 'dott', 'dott.ssa', 'avv', 'geom', 'rag', 'on', 'arch'];
   const NAME_INTRO = ['name', 'full name', 'first name', 'last name', 'surname', 'given name',
     'signed', 'signature', 'signed by', 'attention', 'attn', 'contact', 'patient', 'client',
+    // MITTENTE E FIRMA. L'elenco chiuso delle etichette non copriva il modo in
+    // cui una lettera formale presenta chi la scrive: "REMITENTE:" lasciava il
+    // nome dell'autore in chiaro. Queste voci sono la toppa immediata; la
+    // soluzione vera e' il riconoscimento della FORMA dell'etichetta
+    // (campiEtichettati), che vale per qualunque etichetta in qualunque lingua.
+    'remitente', 'remite', 'destinatario', 'emisor', 'expide', 'firmante',
+    'atentamente', 'un saludo', 'saludos', 'fdo', 'fdo.',
+    'mittente', 'firmatario', 'cordiali saluti', 'distinti saluti', 'in fede',
+    'sender', 'from', 'yours sincerely', 'yours faithfully', 'regards',
     'employee', 'applicant', 'holder', 'account holder', 'beneficiary', 'policyholder', 'dear',
     'nombre', 'apellidos', 'apellido', 'titular', 'firmado', 'firma', 'paciente', 'cliente',
     'empleado', 'solicitante', 'beneficiario', 'a la atencion de', 'estimado', 'estimada', 'nacido',
@@ -6019,6 +6052,106 @@ if (recognition) {
     (g.notNames || []).forEach(n => { GSET.not.add(n.toLowerCase()); GSET.notFold.add(sfoglia(n)); });
   })();
 
+  /* ================= LESSICO DI FREQUENZA (il freno che non si patcha) ======
+     Meta' del vocabolario di ogni lingua sta negli elenchi anagrafici:
+     "constancia", "terceros", "paredes", "zona" sono nomi o cognomi veri.
+     Sapere che una parola sta in un elenco di cognomi quindi non dice quasi
+     niente. Quello che decide e' il rapporto fra le due frequenze, che si
+     calcola una volta da corpus e non si aggiorna mai a mano.
+
+     Le liste di eccezioni scritte a mano (ambig, mai, excludeLower) restano
+     come rete di scorta: se gazetteer.js non e' stato caricato, il motore
+     torna a comportarsi come prima invece di aprire il rubinetto.
+
+     ATTENUAZIONE. Il peso misura "questa stringa e' una parola comune".
+     Quanto conta dipende da come la stringa e' USATA qui: dopo un'etichetta
+     esplicita quasi niente, in maiuscolo poco, in minuscolo e in mezzo alla
+     prosa moltissimo. E' la disambiguazione che prima non esisteva.
+     ======================================================================= */
+  let LEXSEG = null;              // segmentazione per lingua del testo in corso
+
+  function LEX() { return root.AEGIS_LEX || null; }
+
+  // Lingua del PARAGRAFO in cui cade la posizione: un indirizzo italiano
+  // dentro una lettera spagnola va pesato con il lessico italiano.
+  function linguaIn(pos) {
+    if (!LEXSEG) return LINGUA;
+    for (let i = 0; i < LEXSEG.length; i++) {
+      if (pos >= LEXSEG[i].start && pos < LEXSEG[i].end) return LEXSEG[i].lang || LINGUA;
+    }
+    return LINGUA;
+  }
+
+  // Vero se la posizione e' l'inizio di una frase: li' la maiuscola ce l'hanno
+  // tutte le parole, quindi non vale come indizio di nome proprio.
+  function inizioFrase(text, pos) {
+    for (let i = pos - 1; i >= 0 && i > pos - 60; i--) {
+      const c = text[i];
+      if (/\s/.test(c)) continue;
+      return /[.!?:;\u2022\u2013\u2014>|]/.test(c);
+    }
+    return true;
+  }
+
+  // Determinanti delle tre lingue. Non e' una lista di eccezioni che cresce:
+  // e' una classe chiusa e piccola, la stessa da secoli in ognuna delle tre.
+  const ARTICOLI = new Set([
+    'il','lo','la','i','gli','le','un','uno','una','dell','della','delle','degli',
+    'del','dei','al','alla','alle','ai','agli','nel','nella','nelle','nei','negli',
+    'dal','dalla','dalle','dai','sul','sulla','sulle','questo','questa','quel','quella',
+    'el','los','las','unos','unas','este','esta','ese','esa','aquel','aquella',
+    'the','a','an','this','that','these','those'
+  ]);
+
+  // Ritorna vero se subito prima della posizione c'e' un determinante.
+  // "il Consiglio", "la Giunta", "The Sunni": una parola maiuscola preceduta
+  // da un articolo e' un sostantivo con la maiuscola, non una persona. Un nome
+  // proprio, in queste tre lingue, l'articolo davanti non ce l'ha quasi mai.
+  function precedutoDaArticolo(text, start) {
+    const prima = text.slice(Math.max(0, start - 24), start);
+    const m = prima.match(/([A-Za-z\u00C0-\u024F']+)[\s'\u2019]+$/);
+    if (!m) return false;
+    return ARTICOLI.has(m[1].toLowerCase().replace(/['\u2019]$/, ''));
+  }
+
+  function pesoLessicale(text, start, value, ancora) {
+    const L = LEX();
+    if (!L) return 0;
+    const lang = linguaIn(start);
+    const base = L.pesoFrase(value, lang);
+    if (base >= 0) return base;             // sconosciuta alle tre lingue: indizio a favore
+    const parole = String(value).split(/\s+/).filter(Boolean);
+    const maiuscole = parole.filter(w => /^[A-Z\u00C0-\u00DE]/.test(w)).length;
+    const tuttoMaiuscolo = /[A-Z\u00C0-\u00DE]/.test(value) && !/[a-z\u00DF-\u00FF]/.test(value);
+    let attenua;
+    if (ancora)                                   attenua = 0.15;   // "Paziente: ..."
+    else if (tuttoMaiuscolo)                      attenua = 0.20;
+    // Una parola sola preceduta da un articolo: la maiuscola non vale niente,
+    // il peso della parola vale tutto. E' quello che toglieva di mezzo
+    // "il Consiglio", "la Giunta", "The Sunni Muslim".
+    else if (parole.length === 1 && precedutoDaArticolo(text, start)) attenua = 1.00;
+    // La maiuscola d'inizio frase spiega UNA parola, non due. "Mario Rossi ha
+    // firmato" non e' meno un nome per il fatto di aprire la frase: se si
+    // applica lo sconto anche alle sequenze, la coppia scende sotto soglia,
+    // vince il riconoscimento della singola parola e il nome di battesimo
+    // resta scoperto. Era una perdita, non un falso positivo.
+    else if (parole.length === 1 && inizioFrase(text, start)) attenua = 0.85;
+    // Una SEQUENZA di parole maiuscole e' gia' di per se' un indizio forte:
+    // il peso della lingua conta poco. "John Smith" e "Mario Rossi" sono fatti
+    // di parole comunissime nei corpora, ed erano finiti a un centesimo dalla
+    // soglia; e' la combinazione a distinguerli dalla prosa.
+    // Una parola sola con la maiuscola e' evidenza debole: la maiuscola la
+    // hanno anche i sostantivi istituzionali ("Consiglio", "Giunta") e gli
+    // etnonimi ("Muslim", "Iraqi"). Una SEQUENZA di parole maiuscole e' invece
+    // un indizio forte di per se': "John Smith" e "Mario Rossi" sono fatti di
+    // parole comunissime nei corpora e finivano a un centesimo dalla soglia.
+    else if (parole.length === 1)                 attenua = 0.40;
+    else if (maiuscole === parole.length)         attenua = 0.28;
+    else if (maiuscole > 0)                       attenua = 0.60;
+    else                                          attenua = 1.00;   // tutto minuscolo: e' la parola
+    return base * attenua;
+  }
+
   // sostituibile a runtime con i dataset ufficiali (ISTAT / INE / Census)
   function loadGazetteer(kind, words) {
     if (!GSET[kind]) GSET[kind] = new Set();
@@ -6079,8 +6212,10 @@ if (recognition) {
       }
       if (!value) return;
       if ((p.exclude.stop || []).some(s => s.toLowerCase() === value.toLowerCase())) return;
-      // voci che in minuscolo sono parole comuni (es. "como", "prato")
-      if (!PROFONDO && p.excludeLower && value === value.toLowerCase() &&
+      // voci che in minuscolo sono parole comuni (es. "como", "prato").
+      // Con il lessico caricato questa lista non serve piu': il peso lessicale
+      // fa lo stesso lavoro su TUTTE le parole, non sulle duecento previste.
+      if (!LEX() && !PROFONDO && p.excludeLower && value === value.toLowerCase() &&
           p.excludeLower.indexOf(value.toLowerCase()) !== -1) return;
       if ((p.exclude.regex || []).some(r => new RegExp(r).test(value))) return;
 
@@ -6153,12 +6288,18 @@ if (recognition) {
         // pretendere la maiuscola lo spegnerebbe del tutto.
         // La coppia in minuscolo e' minuscola per definizione: pretendere
         // l'iniziale maiuscola la scartava sempre.
-        if (!p.gazetteer.single && !p.gazetteer.pair && !PROFONDO) {
-          // Fino a due maiuscole iniziali: "MArio Rossi" resta una forma di nome,
-          // e' solo scritto male. Da tre in su e' tutto maiuscolo, e quello ha
-          // regole sue.
+        // Fino a due maiuscole iniziali: "MArio Rossi" resta una forma di nome,
+        // e' solo scritto male. Da tre in su e' tutto maiuscolo, e quello ha
+        // regole sue. NON e' piu' una porta chiusa: e' un indizio che pesa.
+        // Le porte chiuse sono il motivo per cui l'analisi profonda era un
+        // interruttore fra "non trova i nomi" e "maschera mezzo dizionario":
+        // l'unico modo di alzare la copertura era aprirle tutte insieme.
+        if (!p.gazetteer.single && !p.gazetteer.pair) {
           const formaNome = words.every(w => /^[A-Z\u00C0-\u00DE]{1,2}[^A-Z\u00C0-\u00DE]*$/.test(w));
-          if (!formaNome) return;
+          if (!formaNome) {
+            if (!LEX() && !PROFONDO) return;
+            conf -= 0.16;
+          }
         }
         conf += KB.modifiers.inGazetteer * Math.min(1, known.length / words.length);
       }
@@ -6172,6 +6313,26 @@ if (recognition) {
         if (pz.length === 1 && !/[A-Z]{2,}|&|\./.test(value) && GSET.ambig.has(pz[0].toLowerCase())) return;
       }
       if (p.category === 'PERSONA') {
+        // POSSESSIVO SASSONE. "Warren Buffett's decision": il riscontro
+        // arrivava con l'apostrofo attaccato, quindi non coincideva con il
+        // nome e finiva declassato a proposta invece di essere coperto.
+        {
+          const senzaPoss = value.replace(/['\u2019]s$/i, '');
+          if (senzaPoss !== value && senzaPoss.trim().length >= 3) {
+            value = senzaPoss; end = start + value.length;
+          }
+        }
+        // DETERMINANTE IN TESTA. "The Sunni Muslim", "Il Consiglio Regionale":
+        // un nome di persona non comincia con un articolo. Si taglia, non si
+        // scarta: se dopo l'articolo c'e' davvero un nome, resta coperto.
+        {
+          const pz = value.split(/\s+/);
+          if (pz.length > 1 && ARTICOLI.has(pz[0].toLowerCase())) {
+            const resto = pz.slice(1).join(' ');
+            const off = value.indexOf(resto);
+            if (off > 0) { start += off; value = resto; end = start + value.length; }
+          }
+        }
         // Nessuna persona si chiama "Il", "Las" o "The": le parole grammaticali
         // e le sigle di due lettere non sono nomi, in nessuna lingua.
         {
@@ -6261,14 +6422,67 @@ if (recognition) {
         }
       }
 
+      // DETERMINANTE DAVANTI. "The Sunni Muslim", "il Consiglio Regionale",
+      // "la Giunta": un sintagma nominale, non una persona. In italiano,
+      // spagnolo e inglese un nome proprio l'articolo davanti non ce l'ha
+      // quasi mai, e quando ce l'ha ("il Rossi") c'e' quasi sempre anche
+      // un'ancora. Non e' una lista che cresce: i determinanti sono una classe
+      // chiusa di trenta parole per lingua, ferma da secoli.
+      if (p.category === 'PERSONA' && !_hadAnchor && precedutoDaArticolo(text, start)) conf -= 0.20;
+
+      // PESO LESSICALE. Vale per i nomi e per tutto cio' che si regge sugli
+      // elenchi anagrafici: sono gli unici punti dove il motore rischia di
+      // scambiare una parola della lingua per un dato personale.
+      if (p.category === 'PERSONA' || p.gazetteer || p.category === 'LAVORO') {
+        conf += pesoLessicale(text, start, value, _hadAnchor);
+      }
+      // Un pattern fuori dalla lingua del documento non si spegne: pesa meno.
+      // Spegnerlo faceva sparire la carta d'identita' italiana citata dentro
+      // una lettera spagnola. Chi ha un calcolo di controllo non perde niente:
+      // e' quel documento in qualunque lingua sia il testo intorno.
+      if (FUORI_LINGUA && !p.validator) conf -= (_hadAnchor ? 0.03 : 0.12);
+
       conf = Math.max(0, Math.min(0.999, conf));
-      if (conf < level.threshold) return;
+
+      /* ---- TRE BANDE invece di una soglia sola --------------------------
+         mask    : si maschera, in silenzio, come sempre.
+         propose : NON si maschera; finisce nell'elenco che compare prima
+                   dell'invio, dove l'utente copre col singolo clic.
+         (sotto) : si scarta.
+         L'analisi profonda abbassa SOLO il confine del proposto: puo'
+         offrire di piu', non puo' mascherare di piu' di nascosto. E' la
+         differenza fra proporre e imporre. */
+      const sogliaMask = level.threshold;
+      const sogliaProp = sogliaMask - (PROFONDO ? 0.30 : 0.18);
+      if (conf < sogliaProp) return;
+      let banda = conf >= sogliaMask ? 'mask' : 'propose';
+
+      // REGOLA DI FONDO: l'evidenza puramente lessicale non maschera mai da
+      // sola. Elenchi anagrafici, nessuna ancora, nessuna maiuscola, nessun
+      // calcolo di controllo: due parole minuscole di fila che stanno negli
+      // elenchi sono "marcas existentes" tanto quanto "lucas cutrupi", e
+      // nessun punteggio puo' separarle. Quel caso si PROPONE.
+      if (p.gazetteer && !_hadAnchor && !/[A-Z\u00C0-\u00DE]/.test(value)) banda = 'propose';
+
+      // TERZA BANDA: il semplice segnale. Una proposta fatta solo di parole
+      // comuni della lingua del paragrafo, tutta minuscola, non merita di
+      // occupare una riga nell'elenco che l'utente deve leggere: si conta e
+      // basta. E' quello che tiene corto l'elenco delle proposte senza
+      // buttare via l'informazione.
+      if (banda === 'propose' && LEX() && !/[A-Z\u00C0-\u00DE]/.test(value)) {
+        const lg = linguaIn(start);
+        const tutteComuni = value.split(/\s+/).filter(Boolean).every(w => {
+          const f = LEX().fascia(w.replace(/[^A-Za-z\u00C0-\u024F']/g, ''), lg);
+          return f > 0 && f <= 3;
+        });
+        if (tutteComuni) banda = 'signal';
+      }
 
       found.push({
         patternId: p.id, category: p.category, sub: p.sub, token: p.token,
         start, end, value, confidence: conf, priority: p.priority,
         validated, sensitiveExtra: !!p.sensitiveExtra, metaKeep: p.metaKeep || null,
-        truncatable: !!p.truncatable
+        truncatable: !!p.truncatable, banda: banda, review: banda === 'propose'
       });
     };
 
@@ -6288,7 +6502,11 @@ if (recognition) {
     // modello e' attivo gli elenchi si fanno da parte, e con loro spariscono i
     // falsi positivi ("Software", "Medicina Interna"). Quando non c'e',
     // tornano in servizio: coprire troppo e' meglio che non coprire.
-    if (p.gazetteer && !p.gazetteer.pair && !PROFONDO && MODELLO_ATTIVO) return;
+    // Il modello NON spegne piu' gli elenchi. Sommare due fonti rumorose
+    // indipendenti riduce il rumore; sostituirne una con l'altra no, ed era il
+    // motivo per cui accendere il modello non migliorava niente di visibile.
+    // I falsi positivi degli elenchi ora li toglie il peso lessicale, non lo
+    // spegnimento.
     // COPPIA IN MINUSCOLO. Due parole adiacenti dove la prima e' un nome di
     // battesimo e la seconda un cognome: preso da solo un minuscolo e' troppo
     // rischioso, la coppia no. Si esclude comunque tutto cio' che e' parola
@@ -6346,20 +6564,31 @@ if (recognition) {
         let m;
         while ((m = TR.exec(text)) !== null) cache.toks.push({ s: m.index, w: m[0] });
       }
+      // Un'abbreviazione seguita da numeri non e' una persona: "Tel. 611223344",
+      // "Art. 5", "Pag. 12". Prima lo impediva per caso la lista degli ambigui.
+      const abbreviazione = (t, s2, w) => /^\.?\s*\d/.test(t.slice(s2 + w.length, s2 + w.length + 4));
       cache.toks.forEach(tk => {
         const lw = tk.w.toLowerCase();
-        if (!GSET.given.has(lw) && !GSET.family.has(lw)) return;
+        // UNA PAROLA SOLA DEVE ESSERE UN NOME DI BATTESIMO.
+        // I cognomi in elenco sono 136.000 e comprendono mezzo vocabolario di
+        // tre lingue: da soli, senza un nome accanto e senza un'etichetta che
+        // li introduca, non distinguono "Prieto" da "Tel" da "Costa". I nomi
+        // di battesimo sono 37.000 e sono una lista curata: quella regge.
+        // Un cognome isolato resta comunque coperto quando ha un'ancora
+        // ("Sig. Prieto") o un nome accanto ("Maria Prieto").
+        if (!GSET.given.has(lw)) return;
+        if (abbreviazione(text, tk.s, tk.w)) return;
         // Una parola sola che e' anche parola comune ("Paziente", "Referto",
         // "Rosa") non basta a fare una persona, nemmeno con la maiuscola: a
         // inizio frase ce l'hanno tutte. In coppia ("Rosa Bianchi") o dopo
         // un'etichetta la prendono gli altri pattern.
         if (GSET.mai.has(lw)) return;
-        // In modalita' profonda il freno sugli ambigui si toglie, ma non del
-        // tutto: passano solo i NOMI DI BATTESIMO ("pedro", "mike"), non i
-        // cognomi che sono anche parole comuni ("amigo", "casa", "costa",
-        // "duda", "friend"). E' la differenza fra coprire un nome e coprire
-        // mezza frase.
-        if (GSET.ambig.has(lw) && !(PROFONDO && GSET.given.has(lw))) return;
+        // La lista degli ambigui era il freno principale, ed era una lista di
+        // eccezioni scritta a mano: copriva bene l'italiano e l'inglese e
+        // quasi per niente lo spagnolo flesso ("terceros", "paredes",
+        // "llaves", "horas" non ci sono mai stati). Adesso frena il peso
+        // lessicale, che vale per tutte le parole di tutte e tre le lingue.
+        if (!LEX() && GSET.ambig.has(lw) && !(PROFONDO && GSET.given.has(lw))) return;
         if (GSET.not.has(lw) || GSET.notFold.has(lw.normalize('NFD').replace(/[\u0300-\u036f]/g,''))) return;
         push({ 0: tk.w, index: tk.s }, 0);
       });
@@ -6368,7 +6597,11 @@ if (recognition) {
       // nomi in qualche lingua del mondo. I nomi minuscoli veri vengono
       // riconosciuti dalla coppia nome+cognome e dalle etichette, che sono
       // segnali affidabili. Il resto e' compito dell'analisi profonda.
-      if (p.gazetteer.anyCase && PROFONDO) {
+      // Col lessico caricato il minuscolo non e' piu' un salto nel buio: una
+      // parola minuscola sconosciuta a tutte e tre le lingue e presente negli
+      // elenchi e' un nome, e viene proposta. Prima questo ramo esisteva solo
+      // in analisi profonda, cioe' insieme a tutto il resto dei freni tolti.
+      if (p.gazetteer.anyCase && (LEX() || PROFONDO)) {
         // "luigi" in minuscolo e' comunque un nome: la gente scrive cosi'.
         if (!cache.low) {
           cache.low = [];
@@ -6379,12 +6612,13 @@ if (recognition) {
         cache.low.forEach(tk => {
           const lw = tk.w.toLowerCase();
           if (tk.w !== lw) return;                       // gia' visto sopra
-          if (!GSET.given.has(lw) && !GSET.family.has(lw)) return;
+          if (!GSET.given.has(lw)) return;                 // vedi sopra: solo nomi
+          if (abbreviazione(text, tk.s, tk.w)) return;
           // Un nome che e' anche parola comune ("marco", "rossi", "rosa"),
           // scritto in minuscolo e da solo, NON si maschera: senza contesto e'
           // la parola. Con la maiuscola o in coppia lo prendono altri pattern.
           if (GSET.mai.has(lw)) return;
-          if (GSET.ambig.has(lw) && !(PROFONDO && GSET.given.has(lw))) return;
+          if (!LEX() && GSET.ambig.has(lw) && !(PROFONDO && GSET.given.has(lw))) return;
           if (GSET.not.has(lw) || GSET.notFold.has(lw.normalize('NFD').replace(/[\u0300-\u036f]/g,''))) return;
           push({ 0: tk.w, index: tk.s }, 0);
         });
@@ -6562,8 +6796,13 @@ if (recognition) {
 
   /* ---------------- quarantena (livello paranoia) ------------------- */
   const COMMON = new Set(('covid19 covid mp3 mp4 h264 utf8 base64 sha256 md5 iso9001 3d 2d 4k 1080p 720p a4 b2b b2c x86 x64 win10 win11 gpt4 gpt5 v1 v2 v3 v4 v5').split(' '));
+  // La quarantena prende i valori che HANNO LA FORMA di un identificativo ma
+  // non corrispondono a nessun documento conosciuto: "CA36042JZ" (carta
+  // d'identita' italiana) e' esattamente questo caso. Girava solo dai livelli
+  // alti in su, e li' mascherava d'ufficio. Adesso gira SEMPRE, ma sotto il
+  // livello che la considera certa entra come proposta: e' il modo di coprire
+  // i documenti stranieri senza scrivere un pattern per ogni paese del mondo.
   function quarantine(text, taken, level) {
-    if (!level.quarantine) return [];
     const q = KB.quarantine;
     const re = new RegExp(q.regex, 'g');
     const out = [];
@@ -6578,7 +6817,8 @@ if (recognition) {
       out.push({
         patternId: 'QUARANTINE', category: 'SCONOSCIUTO', sub: 'unclassified_id',
         token: q.token, start: s, end: e, value: m[0],
-        confidence: q.confidence, priority: q.priority, validated: null
+        confidence: q.confidence, priority: q.priority, validated: null,
+        banda: level.quarantine ? 'mask' : 'propose', review: !level.quarantine
       });
     }
     return out;
@@ -6651,6 +6891,69 @@ if (recognition) {
     return out;
   }
 
+  /* ============ CAMPI ETICHETTATI — la FORMA dell'etichetta ==========
+     L'elenco chiuso delle etichette ("mi chiamo", "Paziente:", "Sig.ra") e'
+     una toppa che cresce a ogni segnalazione: mancava "REMITENTE:" e il nome
+     dell'autore usciva in chiaro; domani manchera' "FIRMANTE:", "EXPIDE:",
+     "Absender:".
+
+     Qui si riconosce invece la STRUTTURA: una riga che comincia con
+     un'etichetta breve seguita da due punti e' un campo, e il valore di un
+     campo con etichetta SCONOSCIUTA e' un candidato di tipo ignoto. Non si
+     maschera d'ufficio - sarebbe l'errore opposto - si PROPONE.
+     Vale per qualunque etichetta, in qualunque delle tre lingue, senza
+     aggiungere una parola a nessun elenco.
+     ================================================================== */
+  const CAMPO_RE = /^[ \t]*([A-Za-z\u00C0-\u024F][A-Za-z\u00C0-\u024F .'\u2019\/-]{1,28})[ \t]*:[ \t]*(\S[^\n]{0,80})$/gm;
+
+  function campiEtichettati(text, taken, level) {
+    const out = [];
+    const occ = occupancy(text.length, taken);
+    const L = LEX();
+    CAMPO_RE.lastIndex = 0;
+    let m;
+    while ((m = CAMPO_RE.exec(text)) !== null) {
+      let val = m[2].replace(/[\s.,;]+$/, '');
+      if (!val || val.length < 3 || val.length > 60) continue;
+      // un valore fatto solo di parole comuni non e' un dato personale
+      const parole = val.split(/\s+/).filter(w => w.length > 1);
+      if (!parole.length || parole.length > 6) continue;
+      const s = m.index + m[0].indexOf(m[2], m[1].length);
+      const e = s + val.length;
+      if (s < 0 || e > text.length) continue;
+      let busy = false;
+      for (let i = s; i < e; i++) if (occ[i]) { busy = true; break; }
+      if (busy) continue;                              // gia' coperto da una regola
+      if (L) {
+        const lang = linguaIn(s);
+        // se TUTTE le parole del valore sono comuni nella lingua del
+        // paragrafo, e' prosa ("Asunto: reclamacion por ruidos"), non un dato
+        const tutteComuni = parole.every(w => {
+          const f = L.fascia(w.replace(/[^A-Za-z\u00C0-\u024F']/g, ''), lang);
+          return f > 0 && f <= 3;
+        });
+        if (tutteComuni) continue;
+      } else if (parole.every(w => GSET.mai.has(w.toLowerCase()) || GSET.not.has(w.toLowerCase()))) {
+        continue;
+      }
+      // un valore che e' quasi certamente una persona (sta negli elenchi) si
+      // presenta come persona; il resto come dato non classificato
+      const paiono = parole.filter(w => GSET.given.has(w.toLowerCase()) || GSET.family.has(w.toLowerCase()));
+      const persona = paiono.length >= Math.max(1, parole.length - 1) &&
+                      parole.some(w => GSET.given.has(w.toLowerCase()));
+      out.push({
+        patternId: 'FIELD_SHAPE', category: persona ? 'PERSONA' : 'SCONOSCIUTO',
+        sub: persona ? 'full_name' : 'unclassified_field',
+        token: persona ? 'PER' : (KB.quarantine ? KB.quarantine.token : 'ID'),
+        start: s, end: e, value: val,
+        confidence: Math.min(0.98, (level.threshold || 0.66) - 0.02 + (persona ? 0.12 : 0)),
+        priority: 470, validated: null,
+        banda: persona ? 'mask' : 'propose', review: !persona
+      });
+    }
+    return out;
+  }
+
   /* ---------------- API: protect ------------------------------------ */
   // Modalita' PROFONDA. Nella passata normale i nomi che sono anche parole
   // comuni ("rosa", "franco", "piccone", "marco") NON si mascherano da soli in
@@ -6661,14 +6964,15 @@ if (recognition) {
   let PROFONDO = false;
   let LINGUA = null;
   let MODELLO_ATTIVO = false;   // vero solo quando il motore contestuale gira
+  let FUORI_LINGUA = false;     // il pattern in corso non e' della lingua del testo
 
   function protect(rawText, opts) {
     opts = opts || {};
     PROFONDO = !!opts.profondo;
-    // LINGUA. Ogni pattern dichiara su quali lingue ha senso ("it", "es", "en",
-    // "*"). Il motore quel campo non lo leggeva: era metadato morto, e i
-    // pattern spagnoli giravano su testi italiani e viceversa. Se la lingua non
-    // e' nota si esegue tutto, come prima.
+    // LINGUA. Quella passata da fuori e' la lingua dell'INTERFACCIA, non del
+    // documento: un utente con l'interfaccia in italiano che incolla una
+    // lettera spagnola spegneva tutti i pattern spagnoli. Serve solo come
+    // ripiego; la lingua vera si legge dal testo, qui sotto.
     LINGUA = String(opts.language || '').toLowerCase().split('-')[0] || null;
     MODELLO_ATTIVO = !!opts.modelloAttivo;
     const level = KB.levels[opts.level || 'standard'];
@@ -6682,17 +6986,26 @@ if (recognition) {
     const folded = foldText(text);
     const anchorIdx = buildAnchorIndex(text, folded);
 
+    // LINGUA DEL DOCUMENTO, paragrafo per paragrafo. Un indirizzo italiano
+    // dentro una lettera spagnola viene pesato con il lessico italiano.
+    LEXSEG = null;
+    if (LEX()) {
+      const seg = LEX().segmenti(text);
+      LEXSEG = seg.segmenti;
+      if (seg.globale) LINGUA = seg.globale;
+    }
+
     let found = [];
     const cache = {};
     KB.patterns.forEach(p => {
       if (disabled.has(p.id)) return;
-      // Il filtro per lingua vale solo per i pattern che INDOVINANO. Un DNI
-      // spagnolo o un NHS britannico hanno un calcolo di controllo: sono
-      // quel documento in qualunque lingua sia scritto il testo intorno, e un
-      // cittadino straniero compare eccome in un referto italiano. Escluderli
-      // per lingua li faceva sparire del tutto.
-      if (LINGUA && p.locale && !p.validator && p.locale.indexOf('*') === -1 &&
-          p.locale.indexOf(LINGUA) === -1) return;
+      // LINGUA COME PESO, NON COME FILTRO. Spegnere un pattern perche' il
+      // testo intorno e' di un'altra lingua faceva sparire la carta
+      // d'identita' italiana citata dentro una lettera spagnola, e con essa
+      // ogni documento straniero. Adesso il pattern gira sempre e, se e' fuori
+      // lingua, il suo riscontro vale un po' meno (vedi FUORI_LINGUA in push).
+      FUORI_LINGUA = !!(LINGUA && p.locale && p.locale.indexOf('*') === -1 &&
+                        p.locale.indexOf(LINGUA) === -1);
       runPattern(foldedAnchors(p), text, anchorIdx, ctx, level, found, cache, folded);
     });
 
@@ -6710,6 +7023,7 @@ if (recognition) {
     const dyn = dynamicLexicon(text, Array.from(seenPer.values()), level, kept);
     kept = resolve(kept.concat(dyn));
     kept = resolve(kept.concat(quarantine(text, kept, level)));
+    kept = resolve(kept.concat(campiEtichettati(text, kept, level)));
     if (level.coverAll) kept = resolve(kept.concat(coverAll(text, kept)));
 
     // l'utente ha escluso questi valori dal mascheramento (falsi allarmi)
@@ -6726,6 +7040,26 @@ if (recognition) {
       });
     });
     kept = resolve(kept);
+
+    /* ---- SEPARAZIONE DELLE BANDE ------------------------------------
+       Tutto passa insieme da resolve(), cosi' le sovrapposizioni si
+       risolvono una volta sola: una proposta che si sovrappone a una
+       mascheratura sparisce da sola. Poi si divide: quello che si maschera
+       davvero e quello che si PROPONE all'utente prima dell'invio.
+       Le scelte manuali e i valori esclusi restano sempre nel primo gruppo. */
+    const proposte = [];
+    let segnalati = 0;
+    kept = kept.filter(m => {
+      if (m.patternId === 'MANUAL') return true;
+      if (m.banda === 'signal') { segnalati++; return false; }
+      if (m.banda !== 'propose') return true;
+      proposte.push(m);
+      return false;
+    });
+    // le piu' probabili in cima, e un tetto: un elenco di quaranta voci non
+    // lo legge nessuno, e un elenco che nessuno legge non protegge niente
+    proposte.sort((a, b) => b.confidence - a.confidence);
+    if (proposte.length > 24) { segnalati += proposte.length - 24; proposte.length = 24; }
 
     // Il valore memorizzato deve essere quello ORIGINALE, non il normalizzato:
     // altrimenti al ripristino tornano "-" al posto di "\u2013", virgolette
@@ -6761,8 +7095,22 @@ if (recognition) {
     }));
     vault.sort((a, b) => a.token.localeCompare(b.token));
 
+    // le proposte tornano in coordinate del testo ORIGINALE, come tutto il resto
+    const daProporre = [];
+    proposte.forEach(m => {
+      const s = norm.map[m.start], e = norm.map[m.end];
+      const orig = norm.source.slice(s, e) || m.value;
+      if (!orig) return;
+      daProporre.push({
+        value: orig, category: m.category, sub: m.sub, token: m.token,
+        start: s, end: e, patternId: m.patternId,
+        confidence: Math.round(m.confidence * 100) / 100
+      });
+    });
+
     return {
       text: out, vault, matches: kept, persons,
+      proposte: daProporre, segnalati: segnalati,
       contexts: ctx.map(c => c.id),
       stats: {
         entities: vault.length,
@@ -6927,12 +7275,18 @@ if (recognition) {
   var PROFONDA=false;
   try{ if(localStorage.getItem('aegis_profonda')==='1') PROFONDA=true; }catch(e){}
   function opzioni(){
-    var o = PROFONDA ? {level:'paranoid', profondo:true} : {level:LIVELLO};
+    // ANALISI PROFONDA. Prima passava a 'paranoid' E toglieva i freni: un
+    // interruttore fra "non trova i nomi" e "maschera mezzo dizionario".
+    // Adesso lascia il livello dov'e' e allarga SOLO la banda delle proposte:
+    // puo' offrire di piu' all'utente, non puo' mascherare di piu' di nascosto.
+    var o = PROFONDA ? {level:LIVELLO, profondo:true} : {level:LIVELLO};
     if (esclusi.size) o.excludedValues = Array.from(esclusi);
     o.modelloAttivo = !!(window.AEGIS_MODELLO && window.AEGIS_MODELLO.pronto);
-    // Il filtro per lingua esisteva ma non riceveva mai la lingua: i pattern
-    // spagnoli giravano su testo italiano e viceversa, e "Como" veniva presa
-    // per una citta' italiana in mezzo a una frase spagnola.
+    // Lingua dell'INTERFACCIA: serve solo come ripiego se il lessico di
+    // frequenza non e' stato caricato. La lingua che conta e' quella del
+    // DOCUMENTO, che il motore adesso legge dal testo, paragrafo per
+    // paragrafo: un utente con l'interfaccia in italiano che incolla una
+    // lettera spagnola non deve perdere i pattern spagnoli, e viceversa.
     try { o.language = activeLanguageCode || document.documentElement.lang || ''; } catch(e) {}
     return o;
   }
@@ -6949,6 +7303,32 @@ if (recognition) {
   // scelti a mano: l'utente deve poter distinguere cio' che ha deciso lui da
   // cio' che ha proposto il modello, e toglierle senza toccare le sue.
   var suggeriti = new Map();  // testo -> {cat}
+  // Le proposte del MOTORE A REGOLE (banda intermedia): non si mascherano,
+  // si mostrano prima dell'invio. Vengono aggiornate a ogni passata.
+  var ultimeProposte = [];
+  var ultimiSegnalati = 0;
+
+  // SOSTITUZIONE A CONFINI DI PAROLA.
+  // split(testo).join(...) sostituisce anche dentro un'altra parola: un
+  // suggerimento "Ana" mascherava la meta' di "Analisi" e di "Ananas".
+  // Per i valori che cominciano e finiscono con lettere si pretende che ai
+  // lati non ci sia un'altra lettera o cifra.
+  function sostituisciIntero(dove, ago, nuovo) {
+    if (!ago) return dove;
+    var alfa = /[A-Za-z\u00C0-\u024F0-9]/;
+    if (!alfa.test(ago[0]) && !alfa.test(ago[ago.length - 1])) return dove.split(ago).join(nuovo);
+    var out = '', i = 0;
+    while (true) {
+      var j = dove.indexOf(ago, i);
+      if (j === -1) { out += dove.slice(i); break; }
+      var pre = j > 0 ? dove[j - 1] : ' ';
+      var post = (j + ago.length) < dove.length ? dove[j + ago.length] : ' ';
+      var confine = !alfa.test(pre) && !alfa.test(post);
+      out += dove.slice(i, j) + (confine ? nuovo : ago);
+      i = j + ago.length;
+    }
+    return out;
+  }
   var vociAI = new Map();     // testo minuscolo -> codice gia' assegnato
   // ===== SEGNAPOSTO DELLA STESSA LUNGHEZZA DELL'ORIGINALE =====
   // "Saverio Boretti" (15 caratteri) non diventa "[[PER_01]]" (10) ma
@@ -7243,6 +7623,10 @@ if (recognition) {
     var r;
     try{ r=AEGIS.protect(testoPulito,opzioni()); }catch(e){ return {testo:testo,voci:[]}; }
     r = fondiNer(testoPulito, r);
+    // Banda intermedia: quello che il motore ha visto ma non ha voluto
+    // mascherare da solo. Non si tocca il testo; si mostra prima dell'invio.
+    ultimeProposte = (r.proposte || []).slice();
+    ultimiSegnalati = r.segnalati || 0;
     var out=r.text, voci=[], tmp={}, usati={}, assegnati=0;
     r.vault.forEach(function(v){
       var chiave=String(v.value).toLowerCase(), tok=null;
@@ -7300,7 +7684,7 @@ if (recognition) {
           }
           colorDi.set(tok, cat);
           if (congela && !vault.has(tok)) vault.set(tok, testo);
-          out = out.split(testo).join(vesti(tok, testo));
+          out = sostituisciIntero(out, testo, vesti(tok, testo));
           voci.push({tok:tok, col:cat});
         });
     }
@@ -8430,9 +8814,31 @@ if (recognition) {
       var trovati = await M.analizza(t);
       ultimoAnalizzato = t;
       var nuove = new Map();
+      /* IL PUNTEGGIO DEL MODELLO ADESSO CONTA.
+         Veniva calcolato in ricomponi() e poi ignorato: qualunque cosa
+         tornasse dal modello, con qualunque confidenza, diventava una
+         mascheratura. Adesso vota insieme alle regole:
+           - punteggio alto              -> si maschera
+           - punteggio medio             -> si maschera solo se la parola non
+                                            e' una parola comune della lingua
+           - parola comune e punteggio medio -> si lascia stare: sara' l'elenco
+                                            prima dell'invio a proporla
+         Nessuno ha l'ultima parola: ce l'ha solo un calcolo di controllo. */
+      var LX = window.AEGIS_LEX || null;
+      var lingua = LX ? LX.lingua(t) : null;
       trovati.forEach(function(x){
         // la decisione dell'utente vince sempre
         if (esclusi.has(x.valore) || banditi.has(x.valore)) return;
+        var pt = (typeof x.punteggio === 'number') ? x.punteggio : 1;
+        if (pt < 0.35) return;
+        if (pt < 0.75 && LX) {
+          var parole = String(x.valore).split(/\s+/).filter(Boolean);
+          var tutteComuni = parole.every(function(w){
+            var f = LX.fascia(w.replace(/[^A-Za-z\u00C0-\u024F']/g, ''), lingua);
+            return f > 0 && f <= 2;
+          });
+          if (tutteComuni) return;
+        }
         nuove.set(x.valore, { cat: x.cat });
       });
       var cambiato = (nuove.size !== suggeriti.size);
@@ -8457,30 +8863,26 @@ if (recognition) {
      ===================================================== */
   var nonAvvisarePiu = false;
 
+  /* ELENCO CHE COMPARE PRIMA DELL'INVIO.
+     Prima era una SECONDA passata del motore a livello 'paranoid' con i freni
+     tolti: produceva decine di parole comuni e l'utente doveva togliersele una
+     per una. Adesso non c'e' nessuna seconda passata: si legge la banda
+     intermedia della PRIMA, cioe' esattamente cio' che il motore ha visto ma
+     non ha ritenuto abbastanza sicuro da mascherare da solo.
+     E' la differenza fra proporre e imporre, e costa zero millisecondi. */
   function sospetti(testo){
     var fuori = [];
     try {
-      var coperto = maschera(String(testo), false).testo;
-      RX_PIENO.lastIndex = 0;
-      var pulito = coperto.replace(RX_PIENO, ' ');
-      var r = AEGIS.protect(pulito, { level:'paranoid', profondo:true });
+      maschera(String(testo), false);            // aggiorna ultimeProposte
       var visti = {};
-      (r.vault || []).forEach(function(v){
-        var val = String(v.value).trim();
+      ultimeProposte.forEach(function(pr){
+        var val = String(pr.value).trim();
         if (val.length < 3) return;
-        if (esclusi.has(val)) return;              // l'utente l'ha gia' deciso
-        // La passata profonda, per come e' fatta, prende anche parole comuni
-        // in minuscolo ("paziente", "vive"). In un avviso che deve essere
-        // preso sul serio quelle sono rumore: si tengono solo le cose che
-        // hanno l'aspetto di un dato, cioe' piu' parole insieme oppure una
-        // parola con l'iniziale maiuscola.
-        var piuParole = /\s/.test(val);
-        var maiuscola = /^[A-Z\u00C0-\u00DE]/.test(val);
-        if (!piuParole && !maiuscola) return;
-        if (/^[A-Z]{1,3}$/.test(val)) return;      // sigle: CF, PEC, RMN
+        if (esclusi.has(val) || banditi.has(val)) return;   // l'utente ha gia' deciso
+        if (/^[A-Z]{1,3}$/.test(val)) return;               // sigle: CF, PEC, RMN
         if (visti[val.toLowerCase()]) return;
         visti[val.toLowerCase()] = 1;
-        fuori.push({ valore: val, cat: colore(v.token) || 'per' });
+        fuori.push({ valore: val, cat: colore(pr.token) || 'per' });
       });
     } catch (e) {}
     return fuori;
@@ -10494,13 +10896,52 @@ if (recognition) {
     return unici;
   }
 
+  /* SUDDIVISIONE DEL TESTO.
+     Il modello ha una finestra di 512 token: su un documento di 4.000
+     caratteri tutto quello che sta oltre la meta' NON veniva analizzato, e
+     nessuno se ne accorgeva perche' sui testi brevi di prova funzionava. Era
+     il motivo per cui accendere il modello "non migliorava in modo evidente".
+     Si taglia su fine riga o fine frase, con una sovrapposizione che impedisce
+     a un nome di finire spezzato esattamente sul taglio. */
+  var PEZZO = 900, SOVRAPPOSIZIONE = 120;
+
+  function spezza(t) {
+    if (t.length <= PEZZO) return [{ testo: t, off: 0 }];
+    var out = [], i = 0;
+    while (i < t.length) {
+      var fine = Math.min(t.length, i + PEZZO);
+      if (fine < t.length) {
+        var taglio = -1;
+        var finestra = t.slice(fine - 200, fine);
+        var mfin = finestra.lastIndexOf('\n');
+        if (mfin === -1) mfin = Math.max(finestra.lastIndexOf('. '), finestra.lastIndexOf('; '));
+        if (mfin !== -1) taglio = fine - 200 + mfin + 1;
+        if (taglio > i + 200) fine = taglio;
+      }
+      out.push({ testo: t.slice(i, fine), off: i });
+      if (fine >= t.length) break;
+      i = Math.max(i + 1, fine - SOVRAPPOSIZIONE);
+    }
+    return out;
+  }
+
   async function analizza(testo) {
     if (stato !== 'pronto' || !motore) return [];
     var t = String(testo || '');
     if (t.trim().length < 3) return [];
     try {
       var a = performance.now();
-      var pezzi = await motore(t);
+      var blocchi = spezza(t);
+      var pezzi = [];
+      for (var bi = 0; bi < blocchi.length; bi++) {
+        var res = await motore(blocchi[bi].testo);
+        var off = blocchi[bi].off;
+        (res || []).forEach(function (x) {
+          if (typeof x.start === 'number') x.start += off;
+          if (typeof x.end === 'number') x.end += off;
+          pezzi.push(x);
+        });
+      }
       var fuori = ricomponi(pezzi, t);
       // Diagnosi: senza questa riga non c'e' modo di sapere se il motore sta
       // girando davvero, se e' lento, o se sta trovando zero.
