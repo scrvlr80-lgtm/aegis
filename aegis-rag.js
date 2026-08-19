@@ -1,5 +1,5 @@
 /* =============================================================================
-   AEGIS — BASE DI CONOSCENZA  (aegis-rag.js)
+   AEGIS — SKILLS  (aegis-rag.js)
    -----------------------------------------------------------------------------
    Documenti che l'utente carica una volta e che il modello puo' consultare a
    ogni domanda, senza doverli rileggere per intero a ogni chiamata.
@@ -156,11 +156,48 @@
       nome: String(nome || 'documento').slice(0, 120),
       ts: Date.now(),
       caratteri: grezzo.length,
+      attiva: true,
       testo: grezzo,                       // in chiaro: vedi la nota in testa
       pezzi: indicizza(spezza(grezzo))
     };
     await salvaDoc(doc);
     return doc;
+  }
+
+  // Cambia il titolo, lasciando il contenuto dov'e'.
+  async function rinomina(id, titolo) {
+    var d = await leggi(id);
+    if (!d) return null;
+    d.nome = String(titolo || d.nome).slice(0, 120);
+    await salvaDoc(d);
+    return d;
+  }
+
+  // Sostituisce il documento: il vecchio indice sparisce insieme al vecchio
+  // testo, non resta mai un indice che punta a qualcosa che non c'e' piu'.
+  async function sostituisci(id, testoGrezzo, titolo) {
+    var d = await leggi(id);
+    if (!d) return null;
+    var grezzo = String(testoGrezzo || '').trim();
+    if (!grezzo) throw new Error('niente da salvare');
+    d.testo = grezzo;
+    d.caratteri = grezzo.length;
+    d.pezzi = indicizza(spezza(grezzo));
+    d.ts = Date.now();
+    if (titolo) d.nome = String(titolo).slice(0, 120);
+    await salvaDoc(d);
+    return d;
+  }
+
+  // ACCESA O SPENTA. Una Skill spenta resta in archivio ma non viene
+  // consultata: serve quando ce ne sono diverse e si vuole che il modello
+  // guardi solo quella giusta, senza doverla cancellare e ricaricare.
+  async function attiva(id, acceso) {
+    var d = await leggi(id);
+    if (!d) return null;
+    d.attiva = !!acceso;
+    await salvaDoc(d);
+    return d;
   }
 
   // Il documento e il suo indice se ne vanno insieme: stanno nella stessa riga
@@ -173,7 +210,7 @@
   // modo perche' gli stessi termini ricevano gli stessi codici senza doverli
   // riconciliare, e cio' che non si riconcilia non puo' sbagliarsi.
   async function contesto(domanda) {
-    var docs = await tutti();
+    var docs = (await tutti()).filter(function (d) { return d.attiva !== false; });
     if (!docs.length) return '';
     var trovati = cerca(domanda, docs, MAX_PEZZI);
     if (!trovati.length) return '';
@@ -185,7 +222,7 @@
     var d = await tutti();
     return d.sort(function (a, b) { return b.ts - a.ts; }).map(function (x) {
       return { id: x.id, nome: x.nome, ts: x.ts, caratteri: x.caratteri,
-               pezzi: (x.pezzi || []).length };
+               attiva: x.attiva !== false, pezzi: (x.pezzi || []).length };
     });
   }
   async function leggi(id) {
@@ -213,6 +250,9 @@
 
   root.AEGIS_RAG = {
     aggiungi: aggiungi,
+    rinomina: rinomina,
+    sostituisci: sostituisci,
+    attiva: attiva,
     elimina: elimina,
     svuota: svuotaTutto,
     elenco: elenco,
