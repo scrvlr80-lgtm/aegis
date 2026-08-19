@@ -7814,7 +7814,24 @@ if (recognition) {
       provMotore:'Trovato dal motore',
       provEntrambi:'Trovato dalle regole e dal motore',
       opEtichette:'Etichette che hai creato tu',
-      ragTitolo:'Base di conoscenza',
+      ragTitolo:'Pannello Skills',
+      skSalva:'Salva come Skill',
+      skElenco:'Skills salvate',
+      skVuoto:'Nessuna Skill. Quello che salvi qui il modello lo sa a ogni domanda.',
+      skChiaro:'Documento in chiaro',
+      skSpecchio:'Cio\u0027 che ricevera\u0027 il modello',
+      skRinomina:'Cambia titolo',
+      skSostituisci:'Sostituisci documento',
+      skApri:'Apri nel pannello',
+      skAttiva:'Attiva',
+      skDisattiva:'Disattiva',
+      skEsporta:'Esporta il testo protetto',
+      skCancella:'Elimina Skill',
+      skNuovoTitolo:'Nuovo titolo della Skill:',
+      skConfCancella:'Elimino la Skill "{v}"?\n\nIl documento e il suo indice se ne vanno insieme.',
+      skSpenta:'spenta',
+      skSalvata:'Salvata.',
+      skVuotoTesto:'Non c\u0027e\u0027 niente da salvare.',
       ragApri:'Apri la base di conoscenza',
       ragDesc:'Documenti che il modello puo\u0027 consultare a ogni domanda, senza rileggerli per intero ogni volta. Restano su questo dispositivo e vengono protetti al momento dell\u0027invio, con gli stessi codici della conversazione.',
       ragIncolla:'Incolla qui il testo, oppure trascina un documento',
@@ -7959,7 +7976,24 @@ if (recognition) {
       provMotore:'Encontrado por el motor',
       provEntrambi:'Encontrado por las reglas y por el motor',
       opEtichette:'Etiquetas creadas por ti',
-      ragTitolo:'Base de conocimiento',
+      ragTitolo:'Panel Skills',
+      skSalva:'Guardar como Skill',
+      skElenco:'Skills guardadas',
+      skVuoto:'Ninguna Skill. Lo que guardes aqui el modelo lo sabe en cada pregunta.',
+      skChiaro:'Documento en claro',
+      skSpecchio:'Lo que recibira el modelo',
+      skRinomina:'Cambiar titulo',
+      skSostituisci:'Sustituir documento',
+      skApri:'Abrir en el panel',
+      skAttiva:'Activar',
+      skDisattiva:'Desactivar',
+      skEsporta:'Exportar el texto protegido',
+      skCancella:'Eliminar Skill',
+      skNuovoTitolo:'Nuevo titulo de la Skill:',
+      skConfCancella:'Elimino la Skill "{v}"?\n\nEl documento y su indice se van juntos.',
+      skSpenta:'apagada',
+      skSalvata:'Guardada.',
+      skVuotoTesto:'No hay nada que guardar.',
       ragApri:'Abrir la base de conocimiento',
       ragDesc:'Documentos que el modelo puede consultar en cada pregunta, sin releerlos enteros cada vez. Se quedan en este dispositivo y se protegen al enviar, con los mismos codigos de la conversacion.',
       ragIncolla:'Pega aqui el texto, o arrastra un documento',
@@ -8104,7 +8138,24 @@ if (recognition) {
       provMotore:'Found by the engine',
       provEntrambi:'Found by both the rules and the engine',
       opEtichette:'Labels you created',
-      ragTitolo:'Knowledge base',
+      ragTitolo:'Skills panel',
+      skSalva:'Save as Skill',
+      skElenco:'Saved Skills',
+      skVuoto:'No Skills yet. Whatever you save here, the model knows on every question.',
+      skChiaro:'Document in the clear',
+      skSpecchio:'What the model will receive',
+      skRinomina:'Rename',
+      skSostituisci:'Replace document',
+      skApri:'Open in the panel',
+      skAttiva:'Enable',
+      skDisattiva:'Disable',
+      skEsporta:'Export the protected text',
+      skCancella:'Delete Skill',
+      skNuovoTitolo:'New Skill title:',
+      skConfCancella:'Delete the Skill "{v}"?\n\nThe document and its index go together.',
+      skSpenta:'off',
+      skSalvata:'Saved.',
+      skVuotoTesto:'There is nothing to save.',
       ragApri:'Open the knowledge base',
       ragDesc:'Documents the model can consult on every question, without rereading them in full each time. They stay on this device and are protected at send time, with the same codes as the conversation.',
       ragIncolla:'Paste the text here, or drop a document',
@@ -8317,6 +8368,59 @@ if (recognition) {
       '.ag-prov i{width:7px;height:7px;border-radius:50%;display:block}' +
       '.ag-p-reg{background:var(--text-light)}' +
       '.ag-p-mot{border:1.5px solid var(--accent);background:transparent;box-sizing:border-box}' +
+      '.ag-sk-ov{position:fixed;inset:0;z-index:3200;background:var(--primary);' +
+        'display:flex;flex-direction:column;font-family:Inter,sans-serif}' +
+      '.ag-sk-testa{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:10px 16px;' +
+        'flex:none;border-bottom:1px solid var(--hairline);background:var(--primary)}' +
+      '.ag-sk-testa h3{margin:0 10px 0 0;font-size:12px;font-weight:700;letter-spacing:.06em;' +
+        'text-transform:uppercase;color:var(--text-light);white-space:nowrap}' +
+      '.ag-sk-testa .ag-ia{flex:0 0 auto}' +
+      '.ag-sk-sp{flex:1 1 auto}' +
+      '.ag-sk-corpo{flex:1 1 auto;min-height:0;display:flex;gap:14px;padding:14px;box-sizing:border-box}' +
+      '.ag-sk-sx{flex:0 0 25%;min-width:210px;max-width:330px;display:flex;flex-direction:column;' +
+        'gap:12px;min-height:0}' +
+      '.ag-sk-riq{display:flex;flex-direction:column;min-height:0;border:1px solid var(--hairline);' +
+        'border-radius:14px;background:var(--console-bg);overflow:hidden}' +
+      '.ag-sk-riq > h4{margin:0;padding:11px 14px;font-size:9.5px;letter-spacing:.06em;flex:none;' +
+        'text-transform:uppercase;color:var(--text-light);border-bottom:1px solid var(--hairline)}' +
+      '.ag-sk-voci{flex:1 1 auto;min-height:0;overflow-y:auto;padding:10px 12px 14px}' +
+      '.ag-sk-lista{flex:0 0 auto;max-height:34vh;overflow-y:auto;padding:6px}' +
+      '.ag-sk-cx,.ag-sk-dx{flex:1 1 0;min-width:0;display:flex;flex-direction:column;min-height:0}' +
+      '.ag-sk-vista{flex:1 1 auto;min-height:0;overflow:auto;padding:14px;' +
+        'font-family:SF Mono,ui-monospace,Menlo,monospace;font-size:12.5px;line-height:1.85;' +
+        'white-space:pre-wrap;word-break:break-word}' +
+      '.ag-sk-dx textarea{flex:1 1 auto;min-height:0;border:none;outline:none;resize:none;' +
+        'background:transparent;color:var(--text-main);font-family:SF Mono,ui-monospace,Menlo,monospace;' +
+        'font-size:12.5px;line-height:1.85;padding:14px;width:100%;box-sizing:border-box}' +
+      '.ag-sk-barra{flex:none;display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px}' +
+      '.ag-sk-barra input[type=text]{flex:1 1 180px;min-width:0;border:1px solid var(--hairline);' +
+        'border-radius:9px;padding:8px 11px;font-family:inherit;font-size:12px;' +
+        'background:var(--console-bg);color:var(--text-main);outline:none}' +
+      '.ag-sk-barra input[type=text]:focus{border-color:var(--accent)}' +
+      '.ag-sk-msg{font-size:11.5px;color:var(--text-light);flex:1 1 100%;min-height:15px}' +
+      '.ag-sk-msg.ko{color:var(--c-per)}' +
+      '.ag-sk-doc{display:flex;align-items:flex-start;gap:6px;padding:8px 9px;border-radius:9px;' +
+        'cursor:pointer;position:relative}' +
+      '.ag-sk-doc:hover{background:rgba(0,0,0,.04)}' +
+      '.ag-sk-doc.on{background:rgba(0,113,227,.08)}' +
+      '.ag-sk-doc.spenta{opacity:.5}' +
+      '.ag-sk-doc .pal{width:7px;height:7px;border-radius:50%;background:var(--c-addr);' +
+        'flex:none;margin-top:5px}' +
+      '.ag-sk-doc.spenta .pal{background:var(--hairline)}' +
+      '.ag-sk-doc .nm{flex:1;min-width:0;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;' +
+        'white-space:nowrap}' +
+      '.ag-sk-doc .dt{display:block;font-size:10px;color:var(--text-light);margin-top:2px}' +
+      '.ag-sk-doc .pt{border:none;background:transparent;color:var(--text-light);cursor:pointer;' +
+        'font-size:16px;line-height:1;padding:0 3px;flex:none}' +
+      '.ag-sk-doc .pt:hover{color:var(--accent)}' +
+      '.ag-sk-menu{position:fixed;z-index:3300;min-width:212px;background:var(--primary);' +
+        'border:1px solid var(--hairline);border-radius:11px;padding:5px;' +
+        'box-shadow:0 10px 34px rgba(0,0,0,.18);font-family:Inter,sans-serif}' +
+      '.ag-sk-menu button{display:block;width:100%;text-align:left;border:none;background:transparent;' +
+        'cursor:pointer;font-family:inherit;font-size:12px;color:var(--text-main);' +
+        'padding:8px 10px;border-radius:7px}' +
+      '.ag-sk-menu button:hover{background:var(--console-bg)}' +
+      '.ag-sk-menu button.rosso{color:var(--c-per)}' +
       '.ag-rag-ov{position:fixed;inset:0;z-index:3200;background:var(--primary);' +
         'display:flex;flex-direction:column;font-family:Inter,sans-serif}' +
       '.ag-rag-testa{display:flex;align-items:center;gap:12px;padding:14px 20px;flex:none;' +
@@ -8495,8 +8599,10 @@ if (recognition) {
     return true;
   }
 
-  function disegnaColonna(){
-    var corpo = document.getElementById('ag-voci-corpo');
+  // Il pannello Skills ha le stesse tre schede: si passa il contenitore
+  // invece di duplicare quaranta righe che poi andrebbero tenute allineate.
+  function disegnaColonna(dove){
+    var corpo = dove || document.getElementById('ag-voci-corpo');
     if (!corpo) return;
     // raccolgo i valori attualmente coperti, raggruppati per categoria
     var gruppi = {};
@@ -8668,7 +8774,7 @@ if (recognition) {
       if (e.target.closest && e.target.closest('.ag-voci')) return;
       // con il pennello acceso: un tocco prende la parola intera
       if (pennelloAcceso) {
-        var dentro = e.target.closest && e.target.closest('.ag-lista, .ag-anteprima, .chat-messages');
+        var dentro = e.target.closest && e.target.closest('.ag-lista, .ag-anteprima, .chat-messages, #ag-sk-specchio');
         if (dentro) {
           var pos = document.caretRangeFromPoint ? document.caretRangeFromPoint(e.clientX, e.clientY) : null;
           if (pos && pos.startContainer && pos.startContainer.nodeType === 3) {
@@ -8706,7 +8812,7 @@ if (recognition) {
         var testo = sel ? String(sel).trim() : '';
         if (!testo || testo.length < 2 || testo.length > 90 || /\n/.test(testo)) return;
         var nodo = sel.anchorNode && sel.anchorNode.parentElement;
-        if (!nodo || !nodo.closest('.ag-lista, .ag-anteprima, .chat-messages')) return;
+        if (!nodo || !nodo.closest('.ag-lista, .ag-anteprima, .chat-messages, #ag-sk-specchio')) return;
         if (/^@[a-z]{1,3}\d{1,3}[a-z]?@$/.test(testo)) return;
         tendina(testo, sel.getRangeAt(0).getBoundingClientRect());
       }, 10);
@@ -9930,163 +10036,344 @@ if (recognition) {
     aggiorna();
   }
 
-  /* ================= BASE DI CONOSCENZA =================
-     Si apre a schermo intero: e' un lavoro di lettura, non una finestrella. Si
-     chiude e l'interfaccia torna esattamente com'era, perche' non tocca niente
-     di quello che c'e' sotto: e' un elemento sovrapposto e basta.
+  /* ================= PANNELLO SKILLS =================
+     E' il pannello di Aegis, con lo stesso lavoro dentro: tre colonne, le
+     stesse tre schede, gli stessi strumenti in testa, la stessa legenda. Non
+     e' una somiglianza voluta per estetica: e' letteralmente lo stesso codice
+     (maschera, disegnaColonna, coloraToken, il pennello), perche' un secondo
+     percorso di mascheratura andrebbe alla deriva dal primo, ed e' il difetto
+     che abbiamo gia' pagato due volte.
 
-     A sinistra i documenti gia' dentro. A destra si scrive o si trascina, e
-     sotto compare l'ANTEPRIMA con gli stessi colori dello specchio: si vede
-     quali parole andranno in archivio gia' coperte, PRIMA di premere il
-     pulsante. Nessun rilevamento nuovo: e' AEGIS.protect, lo stesso motore.
-     ====================================================== */
-  var ragSel = null;
+     Cambia una cosa sola, ed e' quella che conta: in fondo, al posto di
+     "Invia", c'e' "Salva come Skill". Il testo invece di partire verso il
+     modello resta qui, e il modello lo consulta a ogni domanda.
 
-  function ragCarica() { return (window.AEGIS_RAG) ? Promise.resolve(window.AEGIS_RAG) : new Promise(function(ok, ko){
-    var t = document.createElement('script');
-    t.src = 'aegis-rag.js';
-    t.onload = function(){ ok(window.AEGIS_RAG); };
-    t.onerror = function(){ ko(new Error('aegis-rag.js non caricato')); };
-    document.head.appendChild(t);
-  }); }
+     Il documento si archivia IN CHIARO e viene protetto al momento dell'invio,
+     con la stessa funzione e lo stesso vault della conversazione: cosi' gli
+     stessi termini ricevono gli stessi codici per costruzione, senza niente da
+     riconciliare. Lo specchio al centro mostra fin da subito che cosa uscira'.
+     ==================================================== */
+  var skSel = null;     // Skill aperta nel pannello
+  var skTesto = '';
 
-  async function apriRag(){
+  function skCarica() {
+    return window.AEGIS_RAG ? Promise.resolve(window.AEGIS_RAG) : new Promise(function (ok, ko) {
+      var t = document.createElement('script');
+      t.src = 'aegis-rag.js';
+      t.onload = function () { ok(window.AEGIS_RAG); };
+      t.onerror = function () { ko(new Error('aegis-rag.js')); };
+      document.head.appendChild(t);
+    });
+  }
+
+  function skMenu(id, dati, rect, R, ridisegna, apriNelPannello) {
+    var vecchio = document.getElementById('ag-sk-menu');
+    if (vecchio) vecchio.remove();
+    var m = document.createElement('div');
+    m.id = 'ag-sk-menu';
+    m.className = 'ag-sk-menu';
+    m.innerHTML =
+      '<button type="button" data-a="apri">' + T('skApri') + '</button>' +
+      '<button type="button" data-a="rinomina">' + T('skRinomina') + '</button>' +
+      '<button type="button" data-a="sostituisci">' + T('skSostituisci') + '</button>' +
+      '<button type="button" data-a="attiva">' +
+        (dati.attiva === false ? T('skAttiva') : T('skDisattiva')) + '</button>' +
+      '<button type="button" data-a="esporta">' + T('skEsporta') + '</button>' +
+      '<button type="button" class="rosso" data-a="cancella">' + T('skCancella') + '</button>';
+    document.body.appendChild(m);
+    var l = Math.max(8, Math.min(rect.left - 180, window.innerWidth - m.offsetWidth - 10));
+    var t = rect.bottom + 6;
+    if (t + m.offsetHeight > window.innerHeight - 8) t = Math.max(8, rect.top - m.offsetHeight - 6);
+    m.style.left = l + 'px'; m.style.top = t + 'px';
+
+    m.addEventListener('click', async function (e) {
+      var b = e.target.closest('button'); if (!b) return;
+      var a = b.getAttribute('data-a');
+      m.remove();
+      if (a === 'apri') { apriNelPannello(id); return; }
+      if (a === 'rinomina') {
+        var t2 = prompt(T('skNuovoTitolo'), dati.nome || '');
+        if (t2 === null) return;
+        await R.rinomina(id, t2.trim().slice(0, 120));
+        await ridisegna(); return;
+      }
+      if (a === 'attiva') { await R.attiva(id, dati.attiva === false); await ridisegna(); return; }
+      if (a === 'cancella') {
+        if (!confirm(T('skConfCancella', { v: dati.nome }))) return;
+        await R.elimina(id);
+        if (skSel === id) skSel = null;
+        await ridisegna(); return;
+      }
+      if (a === 'esporta') {
+        var d = await R.leggi(id);
+        if (!d) return;
+        // si esporta il testo PROTETTO: e' quello che esce davvero da qui
+        var protetto = maschera(d.testo, false).testo;
+        var url = URL.createObjectURL(new Blob([protetto], { type: 'text/plain;charset=utf-8' }));
+        var a2 = document.createElement('a');
+        a2.href = url; a2.download = (d.nome || 'skill') + '.protetto.txt';
+        a2.click();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+        return;
+      }
+      if (a === 'sostituisci') {
+        var f = document.createElement('input');
+        f.type = 'file';
+        f.accept = '.pdf,.docx,.txt,.md,.csv,.json,.log,.rtf,.png,.jpg,.jpeg,.webp';
+        f.onchange = async function () {
+          var file = f.files && f.files[0];
+          if (!file || !window.AEGIS_DOC) return;
+          try {
+            var testo = await window.AEGIS_DOC.estrai(file);
+            await R.sostituisci(id, testo);
+            await ridisegna();
+            apriNelPannello(id);
+          } catch (err) { alert(err && err.message); }
+        };
+        f.click();
+      }
+    });
+    setTimeout(function () {
+      document.addEventListener('click', function via() {
+        var x = document.getElementById('ag-sk-menu');
+        if (x) x.remove();
+        document.removeEventListener('click', via);
+      }, { once: true });
+    }, 0);
+  }
+
+  async function apriSkills() {
     var R;
-    try { R = await ragCarica(); }
+    try { R = await skCarica(); }
     catch (e) { alert('aegis-rag.js: ' + (e && e.message)); return; }
 
     var ov = document.createElement('div');
-    ov.className = 'ag-rag-ov';
+    ov.className = 'ag-sk-ov';
     ov.innerHTML =
-      '<div class="ag-rag-testa">' +
+      '<div class="ag-sk-testa">' +
         '<h3>' + T('ragTitolo') + '</h3>' +
-        '<button type="button" class="ag-ia" data-a="svuota">' + T('ragSvuota') + '</button>' +
-        '<button type="button" class="ag-ia" data-a="chiudi">' + T('ragChiudi') + '</button>' +
+        '<button type="button" class="ag-ia" id="ag-sk-pennello">' + T('pennello') + '</button>' +
+        '<button type="button" class="ag-ia" id="ag-sk-profonda">' +
+          (PROFONDA ? T('profondaOn') : T('profonda')) + '</button>' +
+        '<button type="button" class="ag-ia" id="ag-sk-riservato">' +
+          (riservato ? T('riservatoOn') : T('riservato')) + '</button>' +
+        '<button type="button" class="ag-toggle ag-toggle-sp' + (codiciAccesi ? ' on' : '') +
+          '" id="ag-sk-hl"><span class="ag-dot"></span><span class="ag-lbl">' +
+          (codiciAccesi ? T('evidOn') : T('evidOff')) + '</span></button>' +
+        '<span class="ag-sk-sp"></span>' +
+        '<button type="button" class="ag-ia" id="ag-sk-chiudi">' + T('ragChiudi') + '</button>' +
       '</div>' +
-      '<div class="ag-rag-corpo">' +
-        '<div class="ag-rag-sx"><h4>' + T('ragTitolo') + '</h4>' +
-          '<div class="ag-rag-elenco" id="ag-rag-elenco"></div></div>' +
-        '<div class="ag-rag-dx">' +
-          '<div class="ag-rag-campo"><textarea id="ag-rag-testo" placeholder="' + T('ragIncolla') + '"></textarea></div>' +
-          '<div class="ag-rag-campo" style="flex:1 1 auto"><h4 style="margin:0;padding:10px 14px;' +
-            'font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-light);' +
-            'border-bottom:1px solid var(--hairline)">' + T('ragAnteprima') + '</h4>' +
-            '<div class="ag-rag-vista" id="ag-rag-vista"></div></div>' +
-          '' +
-          '<div class="ag-rag-msg" id="ag-rag-msg"></div>' +
-          '<div class="ag-rag-barra">' +
-            '<input type="text" id="ag-rag-nome" placeholder="' + T('ragNome') + '" maxlength="120">' +
-            '<button type="button" class="ag-ia" data-a="file">' + T('ragCarica') + '</button>' +
-            '<button type="button" class="ag-ia" data-a="aggiungi">' + T('ragAggiungi') + '</button>' +
+      '<div class="ag-sk-corpo">' +
+        '<div class="ag-sk-sx">' +
+          '<div class="ag-sk-riq" style="flex:1 1 auto">' +
+            '<div class="ag-voci-testa">' +
+              '<button type="button" class="ag-tab" data-s="default">' + T('tabDefault') + '</button>' +
+              '<button type="button" class="ag-tab" data-s="aggiunte">' + T('tabAggiunte') + '</button>' +
+              '<button type="button" class="ag-tab" data-s="rimosse">' + T('tabRimosse') + '</button>' +
+            '</div>' +
+            '<div class="ag-sk-voci" id="ag-sk-voci"></div>' +
+          '</div>' +
+          '<div class="ag-sk-riq" style="flex:0 0 auto">' +
+            '<h4>' + T('skElenco') + '</h4>' +
+            '<div class="ag-sk-lista" id="ag-sk-lista"></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="ag-sk-cx">' +
+          '<div class="ag-sk-riq" style="flex:1 1 auto">' +
+            '<h4>' + T('skSpecchio') + '</h4>' +
+            '<div class="ag-sk-vista" id="ag-sk-specchio"></div>' +
+            '<div class="ag-legenda" id="ag-sk-legenda">' +
+              CATEGORIE.map(function (c) {
+                return '<span data-g="' + c.id + '"><i class="ag-' + c.id + '"></i>' + T(c.k) + '</span>';
+              }).join('') +
+              '<span data-g="__tutti" class="ag-tutti"><i class="ag-arcobaleno"></i>' + T('tutti') + '</span>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="ag-sk-dx">' +
+          '<div class="ag-sk-riq" style="flex:1 1 auto">' +
+            '<h4>' + T('skChiaro') + '</h4>' +
+            '<textarea id="ag-sk-testo" placeholder="' + T('ragIncolla') + '"></textarea>' +
+          '</div>' +
+          '<div class="ag-sk-barra">' +
+            '<div class="ag-sk-msg" id="ag-sk-msg"></div>' +
+            '<input type="text" id="ag-sk-nome" placeholder="' + T('ragNome') + '" maxlength="120">' +
+            '<button type="button" class="ag-ia" id="ag-sk-file">' + T('ragCarica') + '</button>' +
+            '<button type="button" class="ag-ia" id="ag-sk-salva">' + T('skSalva') + '</button>' +
           '</div>' +
         '</div>' +
       '</div>';
     document.body.appendChild(ov);
 
-    var area = ov.querySelector('#ag-rag-testo');
-    var vista = ov.querySelector('#ag-rag-vista');
-    var msg = ov.querySelector('#ag-rag-msg');
-    var nome = ov.querySelector('#ag-rag-nome');
+    var area = ov.querySelector('#ag-sk-testo');
+    var specchio = ov.querySelector('#ag-sk-specchio');
+    var msg = ov.querySelector('#ag-sk-msg');
+    var nome = ov.querySelector('#ag-sk-nome');
+    var voci = ov.querySelector('#ag-sk-voci');
 
-    function dimmi(t, ko){ msg.textContent = t || ''; msg.classList.toggle('ko', !!ko); }
+    function dimmi(t, ko) { msg.textContent = t || ''; msg.classList.toggle('ko', !!ko); }
 
-    /* L'anteprima mostra il testo COM'E'. Non c'e' nessun rilevamento qui:
-       il documento si archivia in chiaro e viene mascherato al momento
-       dell'invio, dallo stesso passaggio che tratta cio' che l'utente scrive.
-       Una mascheratura in meno e' un posto in meno dove le copie possono
-       andare alla deriva, ed e' il difetto che abbiamo gia' pagato due volte. */
-    function anteprimaRag(){
-      vista.textContent = area.value;
-      dimmi(area.value.trim() ? T('ragCaratteri', { n: area.value.trim().length.toLocaleString() }) : '');
+    // LO SPECCHIO. Stessa funzione della chat, stesso vault, stessi colori:
+    // quello che si legge qui e' quello che il modello ricevera'.
+    function rispecchia() {
+      skTesto = area.value;
+      if (!skTesto.trim()) { specchio.innerHTML = ''; disegnaColonna(voci); return; }
+      valoriPreview.clear();
+      var r = maschera(skTesto, false);
+      specchio.innerHTML = '<div class="ag-bolla ag-user ag-ghost">' + coloraToken(r.testo) + '</div>';
+      dimmi(T('ragCaratteri', { n: skTesto.trim().length.toLocaleString() }));
+      disegnaColonna(voci);
     }
     var attesa;
-    area.addEventListener('input', function(){ clearTimeout(attesa); attesa = setTimeout(anteprimaRag, 180); });
+    area.addEventListener('input', function () {
+      clearTimeout(attesa); attesa = setTimeout(rispecchia, 160);
+    });
 
-    async function ridisegna(){
-      var el = ov.querySelector('#ag-rag-elenco');
+    // Le tre schede sono le stesse della chat: cambiano schedaAttiva, che e'
+    // globale, cosi' chiudendo il pannello si ritrova quella che si aveva.
+    ov.querySelector('.ag-voci-testa').addEventListener('click', function (e) {
+      var b = e.target.closest('.ag-tab'); if (!b) return;
+      schedaAttiva = b.getAttribute('data-s');
+      ov.querySelectorAll('.ag-tab').forEach(function (x) { x.classList.toggle('on', x === b); });
+      disegnaColonna(voci);
+    });
+    ov.querySelectorAll('.ag-tab').forEach(function (x) {
+      x.classList.toggle('on', x.getAttribute('data-s') === schedaAttiva);
+    });
+
+    // Legenda: accende e spegne i gruppi, esattamente come nella chat.
+    ov.querySelector('#ag-sk-legenda').addEventListener('click', function (e) {
+      var sp = e.target.closest('span[data-g]'); if (!sp) return;
+      var g = sp.getAttribute('data-g');
+      if (g === '__tutti') {
+        var accesi = CATEGORIE.some(function (c) { return !gruppiSpenti[c.id]; });
+        CATEGORIE.forEach(function (c) { gruppiSpenti[c.id] = accesi; });
+        ov.querySelectorAll('#ag-sk-legenda span[data-g]').forEach(function (x) {
+          x.classList.toggle('ag-spento', accesi);
+        });
+      } else {
+        gruppiSpenti[g] = !gruppiSpenti[g];
+        sp.classList.toggle('ag-spento', !!gruppiSpenti[g]);
+      }
+      rispecchia();
+    });
+
+    async function ridisegnaSkill() {
+      var el = ov.querySelector('#ag-sk-lista');
       var lista = await R.elenco();
-      if (!lista.length) { el.innerHTML = '<div class="ag-voci-vuoto">' + T('ragVuoto') + '</div>'; return; }
-      el.innerHTML = lista.map(function(d){
-        return '<div class="ag-rag-doc' + (ragSel === d.id ? ' on' : '') + '" data-id="' + d.id + '">' +
+      if (!lista.length) { el.innerHTML = '<div class="ag-voci-vuoto">' + T('skVuoto') + '</div>'; return; }
+      el.innerHTML = lista.map(function (d) {
+        return '<div class="ag-sk-doc' + (skSel === d.id ? ' on' : '') +
+               (d.attiva === false ? ' spenta' : '') + '" data-id="' + d.id + '">' +
+          '<span class="pal"></span>' +
           '<span class="nm">' + esc(d.nome) +
-            '<span class="dt">' + T('ragPezzi', { n: d.pezzi }) + ' \u00b7 ' +
-            T('ragCaratteri', { n: (d.caratteri || 0).toLocaleString() }) + '</span></span>' +
-          '<button type="button" data-el="' + d.id + '" title="' + T('ragElimina') + '">&times;</button></div>';
+            '<span class="dt">' + T('ragPezzi', { n: d.pezzi }) +
+            (d.attiva === false ? ' \u00b7 ' + T('skSpenta') : '') + '</span></span>' +
+          '<button type="button" class="pt" data-menu="' + d.id + '">\u22ee</button></div>';
       }).join('');
     }
-    await ridisegna();
 
-    ov.addEventListener('click', async function(e){
-      var bEl = e.target.closest('button[data-el]');
-      if (bEl) {
-        var id = bEl.getAttribute('data-el');
-        var d = await R.leggi(id);
-        if (d && confirm(T('ragConfElimina', { v: d.nome }))) { await R.elimina(id); await ridisegna(); }
+    async function apriNelPannello(id) {
+      var d = await R.leggi(id);
+      if (!d) return;
+      skSel = id;
+      area.value = d.testo || '';
+      nome.value = d.nome || '';
+      rispecchia();
+      await ridisegnaSkill();
+    }
+
+    await ridisegnaSkill();
+    rispecchia();
+
+    ov.addEventListener('click', async function (e) {
+      var pt = e.target.closest('button[data-menu]');
+      if (pt) {
+        e.stopPropagation();
+        var id = pt.getAttribute('data-menu');
+        var dati = await R.leggi(id);
+        if (dati) skMenu(id, dati, pt.getBoundingClientRect(), R, ridisegnaSkill, apriNelPannello);
         return;
       }
-      var doc = e.target.closest('.ag-rag-doc');
-      if (doc) {
-        ragSel = doc.getAttribute('data-id');
-        var dd = await R.leggi(ragSel);
-        if (dd) {
-          vista.textContent = dd.testo;
-          dimmi(T('ragCaratteri', { n: (dd.caratteri || 0).toLocaleString() }));
-        }
-        await ridisegna();
+      var doc = e.target.closest('.ag-sk-doc');
+      if (doc) { apriNelPannello(doc.getAttribute('data-id')); return; }
+
+      var b = e.target.closest('button'); if (!b) return;
+      if (b.id === 'ag-sk-chiudi') {
+        ov.remove();
+        valoriPreview.clear();
+        aggiorna();
         return;
       }
-      var b = e.target.closest('button[data-a]'); if (!b) return;
-      var a = b.getAttribute('data-a');
-      if (a === 'chiudi') { ov.remove(); return; }
-      if (a === 'svuota') {
-        if (!confirm(T('ragConfSvuota'))) return;
-        await R.svuota(); ragSel = null; vista.innerHTML = ''; await ridisegna(); return;
+      if (b.id === 'ag-sk-pennello') { accendiPennello(b); return; }
+      if (b.id === 'ag-sk-riservato') { riservatezza(!riservato); b.textContent = riservato ? T('riservatoOn') : T('riservato'); return; }
+      if (b.id === 'ag-sk-hl') {
+        codiciAccesi = !codiciAccesi;
+        b.classList.toggle('on', codiciAccesi);
+        var l = b.querySelector('.ag-lbl');
+        if (l) l.textContent = codiciAccesi ? T('evidOn') : T('evidOff');
+        rispecchia();
+        return;
       }
-      if (a === 'file') {
+      if (b.id === 'ag-sk-profonda') {
+        if (!PROFONDA && !avvisoSpento('profonda')) { if (!(await spiegaProfonda())) return; }
+        PROFONDA = !PROFONDA;
+        try {
+          if (PROFONDA) localStorage.setItem('aegis_profonda', '1');
+          else localStorage.removeItem('aegis_profonda');
+        } catch (err) {}
+        b.textContent = PROFONDA ? T('profondaOn') : T('profonda');
+        b.classList.toggle('ag-pronto', PROFONDA);
+        rispecchia();
+        return;
+      }
+      if (b.id === 'ag-sk-file') {
         var f = document.createElement('input');
         f.type = 'file';
         f.accept = '.pdf,.docx,.txt,.md,.csv,.json,.log,.rtf,.png,.jpg,.jpeg,.webp';
-        f.onchange = async function(){
+        f.onchange = async function () {
           var file = f.files && f.files[0];
-          if (!file) return;
+          if (!file || !window.AEGIS_DOC) return;
           dimmi('\u2026');
           try {
-            var testo = await window.AEGIS_DOC.estrai(file);
-            area.value = testo;
-            if (!nome.value) nome.value = file.name;
-            anteprimaRag();
+            area.value = await window.AEGIS_DOC.estrai(file);
+            if (!nome.value) nome.value = file.name.replace(/\.[a-z0-9]+$/i, '');
+            skSel = null;
+            rispecchia();
           } catch (err) { dimmi(err && err.message, true); }
         };
         f.click();
         return;
       }
-      if (a === 'aggiungi') {
+      if (b.id === 'ag-sk-salva') {
         var t = area.value.trim();
-        if (!t) return;
+        if (!t) { dimmi(T('skVuotoTesto'), true); return; }
         b.disabled = true;
         try {
-          await R.aggiungi(nome.value || 'documento', t);
-          area.value = ''; nome.value = ''; vista.innerHTML = '';
-          dimmi('');
-          await ridisegna();
-        } catch (err) {
-          dimmi(err && err.message, true);
-        } finally { b.disabled = false; }
+          if (skSel) await R.sostituisci(skSel, t, nome.value.trim());
+          else {
+            var d = await R.aggiungi(nome.value.trim() || t.split('\n')[0].slice(0, 60), t);
+            skSel = d.id;
+          }
+          dimmi(T('skSalvata'));
+          await ridisegnaSkill();
+        } catch (err) { dimmi(err && err.message, true); }
+        finally { b.disabled = false; }
       }
     });
 
-    // trascinamento del documento direttamente nel riquadro
-    ['dragover','drop'].forEach(function(ev){
-      ov.addEventListener(ev, function(e){ e.preventDefault(); });
+    ['dragover', 'drop'].forEach(function (ev) {
+      ov.addEventListener(ev, function (e) { e.preventDefault(); });
     });
-    ov.addEventListener('drop', async function(e){
+    ov.addEventListener('drop', async function (e) {
       var file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
       if (!file || !window.AEGIS_DOC) return;
       dimmi('\u2026');
       try {
         area.value = await window.AEGIS_DOC.estrai(file);
-        if (!nome.value) nome.value = file.name;
-        anteprimaRag();
+        if (!nome.value) nome.value = file.name.replace(/\.[a-z0-9]+$/i, '');
+        skSel = null;
+        rispecchia();
       } catch (err) { dimmi(err && err.message, true); }
     });
   }
@@ -10148,7 +10435,7 @@ if (recognition) {
         return;
       }
       var a = b.getAttribute('data-a');
-      if (a === 'rag') { ov.remove(); apriRag(); return; }
+      if (a === 'rag') { ov.remove(); apriSkills(); return; }
       if (a === 'etichette-tutte') {
         eliminaTutteLeEtichette();
         var sez2 = b.closest('.ag-op-sez');
