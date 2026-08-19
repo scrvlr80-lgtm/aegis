@@ -6433,7 +6433,22 @@ if (recognition) {
       // PESO LESSICALE. Vale per i nomi e per tutto cio' che si regge sugli
       // elenchi anagrafici: sono gli unici punti dove il motore rischia di
       // scambiare una parola della lingua per un dato personale.
+      // Vale per i nomi, per i luoghi e per tutto cio' che si regge sugli
+      // elenchi: sono gli unici punti dove il motore rischia di scambiare una
+      // parola della lingua per un dato personale. I LUOGHI erano rimasti
+      // fuori, e siccome il lessico disattiva la vecchia lista excludeLower,
+      // "como" tornava a essere la citta' di Como in mezzo a una frase
+      // spagnola: il freno vecchio spento e quello nuovo non ancora collegato.
       if (p.category === 'PERSONA' || p.gazetteer || p.category === 'LAVORO') {
+        conf += pesoLessicale(text, start, value, _hadAnchor);
+      }
+      // LUOGHI. Qui il problema e' solo il MINUSCOLO: "como", "prato", "cuenca"
+      // sono parole comuni prima che citta'. "Madrid" e "Milano" con la
+      // maiuscola sono citta' e basta, e affossarle col peso della lingua le
+      // faceva scendere sotto soglia. Era esattamente il lavoro della vecchia
+      // lista excludeLower, che il lessico spegne: qui lo riprende, ma su tutte
+      // le parole delle tre lingue invece che sulle duecento previste a mano.
+      else if ((p.category === 'LUOGO' || p.excludeLower) && value === value.toLowerCase()) {
         conf += pesoLessicale(text, start, value, _hadAnchor);
       }
       // Un pattern fuori dalla lingua del documento non si spegne: pesa meno.
