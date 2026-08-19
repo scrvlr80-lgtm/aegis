@@ -3612,7 +3612,18 @@ body {
         currentAbortController = new AbortController();
         try {
             if (window.aegisProntoPerInvio) { try { await window.aegisProntoPerInvio(text); } catch(e){} }
-            const memoriaCorta = window.aegisMaskHistory ? window.aegisMaskHistory(conversationHistory.slice(-8)) : conversationHistory.slice(-8);
+            // BASE DI CONOSCENZA. Il contesto arriva gia' protetto e gia' con i
+            // codici di QUESTA conversazione: il modulo lo riconcilia col vault
+            // prima di consegnarlo. Passa comunque da aegisMaskHistory come
+            // tutto il resto, perche' non esistono percorsi privilegiati.
+            let memoriaCorta = window.aegisMaskHistory ? window.aegisMaskHistory(conversationHistory.slice(-8)) : conversationHistory.slice(-8);
+            if (window.aegisPreparaContesto) {
+                try {
+                    const ctx = await window.aegisPreparaContesto(text);
+                    if (ctx) memoriaCorta = [{ role: 'system',
+                        content: 'CONOSCENZA DI RIFERIMENTO fornita dall\'utente. Usala se pertinente; i codici tra doppie parentesi o fra chiocciole sono dati protetti, riusali identici.\n\n' + ctx }].concat(memoriaCorta);
+                } catch (e) {}
+            }
             const response = await fetch('https://chatbot-backend-dev.onrender.com/api/chat', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ model: MODELO_ACTUAL(), local_id: LOCAL_ID, language: activeLanguageCode, messages: memoriaCorta, temperature: 0.7, session_id: currentSessionId, user_email: (safeStorage.getSession('chat_user_email') || null), access_password: getAccessPassword() }),
@@ -7803,6 +7814,26 @@ if (recognition) {
       provMotore:'Trovato dal motore',
       provEntrambi:'Trovato dalle regole e dal motore',
       opEtichette:'Etichette che hai creato tu',
+      ragTitolo:'Base di conoscenza',
+      ragApri:'Apri la base di conoscenza',
+      ragDesc:'Documenti che il modello puo\u0027 consultare a ogni domanda, senza rileggerli per intero ogni volta. Restano su questo dispositivo e vengono protetti al momento dell\u0027invio, con gli stessi codici della conversazione.',
+      ragIncolla:'Incolla qui il testo, oppure trascina un documento',
+      ragNome:'Nome del documento',
+      ragAggiungi:'Aggiungi alla base',
+      ragCarica:'Apri un file',
+      ragVuoto:'Nessun documento. Quello che aggiungi qui il modello lo sa sempre.',
+      ragElimina:'Elimina',
+      ragSvuota:'Svuota la base di conoscenza',
+      ragChiudi:'Chiudi',
+      ragAnteprima:'Contenuto del documento',
+      ragConfElimina:'Elimino "{v}"?\n\nIl documento e il suo indice se ne vanno insieme, compresa la corrispondenza fra codici e dati reali.',
+      ragConfSvuota:'Elimino tutti i documenti della base di conoscenza?',
+      ragPezzi:'{n} pezzi',
+      ragCaratteri:'{n} caratteri',
+      cellTitolo:'Aegis funziona su computer',
+      cellCosa:'Aegis sostituisce i tuoi dati personali con codici dentro il browser, PRIMA che il messaggio raggiunga il modello linguistico. Nomi, indirizzi, date, telefoni, email, IBAN e documenti non lasciano il tuo dispositivo, e tornano al loro posto nella risposta.',
+      cellPerche:'La versione per telefono non e\u0027 ancora pronta: il riquadro che mostra cosa parte davvero e\u0027 il cuore del prodotto, e su uno schermo stretto non si legge. Preferiamo non dartelo piuttosto che dartelo a meta\u0027.',
+      cellInvito:'Aprilo da un computer: scrvlr80-lgtm.github.io/aegis',
       opEtichetteVuoto:'Non ne hai ancora create. Le crei dalla tendina del pennello.',
       opEtichetteAzzera:'Elimina tutte le etichette',
       confEtichetta:'Elimino l\u0027etichetta "{v}"?\n\nLe parole coperte sotto questa etichetta passano a "nomi".',
@@ -7928,6 +7959,26 @@ if (recognition) {
       provMotore:'Encontrado por el motor',
       provEntrambi:'Encontrado por las reglas y por el motor',
       opEtichette:'Etiquetas creadas por ti',
+      ragTitolo:'Base de conocimiento',
+      ragApri:'Abrir la base de conocimiento',
+      ragDesc:'Documentos que el modelo puede consultar en cada pregunta, sin releerlos enteros cada vez. Se quedan en este dispositivo y se protegen al enviar, con los mismos codigos de la conversacion.',
+      ragIncolla:'Pega aqui el texto, o arrastra un documento',
+      ragNome:'Nombre del documento',
+      ragAggiungi:'Anadir a la base',
+      ragCarica:'Abrir un archivo',
+      ragVuoto:'Ningun documento. Lo que anadas aqui el modelo lo sabe siempre.',
+      ragElimina:'Eliminar',
+      ragSvuota:'Vaciar la base de conocimiento',
+      ragChiudi:'Cerrar',
+      ragAnteprima:'Contenido del documento',
+      ragConfElimina:'Elimino "{v}"?\n\nEl documento y su indice se van juntos, incluida la correspondencia entre codigos y datos reales.',
+      ragConfSvuota:'Elimino todos los documentos de la base de conocimiento?',
+      ragPezzi:'{n} fragmentos',
+      ragCaratteri:'{n} caracteres',
+      cellTitolo:'Aegis funciona en ordenador',
+      cellCosa:'Aegis sustituye tus datos personales por codigos dentro del navegador, ANTES de que el mensaje llegue al modelo de lenguaje. Nombres, direcciones, fechas, telefonos, correos, IBAN y documentos no salen de tu dispositivo, y vuelven a su sitio en la respuesta.',
+      cellPerche:'La version para movil todavia no esta lista: el recuadro que ensena lo que sale de verdad es el corazon del producto, y en una pantalla estrecha no se lee. Preferimos no darte una version a medias.',
+      cellInvito:'Abrelo desde un ordenador: scrvlr80-lgtm.github.io/aegis',
       opEtichetteVuoto:'Aun no has creado ninguna. Se crean desde el desplegable del pincel.',
       opEtichetteAzzera:'Eliminar todas las etiquetas',
       confEtichetta:'Elimino la etiqueta "{v}"?\n\nLas palabras ocultas bajo esta etiqueta pasan a "nombres".',
@@ -8053,6 +8104,26 @@ if (recognition) {
       provMotore:'Found by the engine',
       provEntrambi:'Found by both the rules and the engine',
       opEtichette:'Labels you created',
+      ragTitolo:'Knowledge base',
+      ragApri:'Open the knowledge base',
+      ragDesc:'Documents the model can consult on every question, without rereading them in full each time. They stay on this device and are protected at send time, with the same codes as the conversation.',
+      ragIncolla:'Paste the text here, or drop a document',
+      ragNome:'Document name',
+      ragAggiungi:'Add to the base',
+      ragCarica:'Open a file',
+      ragVuoto:'No documents yet. Whatever you add here, the model always knows.',
+      ragElimina:'Delete',
+      ragSvuota:'Empty the knowledge base',
+      ragChiudi:'Close',
+      ragAnteprima:'Document content',
+      ragConfElimina:'Delete "{v}"?\n\nThe document and its index go together, including the mapping between codes and real values.',
+      ragConfSvuota:'Delete every document in the knowledge base?',
+      ragPezzi:'{n} chunks',
+      ragCaratteri:'{n} characters',
+      cellTitolo:'Aegis runs on a computer',
+      cellCosa:'Aegis replaces your personal data with codes inside the browser, BEFORE the message reaches the language model. Names, addresses, dates, phone numbers, emails, IBANs and identity documents never leave your device, and reappear in place in the reply.',
+      cellPerche:'The phone version is not ready yet: the panel that shows what actually gets sent is the heart of this product, and on a narrow screen it cannot be read. We would rather not give you half of it.',
+      cellInvito:'Open it on a computer: scrvlr80-lgtm.github.io/aegis',
       opEtichetteVuoto:'You have not created any yet. You create them from the brush menu.',
       opEtichetteAzzera:'Delete every label',
       confEtichetta:'Delete the label "{v}"?\n\nWords masked under it move to "names".',
@@ -8246,6 +8317,43 @@ if (recognition) {
       '.ag-prov i{width:7px;height:7px;border-radius:50%;display:block}' +
       '.ag-p-reg{background:var(--text-light)}' +
       '.ag-p-mot{border:1.5px solid var(--accent);background:transparent;box-sizing:border-box}' +
+      '.ag-rag-ov{position:fixed;inset:0;z-index:3200;background:var(--primary);' +
+        'display:flex;flex-direction:column;font-family:Inter,sans-serif}' +
+      '.ag-rag-testa{display:flex;align-items:center;gap:12px;padding:14px 20px;flex:none;' +
+        'border-bottom:1px solid var(--hairline)}' +
+      '.ag-rag-testa h3{margin:0;font-size:13px;font-weight:700;letter-spacing:.05em;' +
+        'text-transform:uppercase;color:var(--text-light);flex:1}' +
+      '.ag-rag-corpo{flex:1 1 auto;min-height:0;display:flex;gap:16px;padding:16px;box-sizing:border-box}' +
+      '.ag-rag-sx{flex:0 0 280px;display:flex;flex-direction:column;min-height:0;' +
+        'border:1px solid var(--hairline);border-radius:14px;background:var(--console-bg);overflow:hidden}' +
+      '.ag-rag-sx h4{margin:0;padding:12px 14px;font-size:9.5px;letter-spacing:.06em;' +
+        'text-transform:uppercase;color:var(--text-light);border-bottom:1px solid var(--hairline)}' +
+      '.ag-rag-elenco{flex:1 1 auto;min-height:0;overflow-y:auto;padding:8px}' +
+      '.ag-rag-doc{padding:9px 10px;border-radius:9px;cursor:pointer;display:flex;' +
+        'align-items:flex-start;gap:8px}' +
+      '.ag-rag-doc:hover{background:rgba(0,0,0,.04)}' +
+      '.ag-rag-doc.on{background:rgba(0,113,227,.08)}' +
+      '.ag-rag-doc .nm{flex:1;min-width:0;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+      '.ag-rag-doc .dt{display:block;font-size:10px;color:var(--text-light);margin-top:2px}' +
+      '.ag-rag-doc button{border:none;background:transparent;color:var(--text-light);' +
+        'cursor:pointer;font-size:15px;line-height:1;padding:0 2px}' +
+      '.ag-rag-doc button:hover{color:var(--c-per)}' +
+      '.ag-rag-dx{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:12px;min-height:0}' +
+      '.ag-rag-campo{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;' +
+        'border:1px solid var(--hairline);border-radius:14px;background:var(--console-bg);overflow:hidden}' +
+      '.ag-rag-campo textarea{flex:1 1 auto;min-height:0;border:none;outline:none;resize:none;' +
+        'background:transparent;color:var(--text-main);font-family:SF Mono,ui-monospace,Menlo,monospace;' +
+        'font-size:12.5px;line-height:1.8;padding:14px}' +
+      '.ag-rag-vista{flex:1 1 auto;min-height:0;overflow:auto;padding:14px;' +
+        'font-family:SF Mono,ui-monospace,Menlo,monospace;font-size:12.5px;line-height:1.8;' +
+        'white-space:pre-wrap;word-break:break-word}' +
+      '.ag-rag-barra{flex:none;display:flex;gap:8px;align-items:center;flex-wrap:wrap}' +
+      '.ag-rag-barra input[type=text]{flex:1 1 200px;min-width:0;border:1px solid var(--hairline);' +
+        'border-radius:9px;padding:8px 11px;font-family:inherit;font-size:12px;' +
+        'background:var(--console-bg);color:var(--text-main);outline:none}' +
+      '.ag-rag-barra input[type=text]:focus{border-color:var(--accent)}' +
+      '.ag-rag-msg{font-size:11.5px;color:var(--text-light);min-height:16px}' +
+      '.ag-rag-msg.ko{color:var(--c-per)}' +
       '.ag-et-lista{display:flex;flex-direction:column;gap:2px}' +
       '.ag-et-riga{display:flex;align-items:center;gap:8px;padding:5px 2px;font-size:12.5px}' +
       '.ag-et-riga i{width:9px;height:9px;border-radius:2px;flex:none}' +
@@ -9822,6 +9930,167 @@ if (recognition) {
     aggiorna();
   }
 
+  /* ================= BASE DI CONOSCENZA =================
+     Si apre a schermo intero: e' un lavoro di lettura, non una finestrella. Si
+     chiude e l'interfaccia torna esattamente com'era, perche' non tocca niente
+     di quello che c'e' sotto: e' un elemento sovrapposto e basta.
+
+     A sinistra i documenti gia' dentro. A destra si scrive o si trascina, e
+     sotto compare l'ANTEPRIMA con gli stessi colori dello specchio: si vede
+     quali parole andranno in archivio gia' coperte, PRIMA di premere il
+     pulsante. Nessun rilevamento nuovo: e' AEGIS.protect, lo stesso motore.
+     ====================================================== */
+  var ragSel = null;
+
+  function ragCarica() { return (window.AEGIS_RAG) ? Promise.resolve(window.AEGIS_RAG) : new Promise(function(ok, ko){
+    var t = document.createElement('script');
+    t.src = 'aegis-rag.js';
+    t.onload = function(){ ok(window.AEGIS_RAG); };
+    t.onerror = function(){ ko(new Error('aegis-rag.js non caricato')); };
+    document.head.appendChild(t);
+  }); }
+
+  async function apriRag(){
+    var R;
+    try { R = await ragCarica(); }
+    catch (e) { alert('aegis-rag.js: ' + (e && e.message)); return; }
+
+    var ov = document.createElement('div');
+    ov.className = 'ag-rag-ov';
+    ov.innerHTML =
+      '<div class="ag-rag-testa">' +
+        '<h3>' + T('ragTitolo') + '</h3>' +
+        '<button type="button" class="ag-ia" data-a="svuota">' + T('ragSvuota') + '</button>' +
+        '<button type="button" class="ag-ia" data-a="chiudi">' + T('ragChiudi') + '</button>' +
+      '</div>' +
+      '<div class="ag-rag-corpo">' +
+        '<div class="ag-rag-sx"><h4>' + T('ragTitolo') + '</h4>' +
+          '<div class="ag-rag-elenco" id="ag-rag-elenco"></div></div>' +
+        '<div class="ag-rag-dx">' +
+          '<div class="ag-rag-campo"><textarea id="ag-rag-testo" placeholder="' + T('ragIncolla') + '"></textarea></div>' +
+          '<div class="ag-rag-campo" style="flex:1 1 auto"><h4 style="margin:0;padding:10px 14px;' +
+            'font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-light);' +
+            'border-bottom:1px solid var(--hairline)">' + T('ragAnteprima') + '</h4>' +
+            '<div class="ag-rag-vista" id="ag-rag-vista"></div></div>' +
+          '' +
+          '<div class="ag-rag-msg" id="ag-rag-msg"></div>' +
+          '<div class="ag-rag-barra">' +
+            '<input type="text" id="ag-rag-nome" placeholder="' + T('ragNome') + '" maxlength="120">' +
+            '<button type="button" class="ag-ia" data-a="file">' + T('ragCarica') + '</button>' +
+            '<button type="button" class="ag-ia" data-a="aggiungi">' + T('ragAggiungi') + '</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(ov);
+
+    var area = ov.querySelector('#ag-rag-testo');
+    var vista = ov.querySelector('#ag-rag-vista');
+    var msg = ov.querySelector('#ag-rag-msg');
+    var nome = ov.querySelector('#ag-rag-nome');
+
+    function dimmi(t, ko){ msg.textContent = t || ''; msg.classList.toggle('ko', !!ko); }
+
+    /* L'anteprima mostra il testo COM'E'. Non c'e' nessun rilevamento qui:
+       il documento si archivia in chiaro e viene mascherato al momento
+       dell'invio, dallo stesso passaggio che tratta cio' che l'utente scrive.
+       Una mascheratura in meno e' un posto in meno dove le copie possono
+       andare alla deriva, ed e' il difetto che abbiamo gia' pagato due volte. */
+    function anteprimaRag(){
+      vista.textContent = area.value;
+      dimmi(area.value.trim() ? T('ragCaratteri', { n: area.value.trim().length.toLocaleString() }) : '');
+    }
+    var attesa;
+    area.addEventListener('input', function(){ clearTimeout(attesa); attesa = setTimeout(anteprimaRag, 180); });
+
+    async function ridisegna(){
+      var el = ov.querySelector('#ag-rag-elenco');
+      var lista = await R.elenco();
+      if (!lista.length) { el.innerHTML = '<div class="ag-voci-vuoto">' + T('ragVuoto') + '</div>'; return; }
+      el.innerHTML = lista.map(function(d){
+        return '<div class="ag-rag-doc' + (ragSel === d.id ? ' on' : '') + '" data-id="' + d.id + '">' +
+          '<span class="nm">' + esc(d.nome) +
+            '<span class="dt">' + T('ragPezzi', { n: d.pezzi }) + ' \u00b7 ' +
+            T('ragCaratteri', { n: (d.caratteri || 0).toLocaleString() }) + '</span></span>' +
+          '<button type="button" data-el="' + d.id + '" title="' + T('ragElimina') + '">&times;</button></div>';
+      }).join('');
+    }
+    await ridisegna();
+
+    ov.addEventListener('click', async function(e){
+      var bEl = e.target.closest('button[data-el]');
+      if (bEl) {
+        var id = bEl.getAttribute('data-el');
+        var d = await R.leggi(id);
+        if (d && confirm(T('ragConfElimina', { v: d.nome }))) { await R.elimina(id); await ridisegna(); }
+        return;
+      }
+      var doc = e.target.closest('.ag-rag-doc');
+      if (doc) {
+        ragSel = doc.getAttribute('data-id');
+        var dd = await R.leggi(ragSel);
+        if (dd) {
+          vista.textContent = dd.testo;
+          dimmi(T('ragCaratteri', { n: (dd.caratteri || 0).toLocaleString() }));
+        }
+        await ridisegna();
+        return;
+      }
+      var b = e.target.closest('button[data-a]'); if (!b) return;
+      var a = b.getAttribute('data-a');
+      if (a === 'chiudi') { ov.remove(); return; }
+      if (a === 'svuota') {
+        if (!confirm(T('ragConfSvuota'))) return;
+        await R.svuota(); ragSel = null; vista.innerHTML = ''; await ridisegna(); return;
+      }
+      if (a === 'file') {
+        var f = document.createElement('input');
+        f.type = 'file';
+        f.accept = '.pdf,.docx,.txt,.md,.csv,.json,.log,.rtf,.png,.jpg,.jpeg,.webp';
+        f.onchange = async function(){
+          var file = f.files && f.files[0];
+          if (!file) return;
+          dimmi('\u2026');
+          try {
+            var testo = await window.AEGIS_DOC.estrai(file);
+            area.value = testo;
+            if (!nome.value) nome.value = file.name;
+            anteprimaRag();
+          } catch (err) { dimmi(err && err.message, true); }
+        };
+        f.click();
+        return;
+      }
+      if (a === 'aggiungi') {
+        var t = area.value.trim();
+        if (!t) return;
+        b.disabled = true;
+        try {
+          await R.aggiungi(nome.value || 'documento', t);
+          area.value = ''; nome.value = ''; vista.innerHTML = '';
+          dimmi('');
+          await ridisegna();
+        } catch (err) {
+          dimmi(err && err.message, true);
+        } finally { b.disabled = false; }
+      }
+    });
+
+    // trascinamento del documento direttamente nel riquadro
+    ['dragover','drop'].forEach(function(ev){
+      ov.addEventListener(ev, function(e){ e.preventDefault(); });
+    });
+    ov.addEventListener('drop', async function(e){
+      var file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (!file || !window.AEGIS_DOC) return;
+      dimmi('\u2026');
+      try {
+        area.value = await window.AEGIS_DOC.estrai(file);
+        if (!nome.value) nome.value = file.name;
+        anteprimaRag();
+      } catch (err) { dimmi(err && err.message, true); }
+    });
+  }
+
   function apriOpzioni(){
     var ov = document.createElement('div');
     ov.className = 'ag-avviso-ov';
@@ -9839,6 +10108,10 @@ if (recognition) {
             '<span><b>' + T('opRiempi') + '</b><i>' + T('opRiempiD') + '</i></span></label>' +
           '<label class="ag-op-riga"><input type="checkbox" id="op-riservato-auto"' + (autoRiservato ? ' checked' : '') + '>' +
             '<span><b>' + T('opSfoca') + '</b><i>' + T('opSfocaD') + '</i></span></label>' +
+        '</div>' +
+        '<div class="ag-op-sez"><h4>' + T('ragTitolo') + '</h4>' +
+          '<p class="ag-op-nota" style="margin:0 0 9px">' + T('ragDesc') + '</p>' +
+          '<div class="ag-op-azioni"><button type="button" data-a="rag">' + T('ragApri') + '</button></div>' +
         '</div>' +
         '<div class="ag-op-sez"><h4>' + T('opEtichette') + '</h4>' +
           righeEtichette() +
@@ -9875,6 +10148,7 @@ if (recognition) {
         return;
       }
       var a = b.getAttribute('data-a');
+      if (a === 'rag') { ov.remove(); apriRag(); return; }
       if (a === 'etichette-tutte') {
         eliminaTutteLeEtichette();
         var sez2 = b.closest('.ag-op-sez');
@@ -9993,6 +10267,27 @@ if (recognition) {
     return out;
   }
 
+  /* Il contesto recuperato dalla base di conoscenza arriva GIA' con i codici
+     della conversazione: e' il modulo esterno a riconciliarli con questo vault
+     prima di consegnarlo. Qui si accoda soltanto, e passa comunque dalla
+     mascheratura come tutto il resto: nessuna scorciatoia, nessuna eccezione. */
+  window.aegisPreparaContesto = async function(domanda){
+    try {
+      if (!window.AEGIS_RAG) return '';
+      var chiaro = await window.AEGIS_RAG.contesto(domanda);
+      if (!chiaro) return '';
+      // STESSA FUNZIONE, STESSO VAULT. Non e' una mascheratura "per il RAG":
+      // e' la mascheratura, quella che tratta cio' che l'utente scrive. Per
+      // questo lo stesso nome riceve lo stesso codice in tutte e due i posti,
+      // senza nessuna riconciliazione da tenere allineata.
+      var protetto = maschera(chiaro, true).testo;
+      // e si vede: finisce nello specchio come tutto il resto di cio' che parte
+      righe.push({ ruolo: 'user', testo: protetto });
+      autoScroll = true; disegna(); salva();
+      return protetto;
+    } catch (e) { console.error('[Aegis] contesto:', e && e.message); return ''; }
+  };
+
   window.aegisMaskHistory=function(msgs){
     return msgs.map(function(m){
       if(!m||!m.content) return m;
@@ -10032,18 +10327,6 @@ if (recognition) {
     return decodifica(grezzo);
   };
   window.aegisDecodifica=decodifica;
-  // esposto per collaudo e per eventuali comandi da console
-  window.aegisPennello={
-    copri: copriTermine,
-    scopri: function(t){ banditi.delete(t); esclusi.add(t); aggiorna(); },
-    disfa: disfa,
-    categoria: nuovaCategoria,
-    riservato: riservatezza,
-    elenco: function(){
-      var c=[]; banditi.forEach(function(v,t){ c.push({testo:t, cat:v.cat}); });
-      return { coperti:c, inChiaro:Array.from(esclusi),
-               etichette:Array.from(categoriePersonali.entries()) };
-    } };
   window.aegisReset=function(){
     vault.clear(); colorDi.clear(); cortiUsati.clear(); contatore={}; righe=[];
     banditi.clear(); esclusi.clear(); suggeriti.clear(); vociAI.clear(); scorda();
@@ -10755,7 +11038,52 @@ if (recognition) {
     return true;
   }
 
+  /* ================= SOLO SU COMPUTER =================
+     Il riquadro che mostra cosa parte davvero e' il cuore di questo prodotto:
+     su uno schermo stretto non si legge, e un prodotto che promette
+     trasparenza e non la rende verificabile e' peggio di nessun prodotto.
+     Finche' non c'e' una versione per telefono che regge quella promessa, si
+     dice com'e' e si invita ad aprirlo da un computer.
+     Il criterio e' lo schermo E il tipo di puntatore: un portatile con
+     finestra stretta resta un computer, un telefono in orizzontale resta un
+     telefono. ==================================================== */
+  function suTelefono(){
+    try {
+      var stretto = window.matchMedia('(max-width: 900px)').matches;
+      var dito = window.matchMedia('(pointer: coarse)').matches;
+      var lato = Math.min(window.innerWidth || 0, window.innerHeight || 0);
+      return (stretto && dito) || lato < 480;
+    } catch (e) { return false; }
+  }
+
+  function schermataTelefono(){
+    if (document.getElementById('ag-solo-pc')) return;
+    var d = document.createElement('div');
+    d.id = 'ag-solo-pc';
+    d.setAttribute('style',
+      'position:fixed;inset:0;z-index:4000;background:var(--primary);color:var(--text-main);' +
+      'font-family:Inter,sans-serif;display:flex;align-items:center;justify-content:center;' +
+      'padding:26px;box-sizing:border-box;overflow-y:auto');
+    d.innerHTML =
+      '<div style="max-width:420px;width:100%">' +
+        '<div style="width:34px;height:34px;border-radius:10px;background:var(--accent);' +
+          'margin-bottom:20px"></div>' +
+        '<h1 style="margin:0 0 16px;font-size:19px;font-weight:600;line-height:1.35">' +
+          T('cellTitolo') + '</h1>' +
+        '<p style="margin:0 0 14px;font-size:14px;line-height:1.65;color:var(--text-main)">' +
+          T('cellCosa') + '</p>' +
+        '<p style="margin:0 0 18px;font-size:13px;line-height:1.65;color:var(--text-light)">' +
+          T('cellPerche') + '</p>' +
+        '<p style="margin:0;font-size:13px;line-height:1.6;padding:12px 14px;border-radius:10px;' +
+          'background:var(--console-bg);border:1px solid var(--hairline)">' +
+          T('cellInvito') + '</p>' +
+      '</div>';
+    document.body.appendChild(d);
+    try { document.body.style.overflow = 'hidden'; } catch (e) {}
+  }
+
   function avvia(){
+    if (suTelefono()) { schermataTelefono(); return; }
     if(typeof AEGIS==='undefined'){ setTimeout(avvia,300); return; }
     ripristina();
     if(!costruisci()){ setTimeout(avvia,300); return; }
