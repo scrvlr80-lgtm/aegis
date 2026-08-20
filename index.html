@@ -578,12 +578,15 @@ body {
 .history-row .history-btn-main { flex: 1; padding-right: 44px; }
 .history-dots { position: absolute; top: 8px; right: 8px; width: 30px; height: 30px; border-radius: 6px; border: none; background: transparent; color: var(--text-light); cursor: pointer; font-size: 18px; line-height: 1; display: flex; align-items: center; justify-content: center; transition: all 0.15s; z-index: 2; }
 .history-dots:hover { background: rgba(255,255,255,0.08); color: var(--accent); }
-.history-menu { position: absolute; top: 40px; right: 8px; background: #0F0F13; border: 1px solid var(--hairline); border-radius: 8px; padding: 4px; min-width: 160px; z-index: 50; box-shadow: 0 8px 24px rgba(0,0,0,0.5); display: none; flex-direction: column; }
+/* Il fondo era rimasto quello del tema scuro di partenza: una finestrella
+   nera in mezzo a un'interfaccia bianca, con le scritte quasi illeggibili. */
+.history-menu { position: absolute; top: 40px; right: 8px; background: var(--primary); border: 1px solid var(--hairline); border-radius: 10px; padding: 5px; min-width: 172px; z-index: 50; box-shadow: 0 10px 30px rgba(0,0,0,0.14); display: none; flex-direction: column; }
 .history-menu.open { display: flex; }
 .history-menu button { background: transparent; border: none; color: var(--text-main); text-align: left; padding: 10px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; font-family: 'Inter', sans-serif; transition: background 0.15s; display: flex; align-items: center; gap: 8px; }
-.history-menu button:hover { background: rgba(0, 229, 255, 0.08); }
-.history-menu button.danger { color: #ff6b6b; }
-.history-menu button.danger:hover { background: rgba(255,107,107,0.1); }
+.history-menu button { color: var(--text-main); }
+.history-menu button:hover { background: var(--console-bg); }
+.history-menu button.danger { color: var(--c-per); }
+.history-menu button.danger:hover { background: rgba(229,72,77,0.08); }
 .history-rename-input { width: 100%; box-sizing: border-box; background: var(--console-bg); border: 1px solid var(--accent); border-radius: 4px; color: var(--text-main); padding: 8px 10px; font-size: 14px; font-family: 'Inter', sans-serif; outline: none; }
 .history-status-box { background-color: var(--primary); border: 1px solid var(--hairline); color: var(--text-light); border-radius: 4px; padding: 20px; font-size: 13px; text-align: center; width: 100%; cursor: default; font-family: 'Inter', sans-serif; }
 .history-status-box .dots { display: inline-block; letter-spacing: 4px; color: var(--accent); font-weight: 600; }
@@ -7345,6 +7348,13 @@ if (recognition) {
      Standard prende i dati verificabili e quelli con contesto chiaro, e
      lascia stare il resto. */
   var LIVELLO='standard';
+
+  /* IL LOGO. Sta su Supabase Storage, in un secchio pubblico: e' un'immagine,
+     non un dato, e servirla da li' evita di gonfiare la pagina.
+     Per cambiarlo basta cambiare questo indirizzo. Se il file non c'e' o non
+     e' raggiungibile, l'immagine si nasconde da sola (onerror) e la testa
+     resta pulita invece di mostrare l'icona rotta del browser. */
+  var AEGIS_LOGO = 'https://dhjmdzobfytnzeagkmsx.supabase.co/storage/v1/object/public/aegis/aegis-pii-logo.png';
   // ANALISI PROFONDA: non e' piu' un modello da scaricare, e' una seconda
   // passata delle stesse regole con i freni tolti. Copre anche i nomi scritti
   // in minuscolo che coincidono con parole comuni ("rosa", "franco", "piccone")
@@ -8428,19 +8438,38 @@ if (recognition) {
     var el = document.getElementById('ag-stile-cat');
     if (!el) { el = document.createElement('style'); el.id='ag-stile-cat'; document.head.appendChild(el); }
     var css =
-      /* I pulsanti della testa hanno tutti la STESSA larghezza e non si
-         spostano mai: prima crescevano col testo, e cambiando lingua o stato
-         saltavano da una riga all'altra. La larghezza e' calcolata sulla
-         parola piu' lunga delle tre lingue. */
-      '.ag-testa .ag-ia,.ag-testa .ag-toggle-sp{flex:0 0 148px;width:148px;min-width:148px;' +
-        'max-width:148px;height:28px;padding:0 8px;justify-content:center;text-align:center;' +
-        'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-flex;' +
-        'align-items:center;box-sizing:border-box}' +
-      '.ag-logo{display:inline-flex;align-items:center;gap:6px;flex:none;color:var(--accent);' +
-        'margin-right:4px;user-select:none}' +
-      '.ag-logo svg{width:19px;height:19px;display:block}' +
-      '.ag-logo b{font-size:11px;font-weight:700;letter-spacing:.12em;color:var(--text-main)}' +
-      '@media(max-width:1180px){.ag-logo b{display:none}}' +
+      /* I PULSANTI STANNO IN UNA GRIGLIA, NON IN UNA FILA CHE VA A CAPO.
+         Tre colonne uguali, due righe: ogni cella ha esattamente la stessa
+         larghezza e la stessa altezza, in tutte e tre le lingue. I bordi sono
+         in comune (margine negativo di un pixel), quindi la griglia si legge
+         come un rettangolo unico invece che come sei pulsanti sparsi.
+         Prima erano elementi in fila con flex-wrap: bastava una parola piu'
+         lunga o uno stato che cambiava e saltavano da una riga all'altra. */
+      '.ag-testa{display:flex;align-items:center;gap:12px;flex-wrap:nowrap;' +
+        'min-height:auto;padding:10px 12px}' +
+      '.ag-pulsanti{flex:1 1 auto;min-width:0;display:grid;' +
+        'grid-template-columns:repeat(3,minmax(0,1fr))}' +
+      '.ag-pulsanti > *{width:100%;height:30px;margin:0 0 0 -1px;border-radius:0;' +
+        'display:inline-flex;align-items:center;justify-content:center;text-align:center;' +
+        'padding:0 6px;font-size:10px;box-sizing:border-box;white-space:nowrap;' +
+        'overflow:hidden;text-overflow:ellipsis;max-width:none;min-width:0;flex:none}' +
+      '.ag-pulsanti > *:nth-child(3n+1){margin-left:0}' +
+      '.ag-pulsanti > *:nth-child(n+4){margin-top:-1px}' +
+      '.ag-pulsanti > *:nth-child(1){border-top-left-radius:9px}' +
+      '.ag-pulsanti > *:nth-child(3){border-top-right-radius:9px}' +
+      '.ag-pulsanti > *:nth-child(4){border-bottom-left-radius:9px}' +
+      '.ag-pulsanti > *:nth-child(6){border-bottom-right-radius:9px}' +
+      /* l ingranaggio diventa una cella come le altre: stessa cornice, stesso
+         ingombro, cosi la griglia non ha buchi */
+      '.ag-pulsanti .ag-ingranaggio{border:1px solid var(--hairline);gap:6px;' +
+        'font-family:Inter,sans-serif;font-weight:700;letter-spacing:.04em;' +
+        'color:var(--text-light);background:transparent}' +
+      '.ag-pulsanti .ag-ingranaggio svg{width:14px;height:14px;flex:none}' +
+      '.ag-pulsanti .ag-toggle-sp .ag-lbl{flex:none}' +
+      '.ag-pulsanti .ag-toggle-sp{width:100%!important;min-width:0!important}' +
+      '.ag-logo{flex:none;height:44px;width:auto;display:block;object-fit:contain;' +
+        'user-select:none;-webkit-user-drag:none}' +
+      '@media(max-width:1100px){.ag-logo{height:34px}.ag-pulsanti > *{font-size:9px}}' +
       '.ag-prov{display:inline-flex;align-items:center;gap:3px;flex:none;margin-right:5px}' +
       '.ag-prov i{width:7px;height:7px;border-radius:50%;display:block}' +
       '.ag-p-reg{background:var(--text-light)}' +
@@ -8451,11 +8480,15 @@ if (recognition) {
         'flex:none;border-bottom:1px solid var(--hairline);background:var(--primary)}' +
       '.ag-sk-testa h3{margin:0 10px 0 0;font-size:12px;font-weight:700;letter-spacing:.06em;' +
         'text-transform:uppercase;color:var(--text-light);white-space:nowrap}' +
-      '.ag-sk-testa .ag-ia,.ag-sk-testa .ag-toggle-sp{flex:0 0 148px;width:148px;' +
-        'min-width:148px;max-width:148px;height:28px;padding:0 8px;justify-content:center;' +
+      '.ag-sk-testa .ag-ia,.ag-sk-testa .ag-toggle-sp{flex:0 0 152px;width:152px;' +
+        'min-width:152px;max-width:152px;height:30px;padding:0 8px;justify-content:center;' +
         'text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;' +
-        'display:inline-flex;align-items:center;box-sizing:border-box}' +
-      '.ag-sk-testa .ag-logo{margin-right:8px}' +
+        'display:inline-flex;align-items:center;box-sizing:border-box;margin:0 0 0 -1px;' +
+        'border-radius:0}' +
+      '.ag-sk-testa .ag-ia:first-of-type{margin-left:0;border-radius:9px 0 0 9px}' +
+      '.ag-sk-testa .ag-toggle-sp{border-radius:0 9px 9px 0}' +
+      '.ag-sk-testa .ag-logo{height:38px;margin-right:10px}' +
+      '.ag-sk-testa #ag-sk-chiudi{border-radius:9px;margin-left:0}' +
       '.ag-sk-sp{flex:1 1 auto}' +
       '.ag-sk-corpo{flex:1 1 auto;min-height:0;display:flex;gap:14px;padding:14px;box-sizing:border-box}' +
       '.ag-sk-sx{flex:0 0 25%;min-width:210px;max-width:330px;display:flex;flex-direction:column;' +
@@ -10285,13 +10318,8 @@ if (recognition) {
     ov.className = 'ag-sk-ov';
     ov.innerHTML =
       '<div class="ag-sk-testa">' +
-        '<span class="ag-logo" title="Aegis">' +
-          '<svg viewBox="0 0 24 24" aria-hidden="true">' +
-            '<path d="M12 2.2 4.5 5.1v6.2c0 4.7 3.1 9 7.5 10.5 4.4-1.5 7.5-5.8 7.5-10.5V5.1L12 2.2z" ' +
-              'fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>' +
-            '<path d="M8.6 12.1l2.4 2.4 4.4-4.6" fill="none" stroke="currentColor" ' +
-              'stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>' +
-          '</svg></span>' +
+        '<img class="ag-logo" src="' + AEGIS_LOGO + '" alt="Aegis" ' +
+          'onerror="this.style.display=\'none\'">' +
         '<h3>' + T('ragTitolo') + '</h3>' +
         '<button type="button" class="ag-ia' + (pennelloAcceso ? ' on' : '') +
           '" id="ag-sk-pennello">' + (pennelloAcceso ? T('pennelloOn') : T('pennelloOff')) + '</button>' +
@@ -11221,18 +11249,14 @@ if (recognition) {
     p.className = 'ag-pannello';
     p.innerHTML =
       '<div class="ag-testa">'+
-        '<span class="ag-logo" title="Aegis">' +
-          '<svg viewBox="0 0 24 24" aria-hidden="true">' +
-            '<path d="M12 2.2 4.5 5.1v6.2c0 4.7 3.1 9 7.5 10.5 4.4-1.5 7.5-5.8 7.5-10.5V5.1L12 2.2z" ' +
-              'fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>' +
-            '<path d="M8.6 12.1l2.4 2.4 4.4-4.6" fill="none" stroke="currentColor" ' +
-              'stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>' +
-          '</svg><b>AEGIS</b></span>' +
+        '<img class="ag-logo" id="ag-logo" src="' + AEGIS_LOGO + '" alt="Aegis" ' +
+          'onerror="this.style.display=\'none\'">' +
+        '<div class="ag-pulsanti">' +
         '<button class="ag-ingranaggio" id="ag-opzioni-btn" type="button">' +
           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
             '<circle cx="12" cy="12" r="3.2"/>' +
             '<path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/>' +
-          '</svg></button>'+
+          '</svg><span>' + T('config') + '</span></button>'+
 
         '<button class="ag-ia" id="ag-pennello-btn" type="button" data-aiuto="Tocca una parola e viene presa tutta: scegli in che categoria coprirla. Tocca un codice gia\u0027 coperto per riportarlo in chiaro. Funziona anche sugli elenchi qui a sinistra."><svg viewBox=\'0 0 24 24\'><path d=\'M18.5 2.5a2.1 2.1 0 0 1 3 3L13 14l-4 1 1-4 8.5-8.5zM6 16c1.7 0 3 1.3 3 3 0 1.7-1.8 3-4 3-1.2 0-2.4-.3-3-1 1.1 0 2-1.3 2-2.5S5 16 6 16z\'/></svg>Pennello</button>'+
         '<button class="ag-ia" id="ag-ia" type="button" data-aiuto="Misura estrema: copre molto di piu\u0027 e sbaglia molto di piu\u0027. Prende anche i nomi in minuscolo che sono parole comuni. Non serve quasi mai."></button>'+
@@ -11240,6 +11264,7 @@ if (recognition) {
         '<button class="ag-ia" id="ag-riservato-btn" type="button"></button>'+
 
         '<button class="ag-toggle ag-toggle-sp on" id="ag-sp-hl" data-aiuto="Accende e spegne i colori sui codici nello specchio. Non cambia cio\u0027 che viene inviato."><span class="ag-dot"></span><span class="ag-lbl"></span></button>'+
+        '</div>'+
       '</div>'+
       '<div class="ag-corpo">'+
         '<div class="ag-lista" id="ag-lista"></div>'+
