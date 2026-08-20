@@ -604,7 +604,17 @@ body {
 
 .bot-actions-container { display: flex; flex-direction: column; margin-top: 10px; width: 100%; font-family: 'Inter', sans-serif; }
 .bot-action-bar { display: flex; align-items: center; justify-content: space-between; width: 100%; }
-/* Mi piace e non mi piace tolti dalla chat a destra: la valutazione si da\n   nello specchio, dove si vede anche cosa e' partito davvero. */\n#chat-messages .like-btn, #chat-messages .dislike-btn { display: none !important; }\n.action-btn { background: transparent; border: none; padding: 6px; cursor: pointer; color: var(--text-light); border-radius: 4px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+/* Mi piace e non mi piace non stanno nella chat: quel giudizio riguarda il
+   fornitore del modello, non Aegis. La valutazione utile si da' nello
+   specchio, dove si vede anche che cosa e' partito davvero.
+   Questa regola c'era gia' ma non ha mai funzionato: era scritta con "\n"
+   letterali invece che con veri a capo, quindi il selettore restava incollato
+   al commento e il foglio di stile la buttava via senza dire niente. */
+#chat-messages .like-btn, #chat-messages .dislike-btn { display: none !important; }
+/* Il messaggio di benvenuto non ha dati dentro: l'interruttore dei colori
+   non ha niente da accendere. */
+.ag-benvenuto .ag-toggle { display: none !important; }
+.action-btn { background: transparent; border: none; padding: 6px; cursor: pointer; color: var(--text-light); border-radius: 4px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
 .action-btn:hover { color: var(--accent); background: rgba(0, 229, 255, 0.1); }
 .action-btn svg { width: 16px; height: 16px; fill: currentColor; }
 
@@ -654,6 +664,11 @@ body {
 .clear-input-btn.visible { display: none !important; }
 .clear-input-btn:hover { color: #fff; background: rgba(255, 255, 255, 0.05); }
 .clear-input-btn svg { width: 16px; height: 16px; fill: currentColor; }
+/* Il campo cresce mentre si scrive, come in ogni altro assistente: chi sta
+   scrivendo vuole vedere quello che scrive. Il tetto non e' piu' fisso a 120
+   pixel ma viene calcolato sull'altezza della colonna di destra (vedi
+   altezzaCampo), cosi' si ferma quando ha riempito la chat e da li' in poi
+   scorre. La colonna di sinistra non si muove di un pixel. */
 .chat-input { flex-grow: 1; min-width: 0; background: transparent; border: none; padding: 8px 5px; outline: none; font-size: 14px; font-family: 'Inter', sans-serif; color: var(--text-main); min-height: 40px; max-height: 120px; resize: none; line-height: 1.4; scrollbar-width: none; -webkit-user-select: text; user-select: text; }
 .chat-input::placeholder { color: var(--text-light); font-style: normal; font-family: 'Space Grotesk', sans-serif; font-size: 12px; letter-spacing: 1px; text-transform: uppercase;}
 .chat-input::-webkit-scrollbar { display: none; }
@@ -2383,7 +2398,9 @@ body {
             }
         } catch (err) {}
         if (!historyRetrieved) {
-            transformTypingIntoMessage(loadingIndicator, benvenutoAegis(langCode), true, false);
+            // Il benvenuto non contiene dati: niente interruttore dei colori.
+            const benv = transformTypingIntoMessage(loadingIndicator, benvenutoAegis(langCode), true, false);
+            if (benv && benv.classList) benv.classList.add('ag-benvenuto');
             loadingIndicator = null;
         }
         if (loadingIndicator && loadingIndicator.isConnected) { transformTypingIntoMessage(loadingIndicator, benvenutoAegis(langCode), true, false); loadingIndicator = null; }
@@ -2404,10 +2421,40 @@ body {
         userInput.focus();
     };
 
+    // ALTEZZA MASSIMA DEL CAMPO.
+    // Il tetto era fisso a 120 pixel: dopo cinque righe il testo cominciava a
+    // scorrere e chi stava scrivendo non vedeva piu' quello che scriveva.
+    // Adesso il campo cresce finche' ha riempito la colonna della chat, poi si
+    // ferma e scorre. Il calcolo si fa sull'altezza della colonna di destra:
+    // la colonna di sinistra non c'entra e non si muove.
+    function altezzaCampo() {
+        const campo = document.getElementById('user-input');
+        if (!campo) return 120;
+        // TUTTA la colonna. Finche' non si invia, si sta lavorando li' dentro e
+        // serve tutto lo spazio: la conversazione la si rilegge dopo. Il tetto
+        // e' l'altezza della zona chat MENO l'ingombro fisso della barra
+        // (bordi, spaziature, microfono, graffetta): si misura, non si stima,
+        // altrimenti il campo esce dallo schermo di qualche pixel.
+        const zona = campo.closest('.chat-main-area') || campo.closest('.ag-chat');
+        if (!zona) return 120;
+        const wrap = campo.closest('.chat-input-wrapper');
+        const ingombro = wrap ? (wrap.getBoundingClientRect().height - campo.getBoundingClientRect().height) : 60;
+        const utile = zona.getBoundingClientRect().height - ingombro - 6;
+        return Math.max(120, Math.round(utile));
+    }
+    function adattaCampo(campo) {
+        if (!campo) return;
+        campo.style.maxHeight = altezzaCampo() + 'px';
+        campo.style.height = (window.innerWidth <= 600) ? '40px' : '42px';
+        campo.style.height = Math.min(campo.scrollHeight, altezzaCampo()) + 'px';
+        if (typeof updateFloatingOffsets === 'function') updateFloatingOffsets();
+    }
+    window.aegisAdattaCampo = adattaCampo;
+    window.addEventListener('resize', function () { adattaCampo(document.getElementById('user-input')); });
+
     if (userInput) {
         userInput.addEventListener('input', function() {
-            this.style.height = (window.innerWidth <= 600) ? '40px' : '42px';
-            this.style.height = this.scrollHeight + 'px';
+            adattaCampo(this);
             if (this.value.length > 0) { micBtn.classList.remove('mic-blink'); if (clearInputBtn) clearInputBtn.classList.add('visible'); }
             else { micBtn.classList.add('mic-blink'); if (clearInputBtn) clearInputBtn.classList.remove('visible'); }
         });
@@ -3599,7 +3646,9 @@ body {
         resetScrollControl();
         addMessageToChat(text, 'user-message');
         userInput.value = '';
+        // inviato: il campo torna al minimo, lo spazio serve alla conversazione
         userInput.style.height = (window.innerWidth <= 600) ? '40px' : '42px';
+        if (window.aegisAdattaCampo) window.aegisAdattaCampo(userInput);
         if (clearInputBtn) clearInputBtn.classList.remove('visible');
         userInput.disabled = true;
         if (sendBtn) { sendBtn.disabled = true; sendBtn.style.display = 'none'; }
@@ -7816,6 +7865,10 @@ if (recognition) {
       opEtichette:'Etichette che hai creato tu',
       ragTitolo:'Pannello Skills',
       skSalva:'Salva come Skill',
+      skEsportaTutto:'Esporta archivio',
+      skImporta:'Importa archivio',
+      skImportate:'{n} Skill importate.',
+      skLocale:'Le Skill restano su questo dispositivo. Per portarle su un altro computer esporta l\u0027archivio e importalo la\u0027: il file contiene i documenti in chiaro, trattalo come gli originali.',
       skElenco:'Skills salvate',
       skVuoto:'Nessuna Skill. Quello che salvi qui il modello lo sa a ogni domanda.',
       skChiaro:'Documento in chiaro',
@@ -7903,7 +7956,8 @@ if (recognition) {
       mNo:'Non ora',
       mSi:'Scarica e attiva',
       mAI:'proposte dal motore',
-      pennello:'Pennello', pennelloOn:'Pennello: ON',
+      pennello:'Pennello', pennelloOn:'Pennello: ON', pennelloOff:'Pennello: OFF',
+      motoreOff:'Motore: OFF', profondaOff:'Profonda: OFF', riservatoOff:'Riservato: OFF',
       profonda:'Analisi profonda', profondaOn:'Profonda: ON',
       riservato:'Riservato', riservatoOn:'Riservato: ON',
       config:'Configurazione',
@@ -7978,6 +8032,10 @@ if (recognition) {
       opEtichette:'Etiquetas creadas por ti',
       ragTitolo:'Panel Skills',
       skSalva:'Guardar como Skill',
+      skEsportaTutto:'Exportar archivo',
+      skImporta:'Importar archivo',
+      skImportate:'{n} Skills importadas.',
+      skLocale:'Las Skills se quedan en este dispositivo. Para llevarlas a otro ordenador exporta el archivo e importalo alli: el fichero contiene los documentos en claro, tratalo como los originales.',
       skElenco:'Skills guardadas',
       skVuoto:'Ninguna Skill. Lo que guardes aqui el modelo lo sabe en cada pregunta.',
       skChiaro:'Documento en claro',
@@ -8065,7 +8123,8 @@ if (recognition) {
       mNo:'Ahora no',
       mSi:'Descargar y activar',
       mAI:'propuestas por el motor',
-      pennello:'Pincel', pennelloOn:'Pincel: ON',
+      pennello:'Pincel', pennelloOn:'Pincel: ON', pennelloOff:'Pincel: OFF',
+      motoreOff:'Motor: OFF', profondaOff:'Profundo: OFF', riservatoOff:'Reservado: OFF',
       profonda:'An\u00e1lisis profundo', profondaOn:'Profundo: ON',
       riservato:'Reservado', riservatoOn:'Reservado: ON',
       config:'Configuraci\u00f3n',
@@ -8140,6 +8199,10 @@ if (recognition) {
       opEtichette:'Labels you created',
       ragTitolo:'Skills panel',
       skSalva:'Save as Skill',
+      skEsportaTutto:'Export archive',
+      skImporta:'Import archive',
+      skImportate:'{n} Skills imported.',
+      skLocale:'Skills stay on this device. To move them to another computer, export the archive and import it there: the file holds the documents in the clear, treat it like the originals.',
       skElenco:'Saved Skills',
       skVuoto:'No Skills yet. Whatever you save here, the model knows on every question.',
       skChiaro:'Document in the clear',
@@ -8227,7 +8290,8 @@ if (recognition) {
       mNo:'Not now',
       mSi:'Download and enable',
       mAI:'proposed by the engine',
-      pennello:'Brush', pennelloOn:'Brush: ON',
+      pennello:'Brush', pennelloOn:'Brush: ON', pennelloOff:'Brush: OFF',
+      motoreOff:'Engine: OFF', profondaOff:'Deep scan: OFF', riservatoOff:'Private: OFF',
       profonda:'Deep scan', profondaOn:'Deep scan: ON',
       riservato:'Private', riservatoOn:'Private: ON',
       config:'Settings',
@@ -8364,6 +8428,19 @@ if (recognition) {
     var el = document.getElementById('ag-stile-cat');
     if (!el) { el = document.createElement('style'); el.id='ag-stile-cat'; document.head.appendChild(el); }
     var css =
+      /* I pulsanti della testa hanno tutti la STESSA larghezza e non si
+         spostano mai: prima crescevano col testo, e cambiando lingua o stato
+         saltavano da una riga all'altra. La larghezza e' calcolata sulla
+         parola piu' lunga delle tre lingue. */
+      '.ag-testa .ag-ia,.ag-testa .ag-toggle-sp{flex:0 0 148px;width:148px;min-width:148px;' +
+        'max-width:148px;height:28px;padding:0 8px;justify-content:center;text-align:center;' +
+        'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-flex;' +
+        'align-items:center;box-sizing:border-box}' +
+      '.ag-logo{display:inline-flex;align-items:center;gap:6px;flex:none;color:var(--accent);' +
+        'margin-right:4px;user-select:none}' +
+      '.ag-logo svg{width:19px;height:19px;display:block}' +
+      '.ag-logo b{font-size:11px;font-weight:700;letter-spacing:.12em;color:var(--text-main)}' +
+      '@media(max-width:1180px){.ag-logo b{display:none}}' +
       '.ag-prov{display:inline-flex;align-items:center;gap:3px;flex:none;margin-right:5px}' +
       '.ag-prov i{width:7px;height:7px;border-radius:50%;display:block}' +
       '.ag-p-reg{background:var(--text-light)}' +
@@ -8374,7 +8451,11 @@ if (recognition) {
         'flex:none;border-bottom:1px solid var(--hairline);background:var(--primary)}' +
       '.ag-sk-testa h3{margin:0 10px 0 0;font-size:12px;font-weight:700;letter-spacing:.06em;' +
         'text-transform:uppercase;color:var(--text-light);white-space:nowrap}' +
-      '.ag-sk-testa .ag-ia{flex:0 0 auto}' +
+      '.ag-sk-testa .ag-ia,.ag-sk-testa .ag-toggle-sp{flex:0 0 148px;width:148px;' +
+        'min-width:148px;max-width:148px;height:28px;padding:0 8px;justify-content:center;' +
+        'text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;' +
+        'display:inline-flex;align-items:center;box-sizing:border-box}' +
+      '.ag-sk-testa .ag-logo{margin-right:8px}' +
       '.ag-sk-sp{flex:1 1 auto}' +
       '.ag-sk-corpo{flex:1 1 auto;min-height:0;display:flex;gap:14px;padding:14px;box-sizing:border-box}' +
       '.ag-sk-sx{flex:0 0 25%;min-width:210px;max-width:330px;display:flex;flex-direction:column;' +
@@ -8384,11 +8465,23 @@ if (recognition) {
       '.ag-sk-riq > h4{margin:0;padding:11px 14px;font-size:9.5px;letter-spacing:.06em;flex:none;' +
         'text-transform:uppercase;color:var(--text-light);border-bottom:1px solid var(--hairline)}' +
       '.ag-sk-voci{flex:1 1 auto;min-height:0;overflow-y:auto;padding:10px 12px 14px}' +
-      '.ag-sk-lista{flex:0 0 auto;max-height:34vh;overflow-y:auto;padding:6px}' +
+      '.ag-sk-lista{flex:0 0 auto;max-height:30vh;overflow-y:auto;padding:6px}' +
+      '.ag-sk-riq > h4{display:flex;align-items:center;gap:6px}' +
+      '.ag-sk-mini{border:1px solid var(--hairline);background:transparent;color:var(--text-light);' +
+        'cursor:pointer;font-family:inherit;font-size:9px;letter-spacing:.03em;padding:3px 7px;' +
+        'border-radius:6px;text-transform:none}' +
+      '.ag-sk-mini:hover{border-color:var(--accent);color:var(--accent)}' +
+      '.ag-sk-mini:first-of-type{margin-left:auto}' +
       '.ag-sk-cx,.ag-sk-dx{flex:1 1 0;min-width:0;display:flex;flex-direction:column;min-height:0}' +
       '.ag-sk-vista{flex:1 1 auto;min-height:0;overflow:auto;padding:14px;' +
         'font-family:SF Mono,ui-monospace,Menlo,monospace;font-size:12.5px;line-height:1.85;' +
         'white-space:pre-wrap;word-break:break-word}' +
+      '.ag-sk-scatola{flex:1 1 auto;min-height:0;position:relative;display:flex}' +
+      '.ag-sk-scatola > textarea{position:relative;z-index:1;background:transparent!important}' +
+      '.ag-sk-ombra{position:absolute;inset:0;overflow:auto;pointer-events:none;' +
+        'white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;color:transparent;' +
+        'z-index:0;margin:0;font-family:SF Mono,ui-monospace,Menlo,monospace;font-size:12.5px;' +
+        'line-height:1.85;padding:14px;box-sizing:border-box}' +
       '.ag-sk-dx textarea{flex:1 1 auto;min-height:0;border:none;outline:none;resize:none;' +
         'background:transparent;color:var(--text-main);font-family:SF Mono,ui-monospace,Menlo,monospace;' +
         'font-size:12.5px;line-height:1.85;padding:14px;width:100%;box-sizing:border-box}' +
@@ -8752,7 +8845,7 @@ if (recognition) {
   function accendiPennello(b){
     pennelloAcceso = !pennelloAcceso;
     b.classList.toggle('on', pennelloAcceso);
-    b.lastChild.textContent = pennelloAcceso ? T('pennelloOn') : T('pennello');
+    b.lastChild.textContent = pennelloAcceso ? T('pennelloOn') : T('pennelloOff');
     document.body.classList.toggle('ag-pennello-on', pennelloAcceso);
     if (!pennelloAcceso) { chiudiTendina(); azzeraSelezione(); }
   }
@@ -8832,7 +8925,9 @@ if (recognition) {
     riservato = !!on;
     document.body.classList.toggle('ag-riservato', riservato);
     var b = document.getElementById('ag-riservato-btn');
-    if (b) { b.classList.toggle('on', riservato); b.textContent = riservato ? T('riservatoOn') : T('riservato'); }
+    if (b) { b.classList.toggle('on', riservato); b.textContent = riservato ? T('riservatoOn') : T('riservatoOff'); }
+    var b2 = document.getElementById('ag-sk-riservato');
+    if (b2) { b2.classList.toggle('on', riservato); b2.textContent = riservato ? T('riservatoOn') : T('riservatoOff'); }
   }
   function avviaRiservatezza(){
     window.addEventListener('blur', function(){ if (autoRiservato) document.body.classList.add('ag-sfocato'); });
@@ -8893,9 +8988,15 @@ if (recognition) {
       ombraEl.scrollTop = campo.scrollTop;
       ombraEl.scrollLeft = campo.scrollLeft;
     };
-    campo.addEventListener('scroll', segui);
-    campo.addEventListener('input', segui);
-    campo.addEventListener('keyup', segui);
+    // Il campo cresce mentre si scrive: se l'ombra non viene riallineata dopo
+    // il cambio di altezza, le evidenziazioni restano dove stavano e si
+    // rimettono a posto solo alla prima rotella. Era il difetto che si vedeva
+    // sempre alla prima riga in piu'.
+    const seguiDopo = function () { segui(); requestAnimationFrame(segui); };
+    ['scroll', 'input', 'keyup', 'click', 'focus'].forEach(function (ev) {
+      campo.addEventListener(ev, seguiDopo);
+    });
+    window.addEventListener('resize', seguiDopo);
     campo.classList.add('ag-con-ombra');
     return ombraEl;
   }
@@ -9688,15 +9789,15 @@ if (recognition) {
         b.removeAttribute('title');
         if (!m[id][0]) return;
         if (id === 'ag-pennello-btn') {
-          if (b.lastChild && b.lastChild.nodeType === 3) {
-            b.lastChild.textContent = pennelloAcceso ? T('pennelloOn') : T('pennello');
-          } else { b.textContent = pennelloAcceso ? T('pennelloOn') : T('pennello'); }
+          var et = pennelloAcceso ? T('pennelloOn') : T('pennelloOff');
+          if (b.lastChild && b.lastChild.nodeType === 3) b.lastChild.textContent = et;
+          else b.textContent = et;
         } else if (id === 'ag-ia') {
-          b.textContent = PROFONDA ? T('profondaOn') : T('profonda');
+          b.textContent = PROFONDA ? T('profondaOn') : T('profondaOff');
         } else if (id === 'ag-motore-btn') {
           passo('motore', statoMotore);
         } else if (id === 'ag-riservato-btn') {
-          b.textContent = riservato ? T('riservatoOn') : T('riservato');
+          b.textContent = riservato ? T('riservatoOn') : T('riservatoOff');
         } else {
           b.textContent = T(m[id][0]);
         }
@@ -9898,7 +9999,7 @@ if (recognition) {
     b.disabled = (st === 'carico');
     if (st === 'pronto')      b.textContent = T('motoreOn');
     else if (st === 'fallito') b.textContent = T('motoreKo');
-    else                       b.textContent = T('motore');
+    else                       b.textContent = T('motoreOff');
     b.setAttribute('data-aiuto', T('aiutoMotore'));
   }
   function confermaSpegnimento(){
@@ -10055,6 +10156,39 @@ if (recognition) {
      ==================================================== */
   var skSel = null;     // Skill aperta nel pannello
   var skTesto = '';
+  var skOmbra = true;   // evidenziatore sulla colonna in chiaro
+
+  /* EVIDENZIATORE SULLA COLONNA IN CHIARO.
+     Dentro un campo di testo non si puo' colorare niente: il browser non lo
+     permette. Si disegna sotto una copia esatta del testo con le parti
+     sensibili evidenziate, e si rende trasparente lo sfondo del campo vero.
+     E' la stessa tecnica del campo della chat, con gli STESSI colori delle
+     capsule: la parola evidenziata a destra e il codice colorato al centro
+     sono lo stesso dato, e si deve vedere a colpo d'occhio.
+     Copia esatta vuol dire anche stesso scorrimento: senza, le evidenziazioni
+     restano ferme mentre il testo scorre, ed e' il difetto che si notava nel
+     campo della chat finche' non si dava una rotella. */
+  function skDisegnaOmbra() {
+    var om = document.getElementById('ag-sk-ombra');
+    var campo = document.getElementById('ag-sk-testo');
+    if (!om || !campo) return;
+    if (!skOmbra || !campo.value) { om.innerHTML = ''; return; }
+    var testo = campo.value, r;
+    try { r = AEGIS.protect(testo, opzioni()); } catch (e) { om.innerHTML = ''; return; }
+    var punti = (r.matches || []).slice().sort(function (a, b) { return a.start - b.start; });
+    var fuori = '', cursore = 0;
+    punti.forEach(function (m) {
+      if (m.start < cursore) return;
+      fuori += esc(testo.slice(cursore, m.start));
+      fuori += '<mark class="ag-om ag-om-' + (colore(m.token) || 'per') + '">' +
+               esc(testo.slice(m.start, m.end)) + '</mark>';
+      cursore = m.end;
+    });
+    fuori += esc(testo.slice(cursore)) + '<br>';
+    om.innerHTML = fuori;
+    om.scrollTop = campo.scrollTop;
+    om.scrollLeft = campo.scrollLeft;
+  }
 
   function skCarica() {
     return window.AEGIS_RAG ? Promise.resolve(window.AEGIS_RAG) : new Promise(function (ok, ko) {
@@ -10151,12 +10285,20 @@ if (recognition) {
     ov.className = 'ag-sk-ov';
     ov.innerHTML =
       '<div class="ag-sk-testa">' +
+        '<span class="ag-logo" title="Aegis">' +
+          '<svg viewBox="0 0 24 24" aria-hidden="true">' +
+            '<path d="M12 2.2 4.5 5.1v6.2c0 4.7 3.1 9 7.5 10.5 4.4-1.5 7.5-5.8 7.5-10.5V5.1L12 2.2z" ' +
+              'fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>' +
+            '<path d="M8.6 12.1l2.4 2.4 4.4-4.6" fill="none" stroke="currentColor" ' +
+              'stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>' +
+          '</svg></span>' +
         '<h3>' + T('ragTitolo') + '</h3>' +
-        '<button type="button" class="ag-ia" id="ag-sk-pennello">' + T('pennello') + '</button>' +
-        '<button type="button" class="ag-ia" id="ag-sk-profonda">' +
-          (PROFONDA ? T('profondaOn') : T('profonda')) + '</button>' +
-        '<button type="button" class="ag-ia" id="ag-sk-riservato">' +
-          (riservato ? T('riservatoOn') : T('riservato')) + '</button>' +
+        '<button type="button" class="ag-ia' + (pennelloAcceso ? ' on' : '') +
+          '" id="ag-sk-pennello">' + (pennelloAcceso ? T('pennelloOn') : T('pennelloOff')) + '</button>' +
+        '<button type="button" class="ag-ia' + (PROFONDA ? ' ag-pronto' : '') +
+          '" id="ag-sk-profonda">' + (PROFONDA ? T('profondaOn') : T('profondaOff')) + '</button>' +
+        '<button type="button" class="ag-ia' + (riservato ? ' on' : '') +
+          '" id="ag-sk-riservato">' + (riservato ? T('riservatoOn') : T('riservatoOff')) + '</button>' +
         '<button type="button" class="ag-toggle ag-toggle-sp' + (codiciAccesi ? ' on' : '') +
           '" id="ag-sk-hl"><span class="ag-dot"></span><span class="ag-lbl">' +
           (codiciAccesi ? T('evidOn') : T('evidOff')) + '</span></button>' +
@@ -10174,8 +10316,12 @@ if (recognition) {
             '<div class="ag-sk-voci" id="ag-sk-voci"></div>' +
           '</div>' +
           '<div class="ag-sk-riq" style="flex:0 0 auto">' +
-            '<h4>' + T('skElenco') + '</h4>' +
+            '<h4>' + T('skElenco') +
+              '<button type="button" class="ag-sk-mini" id="ag-sk-esporta">' + T('skEsportaTutto') + '</button>' +
+              '<button type="button" class="ag-sk-mini" id="ag-sk-importa">' + T('skImporta') + '</button>' +
+            '</h4>' +
             '<div class="ag-sk-lista" id="ag-sk-lista"></div>' +
+            '<p class="ag-op-nota" style="margin:0;padding:0 12px 11px">' + T('skLocale') + '</p>' +
           '</div>' +
         '</div>' +
         '<div class="ag-sk-cx">' +
@@ -10193,11 +10339,17 @@ if (recognition) {
         '<div class="ag-sk-dx">' +
           '<div class="ag-sk-riq" style="flex:1 1 auto">' +
             '<h4>' + T('skChiaro') + '</h4>' +
-            '<textarea id="ag-sk-testo" placeholder="' + T('ragIncolla') + '"></textarea>' +
+            '<div class="ag-sk-scatola">' +
+              '<div class="ag-sk-ombra" id="ag-sk-ombra" aria-hidden="true"></div>' +
+              '<textarea id="ag-sk-testo" placeholder="' + T('ragIncolla') + '"></textarea>' +
+            '</div>' +
           '</div>' +
           '<div class="ag-sk-barra">' +
             '<div class="ag-sk-msg" id="ag-sk-msg"></div>' +
             '<input type="text" id="ag-sk-nome" placeholder="' + T('ragNome') + '" maxlength="120">' +
+            '<button type="button" class="ag-toggle ag-toggle-sp' + (skOmbra ? ' on' : '') +
+              '" id="ag-sk-evid"><span class="ag-dot"></span><span class="ag-lbl">' +
+              (skOmbra ? T('evidOn') : T('evidOff')) + '</span></button>' +
             '<button type="button" class="ag-ia" id="ag-sk-file">' + T('ragCarica') + '</button>' +
             '<button type="button" class="ag-ia" id="ag-sk-salva">' + T('skSalva') + '</button>' +
           '</div>' +
@@ -10220,13 +10372,25 @@ if (recognition) {
       if (!skTesto.trim()) { specchio.innerHTML = ''; disegnaColonna(voci); return; }
       valoriPreview.clear();
       var r = maschera(skTesto, false);
+      skDisegnaOmbra();
       specchio.innerHTML = '<div class="ag-bolla ag-user ag-ghost">' + coloraToken(r.testo) + '</div>';
       dimmi(T('ragCaratteri', { n: skTesto.trim().length.toLocaleString() }));
       disegnaColonna(voci);
     }
     var attesa;
     area.addEventListener('input', function () {
+      skDisegnaOmbra();                       // subito: l'evidenziazione segue la battuta
       clearTimeout(attesa); attesa = setTimeout(rispecchia, 160);
+    });
+    // L'ombra deve scorrere insieme al testo, altrimenti le evidenziazioni
+    // restano indietro finche' non si tocca la rotella.
+    ['scroll', 'input', 'keyup', 'click'].forEach(function (ev) {
+      area.addEventListener(ev, function () {
+        var om = document.getElementById('ag-sk-ombra');
+        if (!om) return;
+        om.scrollTop = area.scrollTop;
+        om.scrollLeft = area.scrollLeft;
+      });
     });
 
     // Le tre schede sono le stesse della chat: cambiano schedaAttiva, che e'
@@ -10306,7 +10470,15 @@ if (recognition) {
         return;
       }
       if (b.id === 'ag-sk-pennello') { accendiPennello(b); return; }
-      if (b.id === 'ag-sk-riservato') { riservatezza(!riservato); b.textContent = riservato ? T('riservatoOn') : T('riservato'); return; }
+      if (b.id === 'ag-sk-evid') {
+        skOmbra = !skOmbra;
+        b.classList.toggle('on', skOmbra);
+        var l2 = b.querySelector('.ag-lbl');
+        if (l2) l2.textContent = skOmbra ? T('evidOn') : T('evidOff');
+        skDisegnaOmbra();
+        return;
+      }
+      if (b.id === 'ag-sk-riservato') { riservatezza(!riservato); return; }
       if (b.id === 'ag-sk-hl') {
         codiciAccesi = !codiciAccesi;
         b.classList.toggle('on', codiciAccesi);
@@ -10322,9 +10494,33 @@ if (recognition) {
           if (PROFONDA) localStorage.setItem('aegis_profonda', '1');
           else localStorage.removeItem('aegis_profonda');
         } catch (err) {}
-        b.textContent = PROFONDA ? T('profondaOn') : T('profonda');
+        b.textContent = PROFONDA ? T('profondaOn') : T('profondaOff');
         b.classList.toggle('ag-pronto', PROFONDA);
         rispecchia();
+        return;
+      }
+      if (b.id === 'ag-sk-esporta') {
+        var testoJson = await R.esportaTutto();
+        var url = URL.createObjectURL(new Blob([testoJson], { type: 'application/json' }));
+        var a3 = document.createElement('a');
+        a3.href = url; a3.download = 'aegis-skills.json';
+        a3.click();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+        return;
+      }
+      if (b.id === 'ag-sk-importa') {
+        var fi = document.createElement('input');
+        fi.type = 'file'; fi.accept = '.json,application/json';
+        fi.onchange = async function () {
+          var file = fi.files && fi.files[0];
+          if (!file) return;
+          try {
+            var quante = await R.importa(await file.text());
+            dimmi(T('skImportate', { n: quante }));
+            await ridisegnaSkill();
+          } catch (err) { dimmi(err && err.message, true); }
+        };
+        fi.click();
         return;
       }
       if (b.id === 'ag-sk-file') {
@@ -11025,13 +11221,19 @@ if (recognition) {
     p.className = 'ag-pannello';
     p.innerHTML =
       '<div class="ag-testa">'+
+        '<span class="ag-logo" title="Aegis">' +
+          '<svg viewBox="0 0 24 24" aria-hidden="true">' +
+            '<path d="M12 2.2 4.5 5.1v6.2c0 4.7 3.1 9 7.5 10.5 4.4-1.5 7.5-5.8 7.5-10.5V5.1L12 2.2z" ' +
+              'fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>' +
+            '<path d="M8.6 12.1l2.4 2.4 4.4-4.6" fill="none" stroke="currentColor" ' +
+              'stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>' +
+          '</svg><b>AEGIS</b></span>' +
         '<button class="ag-ingranaggio" id="ag-opzioni-btn" type="button">' +
           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
             '<circle cx="12" cy="12" r="3.2"/>' +
             '<path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/>' +
           '</svg></button>'+
-        '<span class="ag-tit" id="ag-tit">' + T('titoloSpecchio') + '</span>'+
-        '<span class="ag-ner" id="ag-ner" title="Riconoscimento avanzato dei nomi"></span>'+
+
         '<button class="ag-ia" id="ag-pennello-btn" type="button" data-aiuto="Tocca una parola e viene presa tutta: scegli in che categoria coprirla. Tocca un codice gia\u0027 coperto per riportarlo in chiaro. Funziona anche sugli elenchi qui a sinistra."><svg viewBox=\'0 0 24 24\'><path d=\'M18.5 2.5a2.1 2.1 0 0 1 3 3L13 14l-4 1 1-4 8.5-8.5zM6 16c1.7 0 3 1.3 3 3 0 1.7-1.8 3-4 3-1.2 0-2.4-.3-3-1 1.1 0 2-1.3 2-2.5S5 16 6 16z\'/></svg>Pennello</button>'+
         '<button class="ag-ia" id="ag-ia" type="button" data-aiuto="Misura estrema: copre molto di piu\u0027 e sbaglia molto di piu\u0027. Prende anche i nomi in minuscolo che sono parole comuni. Non serve quasi mai."></button>'+
         '<button class="ag-ia" id="ag-motore-btn" type="button"></button>'+
@@ -11178,17 +11380,13 @@ if (recognition) {
     var bIa = document.getElementById('ag-ia');
     function aggiornaIa(){
       if(!bIa) return;
-      bIa.textContent = PROFONDA ? T('profondaOn') : T('profonda');
+      bIa.textContent = PROFONDA ? T('profondaOn') : T('profondaOff');
       bIa.className = 'ag-ia' + (PROFONDA ? ' ag-pronto' : '');
       bIa.disabled = false;
       bIa.title = PROFONDA
         ? 'Copre anche i nomi in minuscolo che sono parole comuni e le righe tutte maiuscole. Copre di piu\u0027, sbaglia di piu\u0027. Premi per tornare alla passata normale.'
         : 'Seconda passata delle stesse regole, senza freni: prende anche i nomi in minuscolo che coincidono con parole comuni (rosa, franco, piccone). Nessuno scaricamento, effetto immediato.';
-      var et = document.getElementById('ag-ner');
-      if(et){
-        et.className = 'ag-ner' + (PROFONDA ? ' ag-pronto' : '');
-        et.textContent = PROFONDA ? T('profondaAttiva') : '';
-      }
+
     }
     if(bIa){
       aggiornaIa();
