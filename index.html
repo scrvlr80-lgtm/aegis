@@ -924,9 +924,28 @@ body {
 .user-message{box-shadow:none;border-color:var(--g-bordo)}
 .bot-message .message-content-wrapper::before{background-color:var(--g-bordo-on);
   box-shadow:none}
-.typing-indicator .message-text{color:var(--g-testo-off);animation:ag-battito 1.5s ease-in-out infinite}
-.typing-indicator .message-text{text-shadow:none}
-@keyframes ag-battito{0%,100%{opacity:.45}50%{opacity:1}}
+/* --- L'ATTESA E' L'UNICA COSA CHE RESTA A COLORI.
+       Tutto il resto dell'interfaccia e' grigio perche' e' un comando, e
+       un comando non deve gridare. Questa scritta invece non comanda
+       niente: dice soltanto "sto lavorando", e su un prodotto che fa
+       aspettare qualche secondo e' l'unico momento in cui vale la pena
+       che qualcosa si muova. Il colore scorre da sinistra a destra
+       attraverso il testo; quando la risposta arriva la classe sparisce
+       e la scritta torna testo normale. --- */
+.typing-indicator .message-text{
+  background-image:linear-gradient(90deg,#4285F4,#9B72CB,#D96570,#F2A60C,#D96570,#9B72CB,#4285F4);
+  background-size:300% 100%;background-position:0% 50%;
+  -webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;color:transparent;
+  text-shadow:none!important;
+  animation:ag-arcobaleno 3.4s linear infinite}
+/* il pallino davanti al messaggio segue la stessa onda, altrimenti
+   resterebbe l'unica cosa grigia in mezzo al colore */
+.typing-indicator .message-content-wrapper::before{
+  background-color:transparent!important;background-image:inherit;
+  background-size:300% 100%;box-shadow:none;
+  animation:ag-arcobaleno 3.4s linear infinite}
+@keyframes ag-arcobaleno{from{background-position:0% 50%}to{background-position:300% 50%}}
 .scroll-to-bottom-btn{background-color:var(--primary);border-color:var(--g-bordo);
   color:var(--g-testo-off);box-shadow:0 2px 10px rgba(0,0,0,.10)}
 .scroll-to-bottom-btn:hover{background-color:var(--g-fondo-on);color:var(--g-testo-on);
