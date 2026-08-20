@@ -7354,7 +7354,7 @@ if (recognition) {
      Per cambiarlo basta cambiare questo indirizzo. Se il file non c'e' o non
      e' raggiungibile, l'immagine si nasconde da sola (onerror) e la testa
      resta pulita invece di mostrare l'icona rotta del browser. */
-  var AEGIS_LOGO = 'https://dhjmdzobfytnzeagkmsx.supabase.co/storage/v1/object/public/aegis/aegis-pii-logo.png';
+  var AEGIS_LOGO = 'https://dhjmdzobfytnzeagkmsx.supabase.co/storage/v1/object/public/Aegis%20Pii/f24ce62e-8fb7-4800-99d1-ca47818e3065.png';
   // ANALISI PROFONDA: non e' piu' un modello da scaricare, e' una seconda
   // passata delle stesse regole con i freni tolti. Copre anche i nomi scritti
   // in minuscolo che coincidono con parole comuni ("rosa", "franco", "piccone")
@@ -8445,31 +8445,35 @@ if (recognition) {
          come un rettangolo unico invece che come sei pulsanti sparsi.
          Prima erano elementi in fila con flex-wrap: bastava una parola piu'
          lunga o uno stato che cambiava e saltavano da una riga all'altra. */
-      '.ag-testa{display:flex;align-items:center;gap:12px;flex-wrap:nowrap;' +
-        'min-height:auto;padding:10px 12px}' +
-      '.ag-pulsanti{flex:1 1 auto;min-width:0;display:grid;' +
+      /* TESTA: logo a sinistra, sei pulsanti in una griglia 3x2.
+         Tre colonne uguali e due righe: ogni cella ha esattamente la stessa
+         larghezza e la stessa altezza, in tutte e tre le lingue, con lo stesso
+         spazio fra una e l'altra. Prima erano elementi in fila con flex-wrap:
+         bastava una parola piu' lunga o uno stato che cambiava e saltavano da
+         una riga all'altra. */
+      '.ag-testa{display:flex;align-items:center;gap:14px;flex-wrap:nowrap;' +
+        'min-height:auto;padding:11px 14px}' +
+      '.ag-pulsanti{flex:1 1 auto;min-width:0;display:grid;gap:9px;' +
         'grid-template-columns:repeat(3,minmax(0,1fr))}' +
-      '.ag-pulsanti > *{width:100%;height:30px;margin:0 0 0 -1px;border-radius:0;' +
+      '.ag-pulsanti > *{width:100%;height:32px;margin:0;border-radius:9px;' +
         'display:inline-flex;align-items:center;justify-content:center;text-align:center;' +
-        'padding:0 6px;font-size:10px;box-sizing:border-box;white-space:nowrap;' +
+        'padding:0 8px;font-size:10px;box-sizing:border-box;white-space:nowrap;' +
         'overflow:hidden;text-overflow:ellipsis;max-width:none;min-width:0;flex:none}' +
-      '.ag-pulsanti > *:nth-child(3n+1){margin-left:0}' +
-      '.ag-pulsanti > *:nth-child(n+4){margin-top:-1px}' +
-      '.ag-pulsanti > *:nth-child(1){border-top-left-radius:9px}' +
-      '.ag-pulsanti > *:nth-child(3){border-top-right-radius:9px}' +
-      '.ag-pulsanti > *:nth-child(4){border-bottom-left-radius:9px}' +
-      '.ag-pulsanti > *:nth-child(6){border-bottom-right-radius:9px}' +
-      /* l ingranaggio diventa una cella come le altre: stessa cornice, stesso
-         ingombro, cosi la griglia non ha buchi */
-      '.ag-pulsanti .ag-ingranaggio{border:1px solid var(--hairline);gap:6px;' +
+      /* l ingranaggio e un pulsante come gli altri: stessa cornice, stessa
+         misura, con la sua etichetta accanto all icona */
+      '.ag-pulsanti .ag-ingranaggio{border:1px solid var(--hairline);gap:7px;' +
         'font-family:Inter,sans-serif;font-weight:700;letter-spacing:.04em;' +
-        'color:var(--text-light);background:transparent}' +
+        'font-size:10px;text-transform:uppercase;color:var(--text-light);background:transparent}' +
+      '.ag-pulsanti .ag-ingranaggio:hover{border-color:var(--accent);color:var(--accent);' +
+        'background:transparent}' +
       '.ag-pulsanti .ag-ingranaggio svg{width:14px;height:14px;flex:none}' +
+      '.ag-pulsanti .ag-toggle-sp{width:100%!important;min-width:0!important;height:32px}' +
       '.ag-pulsanti .ag-toggle-sp .ag-lbl{flex:none}' +
-      '.ag-pulsanti .ag-toggle-sp{width:100%!important;min-width:0!important}' +
-      '.ag-logo{flex:none;height:44px;width:auto;display:block;object-fit:contain;' +
+      '.ag-pulsanti .ag-toggle-sp .ag-dot{display:none}' +
+      '.ag-logo{flex:none;height:72px;width:auto;display:block;object-fit:contain;' +
         'user-select:none;-webkit-user-drag:none}' +
-      '@media(max-width:1100px){.ag-logo{height:34px}.ag-pulsanti > *{font-size:9px}}' +
+      '@media(max-width:1180px){.ag-logo{height:56px}}' +
+      '@media(max-width:1000px){.ag-logo{height:44px}.ag-pulsanti > *{font-size:9px}}' +
       '.ag-prov{display:inline-flex;align-items:center;gap:3px;flex:none;margin-right:5px}' +
       '.ag-prov i{width:7px;height:7px;border-radius:50%;display:block}' +
       '.ag-p-reg{background:var(--text-light)}' +
