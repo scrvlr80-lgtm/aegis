@@ -21,12 +21,18 @@
     --ui-border-radius: 8px;
 }
 /* ===== AEGIS ===== */
-:root{--primary:#FFFFFF;--console-bg:#F7F7F9;--hairline:#E3E3E8;--accent:#0071E3;
+:root{--primary:#FFFFFF;--console-bg:#F7F7F9;--hairline:#E3E3E8;--accent:#3D3D42;
   --text-main:#1D1D1F;--text-light:#6E6E73;--bot-bubble:transparent;--user-bubble:#ECECF1;
   --shadow:0 10px 40px rgba(0,0,0,.08);
   --c-per:#E5484D;--c-addr:#30A46C;--c-city:#0091FF;--c-date:#F5A524;
   --c-bank:#8E4EC6;--c-mail:#00A2C7;--c-tech:#5B6270;--c-med:#E93D82;--c-id:#D6409F;
-  --c-org:#8B5E3C;}
+  --c-org:#8B5E3C;
+  /* SCALA DI GRIGI DELL'INTERFACCIA. Acceso e spento non si distinguono
+     piu' per tinta ma per TONO: bordo e testo scuri quando e' acceso,
+     chiari quando e' spento. Il colore resta SOLO dove e' informazione:
+     i codici delle categorie nello specchio e le evidenziazioni. */
+  --g-bordo:#D8D8DE;--g-bordo-on:#3D3D42;--g-fondo-on:#F0F0F2;
+  --g-fondo-hover:#F4F4F6;--g-testo-on:#1D1D1F;--g-testo-off:#6E6E73;}
 html,body{height:100%;margin:0}
 body{color:var(--text-main);background:var(--primary);overflow:hidden}
 .console-frame,.chat-area,.chat-container{background:var(--primary)!important}
@@ -403,7 +409,7 @@ body.ag-attivo{overflow:hidden;margin:0}
 body.ag-pennello-on .ag-lista,body.ag-pennello-on .ag-anteprima,
 body.ag-pennello-on .chat-messages,
 body.ag-pennello-on .ag-voci-corpo{
-  cursor:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26'><circle cx='11' cy='11' r='7' fill='none' stroke='%230071e3' stroke-width='2'/><path d='M11 7v8M7 11h8' stroke='%230071e3' stroke-width='2' stroke-linecap='round'/></svg>") 11 11, crosshair}
+  cursor:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26'><circle cx='11' cy='11' r='7' fill='none' stroke='%233D3D42' stroke-width='2'/><path d='M11 7v8M7 11h8' stroke='%233D3D42' stroke-width='2' stroke-linecap='round'/></svg>") 11 11, crosshair}
 body.ag-pennello-on .ag-t,
 body.ag-pennello-on .ag-voci-corpo .ag-gr-voce{
   cursor:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26'><circle cx='11' cy='11' r='7' fill='none' stroke='%23E5484D' stroke-width='2'/><path d='M7 11h8' stroke='%23E5484D' stroke-width='2' stroke-linecap='round'/></svg>") 11 11, crosshair}
@@ -834,6 +840,123 @@ body {
         text-align: center;
     }
 }
+
+/* =====================================================================
+   AEGIS - TAVOLOZZA IN SCALA DI GRIGI
+   ---------------------------------------------------------------------
+   L'azzurro non c'e' piu' da nessuna parte. Il riferimento di forma e'
+   il pulsante "Configurazione": bordo sottile chiaro, testo grigio,
+   fondo trasparente. Tutti gli altri pulsanti dell'interfaccia adesso
+   hanno quella stessa cornice.
+   ACCESO E SPENTO non si distinguono per tinta ma per TONO: acceso ha
+   bordo e testo scuri, la scritta in grassetto e un fondo appena piu'
+   scuro; spento resta chiaro e leggero. La parola ON/OFF sta dentro
+   l'etichetta, quindi il grassetto la marca insieme al resto.
+   Restano colorati SOLO i codici delle categorie nello specchio, le
+   evidenziazioni e la legenda: li' il colore e' informazione, e
+   toglierlo vorrebbe dire togliere quello che il riquadro deve dire.
+   Questo blocco chiude il foglio di stile: sta in fondo apposta, cosi'
+   vince per ordine di cascata e corregge gli azzurri scritti a mano,
+   che una variabile non poteva raggiungere.
+   ===================================================================== */
+
+/* --- fondi al passaggio del mouse: erano tutti rgba(0,113,227,...) --- */
+.ag-ingranaggio:hover,.ag-ia:hover:not(:disabled),.ag-cmd-b:hover{
+  background:var(--g-fondo-hover)}
+.lang-change-btn:hover,.gdpr-btn-accept:hover:not(:disabled),.lang-btn-main:hover,
+.history-btn-main:hover,.history-menu button:hover,.action-btn:hover,
+.edit-confirm-btn:hover,.feedback-send-btn:hover,.img-disclaimer-accept:hover{
+  background-color:var(--g-fondo-hover)!important;box-shadow:none!important}
+.history-dots:hover{background:var(--g-fondo-hover);color:var(--g-testo-on)}
+
+/* --- i pulsanti della testa: una cornice sola per tutti --- */
+.ag-ia,.ag-toggle,.ag-toggle-sp,.ag-pulsanti .ag-ingranaggio,.lang-change-btn{
+  border:1px solid var(--g-bordo);background:transparent;color:var(--g-testo-off);
+  font-weight:600;transition:border-color .15s,color .15s,background .15s}
+.ag-ia:hover:not(:disabled),.ag-toggle:hover,.ag-pulsanti .ag-ingranaggio:hover,
+.lang-change-btn:hover{
+  border-color:#A9A9B2;color:var(--g-testo-on);background:var(--g-fondo-hover)}
+.ag-ia.on,.ag-ia.ag-pronto,.ag-toggle.on{
+  border-color:var(--g-bordo-on);color:var(--g-testo-on);
+  background:var(--g-fondo-on);font-weight:700}
+/* scaricamento e guasto: niente arancione e niente verde, solo tono */
+.ag-ia.ag-carico{border-color:var(--g-bordo);color:var(--g-testo-off);font-weight:600}
+.ag-ia.ag-fallito{border-color:var(--g-bordo);color:var(--g-testo-off);opacity:.6}
+
+/* --- il pallino: pieno e scuro = acceso, vuoto = spento.
+       E' la stessa convenzione della legenda dei gruppi, che gia' usa
+       il pallino pieno per acceso e il contorno vuoto per spento. --- */
+.ag-dot{width:8px;height:8px;background:transparent;
+  box-shadow:inset 0 0 0 1.5px var(--g-bordo);transition:.15s}
+.ag-toggle.on .ag-dot{background:var(--g-bordo-on);box-shadow:none}
+
+/* --- LE TRE SCHEDE. "Predeterminado" era troppo lunga: schiacciava il
+       contatore e mandava tutto a capo. Adesso e' "Auto", uguale nelle
+       tre lingue, e il pallino ha spazio garantito per tre cifre. --- */
+.ag-tab{font-size:9.5px;letter-spacing:.02em;padding:0 4px;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.ag-tab.on{color:var(--g-testo-on);border-bottom-color:var(--g-bordo-on)}
+.ag-tab span{min-width:24px;padding:1px 6px;background:var(--hairline);
+  color:var(--g-testo-off);font-variant-numeric:tabular-nums;
+  font-feature-settings:'tnum'}
+.ag-tab.on span{background:var(--g-bordo-on);color:#fff}
+
+/* --- MICROFONO E INVIO.
+       L'invio e' l'azione principale della pagina: cerchio pieno scuro
+       con la freccia bianca, come ci si aspetta. Il microfono resta un
+       comando fra gli altri, quindi grigio, e non pulsa piu' in
+       azzurro: l'animazione resta, il bagliore colorato no. --- */
+.mic-btn{color:var(--g-testo-off)}
+.mic-btn:hover{color:var(--g-testo-on);background:var(--g-fondo-hover)!important}
+.mic-blink{color:var(--g-testo-off);filter:none}
+.send-btn-icon{border-color:transparent;background-color:var(--g-bordo-on);
+  background-image:url('data:image/svg+xml;utf8,<svg viewBox="0 0 24 24" fill="%23FFFFFF" xmlns="http://www.w3.org/2000/svg"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>')}
+.send-btn-icon:hover{background-color:#1D1D1F!important;border-color:transparent;
+  box-shadow:none!important}
+.send-btn-icon:disabled{background-color:#C9C9D0;border-color:transparent;opacity:1;
+  background-image:url('data:image/svg+xml;utf8,<svg viewBox="0 0 24 24" fill="%23FFFFFF" xmlns="http://www.w3.org/2000/svg"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>')}
+.stop-btn-icon{border-color:var(--g-bordo)}
+.stop-btn-icon:hover{border-color:var(--g-bordo-on);background-color:var(--g-fondo-hover)}
+
+/* --- residui del tema scuro di partenza --- */
+.input-inner{box-shadow:none;border-color:var(--g-bordo)}
+.input-inner:focus-within{border-color:var(--g-bordo-on);box-shadow:none}
+.user-message{box-shadow:none;border-color:var(--g-bordo)}
+.bot-message .message-content-wrapper::before{background-color:var(--g-bordo-on);
+  box-shadow:none}
+.typing-indicator .message-text{color:var(--g-testo-off);animation:ag-battito 1.5s ease-in-out infinite}
+.typing-indicator .message-text{text-shadow:none}
+@keyframes ag-battito{0%,100%{opacity:.45}50%{opacity:1}}
+.scroll-to-bottom-btn{background-color:var(--primary);border-color:var(--g-bordo);
+  color:var(--g-testo-off);box-shadow:0 2px 10px rgba(0,0,0,.10)}
+.scroll-to-bottom-btn:hover{background-color:var(--g-fondo-on);color:var(--g-testo-on);
+  border-color:var(--g-bordo-on);box-shadow:0 2px 12px rgba(0,0,0,.14);transform:none}
+.scroll-to-bottom-btn svg{filter:none}
+#access-gate-btn{background:var(--g-bordo-on)!important;color:#fff!important}
+.demo-btn{color:#fff!important;border-color:var(--g-bordo-on);box-shadow:none}
+.demo-btn:hover{box-shadow:none;transform:none}
+.calendly-btn{box-shadow:none}
+.calendly-btn:hover{background-color:var(--g-fondo-hover);box-shadow:none}
+.lang-search-input:focus{border-color:var(--g-bordo-on);box-shadow:none}
+.lang-btn-main:hover,.history-btn-main:hover{border-color:var(--g-bordo-on)}
+.history-rename-input{border-color:var(--g-bordo-on)}
+
+/* =====================================================================
+   SCHERMO INTERO DELLA CHAT IN CHIARO
+   Le altre due colonne si NASCONDONO, non si smontano: tornando alle
+   tre colonne ritrovano le schede aperte e la legenda esattamente come
+   stavano. E' solo un cambio d'aspetto: il testo che parte passa
+   comunque da aegisMaskHistory e quello che si legge da decodifica().
+   ===================================================================== */
+.ag-scena.ag-solo-chat > .ag-voci,
+.ag-scena.ag-solo-chat > .ag-pannello{display:none!important}
+.ag-fs-btn{background:transparent;border:1px solid var(--g-bordo);
+  color:var(--g-testo-off);border-radius:4px;width:32px;height:32px;flex:none;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;
+  transition:border-color .15s,color .15s,background .15s}
+.ag-fs-btn:hover{border-color:var(--g-bordo-on);color:var(--g-testo-on);
+  background:var(--g-fondo-hover)}
+.ag-fs-btn svg{width:15px;height:15px;fill:currentColor;display:block}
 </style>
 </head>
 <body>
@@ -7975,8 +8098,10 @@ if (recognition) {
       aiutoProfonda:'Misura estrema: copre molto di piu\u0027 e sbaglia molto di piu\u0027. Prende anche i nomi in minuscolo che sono parole comuni. Non serve quasi mai.',
       aiutoRiservato:'Sfoca i dati sullo schermo. Utile prima di condividere lo schermo o mostrare il monitor a qualcuno.',
       aiutoConfig:'Avvisi, preferenze di protezione, dati salvati su questo dispositivo, uscita dall\u0027account.',
+      espandi:'Espandi la chat a schermo intero',
+      raccogli:'Torna alle tre colonne',
       aiutoEvidenzia:'Accende e spegne i colori sui codici nello specchio. Non cambia cio\u0027 che viene inviato.',
-      tabDefault:'Predefinito', tabAggiunte:'Aggiunte', tabRimosse:'Rimosse',
+      tabDefault:'Auto', tabAggiunte:'Aggiunte', tabRimosse:'Rimosse',
       vuotoDefault:'Qui compaiono i dati che il sistema sta coprendo.',
       vuotoAggiunte:'Qui compaiono le parole che copri tu con il pennello.',
       vuotoRimosse:'Qui compaiono le parole che hai riportato in chiaro. Da quel momento partono cosi\u0027 come sono.',
@@ -8142,8 +8267,10 @@ if (recognition) {
       aiutoProfonda:'Medida extrema: oculta mucho mas y se equivoca mucho mas. Toma tambien los nombres en minuscula que son palabras comunes. Casi nunca hace falta.',
       aiutoRiservato:'Difumina los datos en pantalla. Util antes de compartir pantalla o ensenar el monitor a alguien.',
       aiutoConfig:'Avisos, preferencias de proteccion, datos guardados en este dispositivo, cierre de sesion.',
+      espandi:'Ampliar el chat a pantalla completa',
+      raccogli:'Volver a las tres columnas',
       aiutoEvidenzia:'Enciende y apaga los colores de los codigos en el espejo. No cambia lo que se envia.',
-      tabDefault:'Predeterminado', tabAggiunte:'A\u00f1adidas', tabRimosse:'Quitadas',
+      tabDefault:'Auto', tabAggiunte:'A\u00f1adidas', tabRimosse:'Quitadas',
       vuotoDefault:'Aqu\u00ed aparecen los datos que el sistema est\u00e1 ocultando.',
       vuotoAggiunte:'Aqui aparecen las palabras que ocultas tu con el pincel.',
       vuotoRimosse:'Aqui aparecen las palabras que has devuelto a la vista. A partir de ese momento se envian tal cual.',
@@ -8309,8 +8436,10 @@ if (recognition) {
       aiutoProfonda:'Extreme measure: masks far more and gets it wrong far more. It also takes lowercase names that are ordinary words. Rarely needed.',
       aiutoRiservato:'Blurs the data on screen. Useful before sharing your screen or showing your monitor to someone.',
       aiutoConfig:'Warnings, protection preferences, data stored on this device, sign out.',
+      espandi:'Expand the chat to full screen',
+      raccogli:'Back to three columns',
       aiutoEvidenzia:'Turns the code colours in the mirror on and off. Does not change what is sent.',
-      tabDefault:'Default', tabAggiunte:'Added', tabRimosse:'Removed',
+      tabDefault:'Auto', tabAggiunte:'Added', tabRimosse:'Removed',
       vuotoDefault:'This is where the data the system is masking appears.',
       vuotoAggiunte:'This is where the words you mask with the brush appear.',
       vuotoRimosse:'This is where the words you brought back in the clear appear. From then on they are sent as they are.',
@@ -8461,11 +8590,11 @@ if (recognition) {
         'overflow:hidden;text-overflow:ellipsis;max-width:none;min-width:0;flex:none}' +
       /* l ingranaggio e un pulsante come gli altri: stessa cornice, stessa
          misura, con la sua etichetta accanto all icona */
-      '.ag-pulsanti .ag-ingranaggio{border:1px solid var(--hairline);gap:7px;' +
+      '.ag-pulsanti .ag-ingranaggio{border:1px solid var(--g-bordo);gap:7px;' +
         'font-family:Inter,sans-serif;font-weight:700;letter-spacing:.04em;' +
-        'font-size:10px;text-transform:uppercase;color:var(--text-light);background:transparent}' +
-      '.ag-pulsanti .ag-ingranaggio:hover{border-color:var(--accent);color:var(--accent);' +
-        'background:transparent}' +
+        'font-size:10px;text-transform:uppercase;color:var(--g-testo-off);background:transparent}' +
+      '.ag-pulsanti .ag-ingranaggio:hover{border-color:var(--g-bordo-on);color:var(--g-testo-on);' +
+        'background:var(--g-fondo-hover)}' +
       '.ag-pulsanti .ag-ingranaggio svg{width:14px;height:14px;flex:none}' +
       '.ag-pulsanti .ag-toggle-sp{width:100%!important;min-width:0!important;height:32px}' +
       '.ag-pulsanti .ag-toggle-sp .ag-lbl{flex:none}' +
@@ -8532,7 +8661,7 @@ if (recognition) {
       '.ag-sk-doc{display:flex;align-items:flex-start;gap:6px;padding:8px 9px;border-radius:9px;' +
         'cursor:pointer;position:relative}' +
       '.ag-sk-doc:hover{background:rgba(0,0,0,.04)}' +
-      '.ag-sk-doc.on{background:rgba(0,113,227,.08)}' +
+      '.ag-sk-doc.on{background:rgba(0,0,0,.06)}' +
       '.ag-sk-doc.spenta{opacity:.5}' +
       '.ag-sk-doc .pal{width:7px;height:7px;border-radius:50%;background:var(--c-addr);' +
         'flex:none;margin-top:5px}' +
@@ -8566,7 +8695,7 @@ if (recognition) {
       '.ag-rag-doc{padding:9px 10px;border-radius:9px;cursor:pointer;display:flex;' +
         'align-items:flex-start;gap:8px}' +
       '.ag-rag-doc:hover{background:rgba(0,0,0,.04)}' +
-      '.ag-rag-doc.on{background:rgba(0,113,227,.08)}' +
+      '.ag-rag-doc.on{background:rgba(0,0,0,.06)}' +
       '.ag-rag-doc .nm{flex:1;min-width:0;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
       '.ag-rag-doc .dt{display:block;font-size:10px;color:var(--text-light);margin-top:2px}' +
       '.ag-rag-doc button{border:none;background:transparent;color:var(--text-light);' +
@@ -9904,6 +10033,14 @@ if (recognition) {
       t[2].textContent = T('tabRimosse');
     });
 
+    passo('schermo intero', function () {
+      var b = document.getElementById('ag-fs-btn');
+      if (!b) return;
+      var sc = document.querySelector('.ag-scena');
+      var on = !!(sc && sc.classList.contains('ag-solo-chat'));
+      b.setAttribute('data-aiuto', on ? T('raccogli') : T('espandi'));
+      b.setAttribute('aria-label', on ? T('raccogli') : T('espandi'));
+    });
     passo('colonna', function () { disegnaColonna(); });
     passo('bolle', function () { disegna(); });
   }
@@ -11298,6 +11435,75 @@ if (recognition) {
     chat.classList.add('ag-chat');
     document.body.classList.add('ag-attivo');
 
+    /* ================== SCHERMO INTERO DELLA CHAT IN CHIARO ==================
+       Un solo pulsante, nella testa della colonna di destra: espande la chat
+       su tutto lo schermo e la riporta indietro. Le altre due colonne si
+       NASCONDONO (display:none), non si smontano: al ritorno ritrovano le
+       schede aperte, il contenuto e lo stato della legenda esattamente come
+       stavano, perche' non e' mai stato ricostruito niente.
+
+       L'espansione e' SOLO visiva. Non esiste nessun percorso nuovo verso il
+       modello: quello che parte passa comunque da aegisMaskHistory, quello
+       che si legge passa comunque da decodifica(). Qui dentro non c'e' una
+       sola riga che tocchi il testo.
+
+       Dopo il cambio di dimensione si ridisegna cio' che e' disegnato a
+       coordinate e non si sposta da solo: il tetto del campo di scrittura
+       (altezzaCampo lo misura sulla colonna, che ora e' larga il triplo),
+       l'ombra colorata sotto il testo, la freccia in basso e le
+       evidenziazioni nelle bolle. Si fa dopo la transizione - due
+       requestAnimationFrame e una rete a 260 ms - altrimenti si misura la
+       colonna vecchia e resta tutto dov'era.
+       ======================================================================= */
+    var ICONA_ESPANDI  = '<svg viewBox="0 0 24 24"><path d="M4 4h7v2H6v5H4V4zm9 0h7v7h-2V6h-5V4zM4 13h2v5h5v2H4v-7zm14 0h2v7h-7v-2h5v-5z"/></svg>';
+    var ICONA_RACCOGLI = '<svg viewBox="0 0 24 24"><path d="M9 4h2v7H4V9h5V4zm4 0h2v5h5v2h-7V4zM4 13h7v7H9v-5H4v-2zm9 0h7v2h-5v5h-2v-7z"/></svg>';
+    var chatEspansa = false;
+
+    function riallineaDopoIlCambio(){
+      try { if (window.aegisAdattaCampo) window.aegisAdattaCampo(document.getElementById('user-input')); } catch(e){}
+      try { if (typeof updateFloatingOffsets === 'function') updateFloatingOffsets(); } catch(e){}
+      try { var campo = document.getElementById('user-input'); if (campo) disegnaOmbra(campo.value); } catch(e){}
+      try { if (window.aegisRiapplica) window.aegisRiapplica(); } catch(e){}
+      try {
+        var cm = document.getElementById('chat-messages');
+        if (cm && (typeof followBottom === 'undefined' || followBottom)) cm.scrollTop = cm.scrollHeight;
+      } catch(e){}
+    }
+
+    function schermoIntero(acceso){
+      chatEspansa = !!acceso;
+      scena.classList.toggle('ag-solo-chat', chatEspansa);
+      var b = document.getElementById('ag-fs-btn');
+      if (b) {
+        b.innerHTML = chatEspansa ? ICONA_RACCOGLI : ICONA_ESPANDI;
+        b.setAttribute('data-aiuto', chatEspansa ? T('raccogli') : T('espandi'));
+        b.setAttribute('aria-label', chatEspansa ? T('raccogli') : T('espandi'));
+        b.setAttribute('aria-pressed', chatEspansa ? 'true' : 'false');
+      }
+      requestAnimationFrame(function(){
+        riallineaDopoIlCambio();
+        requestAnimationFrame(riallineaDopoIlCambio);
+      });
+      setTimeout(riallineaDopoIlCambio, 260);
+    }
+    window.aegisSchermoIntero = schermoIntero;
+
+    (function montaPulsanteSchermoIntero(){
+      var testa = chat.querySelector('.chat-header');
+      if (!testa) return;
+      if (document.getElementById('ag-fs-btn')) return;
+      var b = document.createElement('button');
+      b.id = 'ag-fs-btn';
+      b.type = 'button';
+      b.className = 'ag-fs-btn';
+      b.innerHTML = ICONA_ESPANDI;
+      b.setAttribute('data-aiuto', T('espandi'));
+      b.setAttribute('aria-label', T('espandi'));
+      b.setAttribute('aria-pressed', 'false');
+      b.addEventListener('click', function(e){ e.stopPropagation(); schermoIntero(!chatEspansa); });
+      testa.appendChild(b);
+    })();
+
     /* Spostare la chat dentro la scena lascia il documento in uno stato che
        il browser non ridisegna finche' non arriva un evento dell'utente:
        risultato, schermo vuoto e prodotto che sembra morto. Qui si forza il
@@ -11808,7 +12014,7 @@ if (recognition) {
       '.ag-doc-btn{background:transparent;border:none;color:var(--text-light);width:34px;' +
       'height:34px;border-radius:4px;display:flex;align-items:center;justify-content:center;' +
       'cursor:pointer;transition:.2s;flex-shrink:0;margin-bottom:2px;padding:0}' +
-      '.ag-doc-btn:hover{color:var(--accent);background:rgba(0,113,227,.06)}' +
+      '.ag-doc-btn:hover{color:var(--g-testo-on);background:var(--g-fondo-hover)}' +
       '.ag-doc-btn svg{width:20px;height:20px;fill:currentColor}' +
       '#ag-doc-stato{display:none;padding:6px 25px 0;font-family:Inter,sans-serif;' +
       'font-size:11px;line-height:1.5;color:var(--text-light)}' +
