@@ -248,7 +248,56 @@
      significato da confrontare.
      ========================================================================= */
 
+  /* ============ TRASFERIMENTO FRA DISPOSITIVI ============
+     Le Skill vivono in IndexedDB, cioe' in QUESTO browser, su QUESTO
+     dispositivo. Non e' una svista: e' la stessa scelta che vale per la
+     cronologia e per la corrispondenza fra codici e dati reali. Se le
+     sincronizzassimo da sole, il documento in chiaro finirebbe su un server, e
+     l'unica cosa che questa applicazione promette e' che non succede.
+
+     Il trasferimento quindi lo fa l'utente, consapevolmente: si esporta un
+     file e lo si apre sull'altro dispositivo. Il file contiene i documenti in
+     chiaro, quindi va trattato come i documenti originali.
+
+     La strada per una sincronizzazione vera esiste ed e' cifrare l'archivio
+     nel browser con una chiave che il server non vede mai. Va fatta, ma va
+     fatta bene: finche' non c'e', meglio un trasferimento manuale e onesto
+     che una sincronizzazione che tradisce la promessa.
+     ======================================================= */
+  async function esportaTutto() {
+    var d = await tutti();
+    return JSON.stringify({ formato: 'aegis-skills-1', ts: Date.now(), skills: d }, null, 1);
+  }
+
+  // I documenti dell'altro dispositivo si AGGIUNGONO: non si cancella niente
+  // di quello che c'e' gia' qui. Chi importa due volte non perde nulla.
+  async function importa(testoJson) {
+    var dati;
+    try { dati = JSON.parse(String(testoJson)); }
+    catch (e) { throw new Error('file non leggibile'); }
+    var lista = (dati && dati.skills) || [];
+    if (!Array.isArray(lista) || !lista.length) throw new Error('nessuna Skill nel file');
+    var presenti = await tutti();
+    var visti = {};
+    presenti.forEach(function (x) { visti[String(x.nome) + '|' + (x.caratteri || 0)] = true; });
+    var messe = 0;
+    for (var i = 0; i < lista.length; i++) {
+      var d2 = lista[i];
+      if (!d2 || !d2.testo) continue;
+      var k = String(d2.nome) + '|' + (d2.caratteri || String(d2.testo).length);
+      if (visti[k]) continue;                       // gia' qui: non si duplica
+      d2.id = idNuovo();
+      d2.ts = Date.now();
+      if (!d2.pezzi || !d2.pezzi.length) d2.pezzi = indicizza(spezza(String(d2.testo)));
+      await salvaDoc(d2);
+      messe++;
+    }
+    return messe;
+  }
+
   root.AEGIS_RAG = {
+    esportaTutto: esportaTutto,
+    importa: importa,
     aggiungi: aggiungi,
     rinomina: rinomina,
     sostituisci: sostituisci,
