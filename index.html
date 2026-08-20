@@ -976,6 +976,17 @@ body {
 .ag-fs-btn:hover{border-color:var(--g-bordo-on);color:var(--g-testo-on);
   background:var(--g-fondo-hover)}
 .ag-fs-btn svg{width:15px;height:15px;fill:currentColor;display:block}
+/* IL LOGO A SCHERMO INTERO.
+   A tre colonne il logo sta nella testa dello specchio. Quando lo
+   specchio si nasconde, il logo se ne andrebbe con lui e la pagina
+   resterebbe senza marchio. Qui ce n'e' un secondo, nella testa della
+   chat, che esiste sempre ma si vede SOLO da espansa: cosi' non si
+   sposta niente da un contenitore all'altro - spostare un nodo per poi
+   rimetterlo a posto e' il modo piu' facile per perderlo. */
+#ag-logo-chat{display:none}
+.ag-scena.ag-solo-chat .chat-header #ag-logo-chat{display:block;height:46px;
+  width:auto;flex:none;object-fit:contain;margin-right:8px;user-select:none;
+  -webkit-user-drag:none}
 </style>
 </head>
 <body>
@@ -11521,6 +11532,17 @@ if (recognition) {
       b.setAttribute('aria-pressed', 'false');
       b.addEventListener('click', function(e){ e.stopPropagation(); schermoIntero(!chatEspansa); });
       testa.appendChild(b);
+      // il marchio, in testa a sinistra: si vede solo da espansa (vedi il
+      // foglio di stile). Se l'immagine non si carica sparisce da sola,
+      // come quella dello specchio, invece di lasciare l'icona rotta.
+      if (!document.getElementById('ag-logo-chat')) {
+        var lg = document.createElement('img');
+        lg.id = 'ag-logo-chat';
+        lg.src = AEGIS_LOGO;
+        lg.alt = 'Aegis';
+        lg.onerror = function(){ this.style.display = 'none'; };
+        testa.insertBefore(lg, testa.firstChild);
+      }
     })();
 
     /* Spostare la chat dentro la scena lascia il documento in uno stato che
