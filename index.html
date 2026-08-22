@@ -5217,6 +5217,43 @@ if (recognition) {
     anchors: { left: ['nie', 'numero de identidad de extranjero', 'tie'], right: [], window: 30 },
     pos: ['X1234567L', 'Y0000000S'], neg: ['X1234567A']
   });
+  /* ---------------------------------------------------------------------
+     DOCUMENTI ETICHETTATI: IL CHECKSUM NON PUO' DECIDERE DA SOLO.
+     ES_DNI e ES_NIE qui sopra hanno un validatore, e nel motore il
+     validatore e' VINCOLANTE: se non torna, il valore viene scartato e
+     resta in chiaro. Va benissimo per trovare un documento in mezzo a un
+     testo qualsiasi - senza checksum, otto cifre e una lettera sono un
+     codice prodotto qualunque.
+     Ma quando accanto c'e' scritto "DNI:" la domanda e' gia' stata
+     risposta da chi ha scritto il documento: quello E' un numero di
+     documento, che il checksum torni o no. E non torna piu' spesso di
+     quanto si creda - una cifra copiata male, un OCR incerto, un modulo
+     riempito a mano, un documento di prova. In tutti quei casi il dato
+     usciva in chiaro proprio perche' era leggermente sbagliato, che e'
+     esattamente il modo peggiore di fallire: si protegge il documento
+     perfetto e si lascia scoperto quello con un refuso.
+     Questi due pattern coprono quel caso e SOLO quello: pretendono
+     l'etichetta accanto (anchorRequired), non hanno validatore, e stanno
+     a priorita' piu' bassa dei fratelli validati, che continuano quindi a
+     vincere quando il checksum torna. Confidenza piu' bassa perche' la
+     prova e' piu' debole: e' l'etichetta, non la matematica.
+     --------------------------------------------------------------------- */
+  D('ES_DNI_ETICHETTA', {
+    category: 'ID_STATALE', sub: 'dni', token: 'DNI', priority: 885, locale: ['es'],
+    regex: '\\b\\d{8}[ -]?[A-Za-z]\\b', anchorRequired: true, confidence: 0.88,
+    anchors: { left: ['dni', 'nif', 'd.n.i', 'documento nacional', 'documento de identidad',
+      'documento di identita', 'documento d identita', 'documento:', 'carta d identita',
+      'identity document', 'id document', 'num documento', 'numero documento',
+      'n documento', 'documento numero'], right: [], window: 30 },
+    pos: ['23456789Z', '12345678Z'], neg: []
+  });
+  D('ES_NIE_ETICHETTA', {
+    category: 'ID_STATALE', sub: 'nie', token: 'NIE', priority: 885, locale: ['es'],
+    regex: '\\b[XYZxyz][ -]?\\d{7}[ -]?[A-Za-z]\\b', anchorRequired: true, confidence: 0.88,
+    anchors: { left: ['nie', 'n.i.e', 'numero de identidad de extranjero', 'tie',
+      'tarjeta de residencia', 'permiso de residencia'], right: [], window: 30 },
+    pos: ['X1234567A', 'X1234567L'], neg: []
+  });
   D('ES_CIF', {
     category: 'ID_STATALE', sub: 'cif', token: 'CIF', priority: 850, locale: ['es'],
     regex: '\\b[ABCDEFGHJNPQRSUVW][ -]?\\d{7}[ -]?[0-9A-J]\\b', validator: 'cif', confidence: 0.92,
@@ -5412,6 +5449,35 @@ if (recognition) {
     excludeLower: ['como','prato','leon','monza','mar','sol','oxford','york','cambridge','reading','bath'],
     hint: 'citta note: da sole non identificano, ma combinate con altro si',
     pos: ['Milano', 'Madrid', 'London'], neg: ['milano']
+  });
+
+  /* ---------------------------------------------------------------------
+     LUOGHI SPAGNOLI CHE MANCAVANO — E PERCHE' STANNO IN UN PATTERN A PARTE.
+     CITY_KNOWN qui sopra e' un elenco fisso di 124 citta' che privilegia le
+     grandi capitali europee: mancavano le Canarie e le Baleari PER INTERO
+     (Tenerife, La Laguna, Las Palmas, Lanzarote, Palma...) e trenta
+     capoluoghi di provincia spagnoli. Su un documento delle Canarie il
+     luogo usciva quindi in chiaro.
+     NON li ho aggiunti dentro CITY_KNOWN, e la ragione e' precisa. Quel
+     pattern ha priorita' 655, PIU' ALTA dei nomi di persona (435-520), e
+     nel motore un candidato con priorita' maggiore SCALZA quello gia'
+     accettato anche se comincia dopo ed e' piu' corto. Siccome in spagnolo
+     quasi ogni citta' e' anche un cognome (Segovia, Zamora, Soria, Avila,
+     Palencia sono tutti nel gazetteer dei cognomi), aggiungerle li' dentro
+     spezzava i nomi completi: "Maria Segovia Lopez" diventava
+     "Maria [[CITY_01]] Lopez", cioe' due pezzi di nome IN CHIARO. Una
+     copertura in piu' che ne toglieva una piu' importante.
+     Qui la priorita' e' 430, sotto qualsiasi pattern di persona: se il
+     testo e' un nome, vince il nome; se e' un luogo isolato, viene coperto
+     lo stesso. Si guadagna la copertura senza pagarla con i nomi.
+     --------------------------------------------------------------------- */
+  D('CITY_ES_EXTRA', {
+    category: 'INDIRIZZI', sub: 'city', token: 'CITY', priority: 430, confidence: 0.78,
+    regex: '\\b(?:Las Palmas de Gran Canaria|San Cristobal de La Laguna|Santa Cruz de Tenerife|Santiago de Compostela|Puerto del Rosario|Alcala de Henares|Palma de Mallorca|Vitoria-Gasteiz|Fuerteventura|San Sebastian|Gran Canaria|Torremolinos|Fuenlabrada|Guadalajara|Portugalete|Puertollano|Torrelavega|Ciutadella|Formentera|Fuengirola|Hospitalet|Las Palmas|Maspalomas|Pontevedra|Santa Cruz|Torrevieja|Villarreal|Algeciras|Antequera|Barakaldo|Barbastro|Benicarlo|Calahorra|Cartagena|Castellon|El Hierro|La Gomera|La Laguna|Lanzarote|Ontinyent|Tarragona|Albacete|Alcorcon|Aranjuez|Arrecife|Badalona|Benidorm|Burriana|Cornella|Donostia|Estepona|Figueres|Igualada|La Palma|Mallorca|Marbella|Mostoles|Palencia|Sabadell|Talavera|Tenerife|Terrassa|Alcaniz|Almeria|Andujar|Badajoz|Basauri|Caceres|Cullera|Eivissa|Estella|Gasteiz|Leganes|Linares|Logrono|Manacor|Manises|Manresa|Melilla|Menorca|Ourense|Paterna|Sagunto|Segovia|Torrent|Vinaros|Vitoria|Zarautz|Alzira|Aviles|Cuenca|Ferrol|Gandia|Getafe|Girona|Huesca|Lleida|Lucena|Mataro|Merida|Monzon|Motril|Oviedo|Sitges|Teruel|Tudela|Utrera|Xativa|Zamora|Adeje|Alcoy|Avila|Baeza|Ceuta|Denia|Ecija|Eibar|Elche|Getxo|Ibiza|Javea|Jerez|Mahon|Nerja|Ronda|Salou|Soria|Telde|Ubeda|Irun|Jaca|Jaen|Lugo|Reus)\\b', flags: 'gi', metaKeep: 'region',
+    exclude: { regex: [], stop: [] },
+    excludeLower: ['palma','jerez','la laguna','santa cruz','soria','avila','merida','arona','denia','oliva','salou','ronda','irun','eibar','linares','ubeda','baeza','lucena','torrent','cuenca','vitoria','elche','gasteiz','estella','jaca'],
+    hint: 'luoghi spagnoli assenti da CITY_KNOWN; priorita bassa per non rubare i nomi',
+    pos: ['Tenerife', 'Oviedo'], neg: ['tenerife']
   });
 
   /* --- 1. IDENTITA' PERSONA ---------------------------------------- */
