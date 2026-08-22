@@ -7547,6 +7547,31 @@ if (recognition) {
   // suo documento, in un secondo.
   var banditi = new Map();   // testo -> chiave del vault
   var esclusi = new Set();   // testo che resta in chiaro
+
+  /* ESCLUSIONE: UNA SOLA DOMANDA, UNA SOLA RISPOSTA.
+     Il pennello scriveva in `esclusi` e il motore a regole lo rispettava
+     (protect() riceve excludedValues e li filtra), ma il livello NER/modello
+     no: fondiNer() rimetteva dentro il nome un attimo dopo, riagganciandolo al
+     codice gia' presente nel vault. Da fuori sembrava che "togliere" non
+     togliesse niente: la parola compariva nell'elenco delle tolte E restava
+     mascherata.
+     Il confronto e' SENZA MAIUSCOLE, come gia' fa il motore al suo interno
+     (in protect() `excluded` viene minuscolizzato): altrimenti escludere
+     "Pablo" non copriva "pablo" e la stessa parola andava esclusa due volte.
+     Una funzione sola, consultata da ogni livello: cosi' non puo' piu'
+     succedere che uno strato dica si' e un altro dica no sullo stesso termine. */
+  function escluso(v){
+    if (!esclusi.size) return false;
+    var t = String(v == null ? '' : v).trim();
+    if (!t) return false;
+    if (esclusi.has(t)) return true;
+    var basso = t.toLowerCase();
+    var trovato = false;
+    esclusi.forEach(function(x){
+      if (!trovato && String(x).trim().toLowerCase() === basso) trovato = true;
+    });
+    return trovato;
+  }
   // Proposte del MOTORE CONTESTUALE. Stanno in un elenco separato dai termini
   // scelti a mano: l'utente deve poter distinguere cio' che ha deciso lui da
   // cio' che ha proposto il modello, e toglierle senza toccare le sue.
@@ -7577,6 +7602,39 @@ if (recognition) {
     }
     return out;
   }
+  /* ============ COSA E' STATO DAVVERO MASCHERATO, MESSAGGIO PER MESSAGGIO ===
+     I due riquadri devono dire la stessa cosa: a sinistra i codici, a destra
+     gli evidenziatori, sugli STESSI termini. Fino a ora non potevano:
+       - lo SPECCHIO (sinistra) si scrive UNA VOLTA, al momento dell'invio, e
+         poi resta com'e': e' il verbale di cio' che ha lasciato il dispositivo;
+       - l'EVIDENZIATORE (destra) veniva invece RICALCOLATO da capo a ogni
+         ridisegno, con gli elenchi del pennello aggiornati a ORA.
+     Due basi di tempo diverse sullo stesso messaggio. Bastava bannare o
+     togliere una parola dopo l'invio e i due lati divergevano: a destra si
+     accendeva cio' che non era stato mascherato, e restava spento cio' che
+     invece lo era.
+     Qui si conserva, per ogni messaggio gia' inviato, l'elenco esatto dei
+     valori che sono diventati codice. L'evidenziatore legge questo, non
+     ricalcola. Il messaggio ancora nel campo di scrittura non e' qui dentro e
+     continua a essere calcolato dal vivo: li' e' giusto, perche' non e'
+     ancora partito niente e le scelte dell'utente devono avere effetto subito.
+     ========================================================================= */
+  var congelati = new Map();   // testo mostrato -> [{valore, col}]
+  function congelaVerbale(testoMostrato, valori){
+    try {
+      var k = String(testoMostrato || '');
+      if (!k.trim()) return;
+      congelati.set(k, (valori || []).slice());
+      // tetto: una conversazione lunga non deve far crescere la mappa
+      // all'infinito. Si buttano le piu' vecchie, che sono anche quelle
+      // che nessuno sta piu' guardando.
+      if (congelati.size > 300) {
+        var chiavi = Array.from(congelati.keys()).slice(0, congelati.size - 300);
+        chiavi.forEach(function(x){ congelati.delete(x); });
+      }
+    } catch (e) {}
+  }
+
   var vociAI = new Map();     // testo minuscolo -> codice gia' assegnato
   // CHI HA TROVATO QUESTA PAROLA. Serve solo a mostrarlo nell'elenco: le
   // regole non hanno bisogno di saperlo per lavorare. Valore minuscolo ->
@@ -7838,6 +7896,10 @@ if (recognition) {
     var extra = [];
     candidati.forEach(function(v){
       if(!v || v.length<2) return;
+      // LA DECISIONE DELL'UTENTE VINCE ANCHE QUI.
+      // Era l'unico livello che non la consultava: il motore a regole
+      // rispettava gia' l'esclusione, e questo la annullava subito dopo.
+      if(escluso(v)) return;
       // Rete di sicurezza: un nome non puo' coprire mezza frase. Se il modello
       // sbaglia e restituisce un blocco enorme, si scarta invece di mascherare
       // tutto: meglio un dato scoperto che un testo reso illeggibile.
@@ -7886,13 +7948,13 @@ if (recognition) {
     });
 
     var r;
-    try{ r=AEGIS.protect(testoPulito,opzioni()); }catch(e){ return {testo:testo,voci:[]}; }
+    try{ r=AEGIS.protect(testoPulito,opzioni()); }catch(e){ return {testo:testo,voci:[],valori:[]}; }
     r = fondiNer(testoPulito, r);
     // Banda intermedia: quello che il motore ha visto ma non ha voluto
     // mascherare da solo. Non si tocca il testo; si mostra prima dell'invio.
     ultimeProposte = (r.proposte || []).slice();
     ultimiSegnalati = r.segnalati || 0;
-    var out=r.text, voci=[], tmp={}, usati={}, assegnati=0;
+    var out=r.text, voci=[], valori=[], tmp={}, usati={}, assegnati=0;
     r.vault.forEach(function(v){
       var chiave=String(v.value).toLowerCase(), tok=null;
       vault.forEach(function(val,k){ if(!tok && String(val).toLowerCase()===chiave) tok=k.split('~')[0]; });
@@ -7929,6 +7991,7 @@ if (recognition) {
       // il segnaposto prende la lunghezza del valore che sostituisce
       out=out.split(v.token).join(vesti(tok, v.value));
       voci.push({tok:tok,col:colorDi.get(tok)||colore(v.token)});
+      valori.push({valore:String(v.value), col:colorDi.get(tok)||colore(v.token)});
     });
     // PROPOSTE DEL MODELLO. Si applicano come i termini manuali, ma solo se
     // l'utente non le ha gia' escluse: la sua decisione vince sempre su quella
@@ -7959,6 +8022,7 @@ if (recognition) {
           segnaProvenienza(testo, 'motore');
           out = sostituisciIntero(out, testo, vesti(tok, testo));
           voci.push({tok:tok, col:cat});
+          valori.push({valore:String(testo), col:cat});
         });
     }
 
@@ -7981,8 +8045,17 @@ if (recognition) {
         colorDi.set(v.tok, cat);
         if (congela && !vault.has(v.tok)) vault.set(v.tok, testo);
         if (!congela) valoriPreview.set(v.tok, testo);   // vedi sopra
-        out = out.split(testo).join(vesti(v.tok, testo));
+        // CONFINI DI PAROLA, come gia' fanno le proposte del motore.
+        // Con split/join un termine corto si mangiava l'interno delle altre
+        // parole: bannare "mi" trasformava "amigo" in "a@pe01@go" e "mismo"
+        // in "@pe01@smo", cioe' rendeva illeggibile il messaggio invece di
+        // proteggerlo. sostituisciIntero e' la stessa funzione usata per i
+        // suggerimenti, e ricade da sola su split/join quando il termine
+        // comincia e finisce con segni non alfabetici (dove il confine non
+        // ha senso): i termini lunghi si comportano esattamente come prima.
+        out = sostituisciIntero(out, testo, vesti(v.tok, testo));
         voci.push({tok:v.tok, col:cat});
+        valori.push({valore:String(testo), col:cat});
       });
     }
 
@@ -7991,7 +8064,7 @@ if (recognition) {
       return scudi[Number(i)] !== undefined ? scudi[Number(i)] : m;
     });
     if(congela) salva();
-    return {testo:out, voci:voci};
+    return {testo:out, voci:voci, valori:valori};
   }
 
   function decodifica(t){
@@ -8832,6 +8905,31 @@ if (recognition) {
     if (!confirm(T('confScopri', { v: testo }))) return;
     banditi.delete(testo);
     esclusi.add(testo);
+    // EFFETTO IMMEDIATO, non alla prossima analisi.
+    // Il filtro vero e' in escluso(), consultato a ogni passata: questa e' la
+    // pulizia degli elenchi gia' in memoria, perche' l'anteprima si aggiorni
+    // nello stesso istante in cui l'utente clicca invece che al carattere
+    // successivo. Le due cose insieme fanno si' che il pennello si comporti
+    // come l'utente si aspetta: premo, e la parola e' li' in chiaro.
+    var basso = testo.toLowerCase();
+    try {
+      suggeriti.forEach(function(v, k){
+        if (String(k).trim().toLowerCase() === basso) suggeriti.delete(k);
+      });
+      nerNoti.forEach(function(k){
+        if (String(k).trim().toLowerCase() === basso) nerNoti.delete(k);
+      });
+      if (nerCache && nerCache.ent && nerCache.ent.length) {
+        nerCache.ent = nerCache.ent.filter(function(e){
+          return String((e && e.valore) || '').trim().toLowerCase() !== basso;
+        });
+      }
+    } catch (e) {}
+    // NOTA DELIBERATA: il vault NON si tocca.
+    // Se in un messaggio precedente questa parola era gia' diventata un codice,
+    // quel codice deve continuare a valere, o il ripristino della cronologia
+    // sbaglierebbe persona. Si smette di mascherare da adesso in avanti; non si
+    // riscrive il passato.
     vaiA('rimosse');
     aggiorna();
   }
@@ -11001,6 +11099,10 @@ if (recognition) {
   };
   window.aegisUtente=function(testo){
     var r=maschera(testo,true);
+    // VERBALE: quali valori sono diventati codice in QUESTO messaggio.
+    // Da qui in poi l'evidenziatore a destra legge questo elenco invece di
+    // ricalcolare, cosi' i due riquadri non possono piu' divergere.
+    congelaVerbale(testo, r.valori);
     righe.push({ruolo:'user',testo:r.testo});
     autoScroll=true; disegna(); anteprima(''); salva();
     return r.testo;
@@ -11009,11 +11111,16 @@ if (recognition) {
     // Nello specchio la risposta va mostrata PROTETTA: i codici che il modello
     // ha riusato restano, e qualsiasi dato personale che avesse scritto in
     // chiaro viene mascherato adesso. Mostrarla grezza sarebbe una bugia.
-    var protetta = maschera(String(grezzo||''), true).testo;
+    var rm = maschera(String(grezzo||''), true);
+    var protetta = rm.testo;
     righe.push({ruolo:'bot',testo:protetta});
     autoScroll=true; disegna(); salva();
     // la riapplicazione avviene a fine scrittura, non dopo 120ms
-    return decodifica(grezzo);
+    var mostrato = decodifica(grezzo);
+    // Stesso verbale per la risposta: a destra si legge in chiaro, e va
+    // evidenziato cio' che nello specchio a sinistra e' un codice.
+    congelaVerbale(mostrato, rm.valori);
+    return mostrato;
   };
   window.aegisDecodifica=decodifica;
   window.aegisReset=function(){
@@ -11036,8 +11143,29 @@ if (recognition) {
   function trovaSegmenti(testo){
     var segs=[];
     try{
-      var r=AEGIS.protect(String(testo),opzioni());
       var hay=fold2(testo);
+
+      /* MESSAGGIO GIA' INVIATO: si evidenzia il VERBALE, non un nuovo calcolo.
+         E' la regola semplice che tiene insieme i due riquadri: a destra si
+         accende esattamente cio' che a sinistra e' diventato un codice, per
+         quel messaggio, come era al momento dell'invio. Bannare o togliere
+         una parola dopo non puo' piu' far divergere i due lati: cambia cio'
+         che accadra' al prossimo messaggio, non cio' che e' gia' successo. */
+      var verbale = congelati.get(String(testo));
+      if (verbale) {
+        verbale.forEach(function(v){
+          var ago = fold2(String(v.valore || ''));
+          if (ago.length < 2) return;
+          var i = hay.indexOf(ago);
+          while (i !== -1) { segs.push({s:i, e:i+ago.length, col: v.col || 'per'}); i = hay.indexOf(ago, i + ago.length); }
+        });
+        segs.sort(function(a,b){ return a.s-b.s || b.e-a.e; });
+        var netti=[], limite=-1;
+        segs.forEach(function(g){ if(g.s>=limite){ netti.push(g); limite=g.e; } });
+        return netti;
+      }
+
+      var r=AEGIS.protect(String(testo),opzioni());
       r.vault.forEach(function(v){
         var val=String(v.value);
         if(val.length<2) return;
@@ -11048,6 +11176,10 @@ if (recognition) {
       // regole: senza questo, restavano mascherati nello specchio ma non
       // venivano mai evidenziati nella chat.
       nerNoti.forEach(function(val){
+        // Se l'utente l'ha lasciata a vista non va nemmeno evidenziata: due
+        // riquadri che dicono cose diverse sullo stesso dato tolgono ogni
+        // fiducia al riquadro, e vale in entrambe le direzioni.
+        if(escluso(val)) return;
         var ago=fold2(String(val));
         if(ago.length<2) return;
         var i=hay.indexOf(ago);
