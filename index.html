@@ -1071,6 +1071,8 @@ body {
 <div class="chat-container">
 <div class="chat-header">
     <div class="header-texts"></div>
+    <!-- Cerchio dell'account: lo disegna billing-ui.js. Vuoto se non carica. -->
+    <div id="ag-account"></div>
     <select class="lang-change-btn" id="ag-model" title="Modello">
         <option value="deepseek-chat" selected>DEEPSEEK</option>
         <option value="gpt-5.5">GPT-5.5</option>
@@ -1133,6 +1135,24 @@ body {
 </div>
 </div>
 <script>
+    /* =========================================================================
+       PAGAMENTO RICHIESTO (402). Il server lo manda quando l'utente ha finito
+       la quota o quando chiede un modello che il suo piano non comprende.
+       Non e' un errore di rete: prima finiva nel ramo "catch" e all'utente
+       compariva "verifica la connessione", cioe' lo si mandava a cercare un
+       guasto che non esisteva mentre bastava aspettare o cambiare modello.
+       Il messaggio arriva gia' scritto dal server, nella lingua giusta.
+       ====================================================================== */
+    async function gestisci402(response, typingIndicator) {
+        let info = {};
+        try { const d = await response.json(); info = (d && d.error) || {}; if (d && d.billing) window.__AEGIS_BILLING_STATO__ = d.billing; } catch (e) {}
+        const msg = info.message || 'Has alcanzado el limite de tu plan.';
+        transformTypingIntoMessage(typingIndicator, msg, false, false);
+        // La barra dei consumi deve aggiornarsi subito: e' il momento in cui
+        // l'utente guarda per capire quanto gli resta.
+        try { if (window.AEGIS_BILLING) window.AEGIS_BILLING.aggiorna(); } catch (e) {}
+    }
+
     const safeStorage = {
         get: (key) => { try { return localStorage.getItem(key); } catch(e) { return null; } },
         set: (key, val) => { try { localStorage.setItem(key, val); } catch(e) {} },
@@ -2499,6 +2519,7 @@ body {
                 }
                 return;
             }
+            if (response.status === 402) { conversationHistory.pop(); await gestisci402(response, typingIndicator); return; }
             if (!response.ok) throw new Error("Error");
             const data = await response.json();
             let botReplyText = data.choices[0].message.content || "Error.";
@@ -2508,6 +2529,8 @@ body {
             if (window.aegisModello) botReplyText = window.aegisModello(botReplyText);
             conversationHistory.push({ role: "assistant", content: botReplyText });
             transformTypingIntoMessage(typingIndicator, botReplyText, true, false);
+            // Il consumo e cambiato adesso: si avvisa chi disegna la barra.
+            try { document.dispatchEvent(new Event('aegis-risposta')); } catch (e) {}
         } catch (error) {
             conversationHistory.pop();
             transformTypingIntoMessage(typingIndicator, error.name === 'AbortError' ? '⛔ Generación interrumpida.' : ((UI_STRINGS[activeLanguageCode] || UI_DEFAULT).errConexion || '⚠️ Error de conexión. Verifica tu conexión y pulsa el icono ↻ sobre tu mensaje para reintentar.'), false, false);
@@ -3896,6 +3919,7 @@ body {
                 }
                 return;
             }
+            if (response.status === 402) { conversationHistory.pop(); await gestisci402(response, typingIndicator); return; }
             if (!response.ok) throw new Error("Error");
             const data = await response.json();
             let botReplyText = data.choices[0].message.content || "Error.";
@@ -3905,6 +3929,8 @@ body {
             if (window.aegisModello) botReplyText = window.aegisModello(botReplyText);
             conversationHistory.push({ role: "assistant", content: botReplyText });
             transformTypingIntoMessage(typingIndicator, botReplyText, true, false);
+            // Il consumo e cambiato adesso: si avvisa chi disegna la barra.
+            try { document.dispatchEvent(new Event('aegis-risposta')); } catch (e) {}
         } catch (error) {
             conversationHistory.pop();
             if (error.name === 'AbortError') { transformTypingIntoMessage(typingIndicator, '⛔ Generación interrumpida.', false, false); }
@@ -4305,6 +4331,7 @@ body {
                 transformTypingIntoMessage(typingIndicator, msg, false, false);
                 return;
             }
+            if (response.status === 402) { await gestisci402(response, typingIndicator); return; }
             if (!response.ok) throw new Error("Error");
             const data = await response.json();
             let botReplyText = (data && data.reply) ? data.reply : 'No he podido analizar la imagen.';
@@ -4314,6 +4341,8 @@ body {
             if (window.aegisModello) botReplyText = window.aegisModello(botReplyText);
             conversationHistory.push({ role: "assistant", content: botReplyText });
             transformTypingIntoMessage(typingIndicator, botReplyText, true, false);
+            // Il consumo e cambiato adesso: si avvisa chi disegna la barra.
+            try { document.dispatchEvent(new Event('aegis-risposta')); } catch (e) {}
         } catch (error) {
             if (error.name === 'AbortError') { transformTypingIntoMessage(typingIndicator, 'Generación interrumpida.', false, false); }
             else { transformTypingIntoMessage(typingIndicator, ((UI_STRINGS[activeLanguageCode] || UI_DEFAULT).errConexion || '⚠️ Error de conexión. Verifica tu conexión y pulsa el icono ↻ sobre tu mensaje para reintentar.'), false, false); }
@@ -10996,6 +11025,9 @@ if (recognition) {
     ov.innerHTML =
       '<div class="ag-avviso ag-opzioni">' +
         '<h3>' + T('opTitolo') + '</h3>' +
+        // Riquadro dei consumi: lo riempie billing-ui.js, che vive fuori da
+        // questo file. Se non c'e', resta un div vuoto e non si vede nulla.
+        '<div class="ag-op-sez" id="ag-op-consumi"></div>' +
         '<div class="ag-op-sez"><h4>' + T('opAvvisi') + '</h4>' + righeAvvisi + '</div>' +
         '<div class="ag-op-sez"><h4>' + T('opProtezione') + '</h4>' +
           '<label class="ag-op-riga"><input type="checkbox" id="op-riempi"' + (RIEMPIMENTO ? ' checked' : '') + '>' +
@@ -12876,6 +12908,14 @@ if (recognition) {
   };
 })();
 </script>
+<!-- L'indirizzo del backend in UN punto solo: quando il sistema si sposta
+     sul repository di produzione si cambia qui, non in dodici fetch. I file
+     esterni (billing-ui.js) leggono gia' questa variabile. -->
+<script>window.AEGIS_BACKEND = 'https://chatbot-backend-dev.onrender.com';</script>
 <script src="gazetteer.js"></script>
+<!-- BILLING — modulo esterno, caricato per ultimo e in modo non bloccante.
+     Se il file manca o fallisce, il selettore dei modelli resta quello di
+     sempre e la chat funziona identica: qui non c'e' nessuna dipendenza. -->
+<script src="billing-ui.js" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
 </body>
 </html>
