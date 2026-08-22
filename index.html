@@ -278,7 +278,7 @@ body.ag-attivo{overflow:hidden;margin:0}
 .ag-cmd-b svg{width:15px;height:15px;fill:currentColor}
 .ag-cmd-b.scelto{color:var(--accent)}
 /* la fila sotto il campo di scrittura, allineata a destra come i comandi */
-.ag-barra-campo{display:flex;justify-content:flex-end;padding:6px 24px 0}
+.ag-barra-campo{display:flex;justify-content:flex-end;padding:6px 24px 0;flex:none}
 /* --- MARCATURA TEMPORANEA: dove sta questo dato --- */
 @keyframes ag-pulsa{0%{box-shadow:0 0 0 0 rgba(255,159,10,.65)}
   70%{box-shadow:0 0 0 7px rgba(255,159,10,0)}100%{box-shadow:0 0 0 0 rgba(255,159,10,0)}}
@@ -293,7 +293,7 @@ body.ag-attivo{overflow:hidden;margin:0}
 /* Avviso permanente richiesto dall'articolo 50 dell'AI Act. Discreto ma
    sempre visibile: sta sotto il campo di scrittura e non scorre via. */
 .ag-avviso-ia{padding:6px 18px 10px;text-align:center;font-family:'Inter',sans-serif;
-  font-size:10.5px;line-height:1.5;color:var(--text-light);opacity:.85}
+  font-size:10.5px;line-height:1.5;color:var(--text-light);opacity:.85;flex:none}
 .ag-nuvola{position:fixed;z-index:2600;max-width:270px;background:var(--text-main);
   color:var(--primary);font-family:'Inter',sans-serif;font-size:11.5px;line-height:1.55;
   padding:9px 12px;border-radius:9px;box-shadow:0 8px 26px rgba(0,0,0,.22);
@@ -2602,8 +2602,49 @@ body {
         if (!zona) return 120;
         const wrap = campo.closest('.chat-input-wrapper');
         const ingombro = wrap ? (wrap.getBoundingClientRect().height - campo.getBoundingClientRect().height) : 60;
-        const utile = zona.getBoundingClientRect().height - ingombro - 6;
-        return Math.max(120, Math.round(utile));
+
+        /* IL BASSO NON SI MUOVE.
+           Il campo cresce verso l'ALTO: e' giusto, ed e' quello che serve
+           mentre si scrive. Ma il tetto teneva conto solo dell'ingombro della
+           barra (bordi, microfono, graffetta) e NON di cio' che sta SOTTO la
+           barra dentro la stessa colonna: la riga del pulsante Resaltado e la
+           nota "Respuestas generadas...". Alla massima espansione il campo se
+           le mangiava e finivano sotto il bordo dello schermo.
+           Qui si misura tutto quello che sta sotto e lo si sottrae, cosi' il
+           campo si ferma un attimo prima: la fila delle icone, il pulsante e
+           la nota restano esattamente dove sono, sempre. Si misura, non si
+           stima, perche' quelle righe cambiano altezza con la lingua e con la
+           larghezza della finestra. */
+        let sotto = 0;
+        if (wrap) {
+            let n = wrap.nextElementSibling;
+            while (n) {
+                // solo cio' che occupa spazio DAVVERO: si saltano gli elementi
+                // nascosti e quelli tolti dal flusso (overlay, tendine), che
+                // non spingono nulla verso il basso.
+                if (n.offsetParent !== null) {
+                    const pos = getComputedStyle(n).position;
+                    if (pos !== 'absolute' && pos !== 'fixed') sotto += n.getBoundingClientRect().height;
+                }
+                n = n.nextElementSibling;
+            }
+            // La barra dell'anteprima immagine sta SOPRA il campo, ma quando
+            // c'e' occupa spazio nella stessa colonna: va contata anche lei,
+            // o con una foto allegata il campo torna a sfondare.
+            const prev = document.getElementById('img-preview-bar');
+            if (prev && prev.offsetParent !== null && prev !== wrap) {
+                const pp = getComputedStyle(prev).position;
+                if (pp !== 'absolute' && pp !== 'fixed') sotto += prev.getBoundingClientRect().height;
+            }
+        }
+
+        const utile = Math.round(zona.getBoundingClientRect().height - ingombro - sotto - 6);
+        // 120px e' l'altezza minima COMODA, non un obbligo: se la finestra e'
+        // cosi' bassa che nemmeno quella ci sta, si cede sul campo invece di
+        // spingere fuori schermo il pulsante e la nota. Sotto i 56px non si
+        // scende: piu' in giu' non si scriverebbe piu' niente.
+        if (utile < 120) return Math.max(56, utile);
+        return utile;
     }
     function adattaCampo(campo) {
         if (!campo) return;
