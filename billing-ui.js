@@ -937,7 +937,7 @@
     }
 
     /* ---------------------------------------------------------- aggancio */
-    var VERSIONE = 7;
+    var VERSIONE = 8;
 
     function avvia() {
         // Si stampa la versione: se in console non compare il numero che ti
