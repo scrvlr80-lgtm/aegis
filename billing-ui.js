@@ -937,7 +937,13 @@
     }
 
     /* ---------------------------------------------------------- aggancio */
+    var VERSIONE = 7;
+
     function avvia() {
+        // Si stampa la versione: se in console non compare il numero che ti
+        // aspetti, stai eseguendo un file vecchio tenuto in cache, e nessuna
+        // correzione potra' mai comparire finche' non lo svuoti.
+        console.log('[billing] ui v' + VERSIONE + ' caricata');
         stile();
         aggiorna();
         var sel = document.getElementById('ag-model');
