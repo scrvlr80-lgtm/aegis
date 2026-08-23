@@ -27,6 +27,14 @@
   --c-per:#E5484D;--c-addr:#30A46C;--c-city:#0091FF;--c-date:#F5A524;
   --c-bank:#8E4EC6;--c-mail:#00A2C7;--c-tech:#5B6270;--c-med:#E93D82;--c-id:#D6409F;
   --c-org:#8B5E3C;
+  /* IL CASSETTO DEGLI SCONOSCIUTI. Non e' una categoria: e' quello che il
+     motore copre senza saper dire cosa sia. Prima finiva fra i DOCUMENTI,
+     e nello specchio una ragione sociale risultava un documento d'identita'.
+     Grigio apposta: non e' un tipo di dato, e' l'assenza di un tipo. */
+  --c-altri:#6E6E73;
+  /* Le parole coperte a mano dall'utente: colore proprio, cosi' si
+     distinguono da quelle trovate dal motore. */
+  --c-mano:#3D3D42;
   /* SCALA DI GRIGI DELL'INTERFACCIA. Acceso e spento non si distinguono
      piu' per tinta ma per TONO: bordo e testo scuri quando e' acceso,
      chiari quando e' spento. Il colore resta SOLO dove e' informazione:
@@ -198,6 +206,7 @@ body.ag-attivo{overflow:hidden;margin:0}
 .ag-date{background:var(--c-date)} .ag-bank{background:var(--c-bank)} .ag-mail{background:var(--c-mail)}
 .ag-tech{background:var(--c-tech)} .ag-med{background:var(--c-med)} .ag-id{background:var(--c-id)}
 .ag-org{background:var(--c-org)}
+.ag-altri{background:var(--c-altri)} .ag-mano{background:var(--c-mano)}
 
 /* --- TELEFONO: una sopra l altra, stessa larghezza --- */
 @media(max-width:820px){
@@ -4620,21 +4629,24 @@ body {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <style>
-body { margin:0; padding:0; background-color:#0F0F13; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; overflow:hidden; font-family:'Space Grotesk','Inter',sans-serif; color:#F3F4F6; }
+/* La finestrella del microfono era nera con il ciano fosforescente: non
+   somigliava a niente del resto dell'applicazione, che e' chiara e sobria.
+   Stessi colori, stesse cornici, stesse misure dei pulsanti della chat. */
+body { margin:0; padding:0; background:#FFFFFF; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; overflow:hidden; font-family:'Inter',sans-serif; color:#1d1d1f; }
 #mic-screen { display:flex; flex-direction:column; justify-content:center; align-items:center; width:100%; height:100%; padding:24px; box-sizing:border-box; }
-.lang-select { background:#050505; color:#F3F4F6; border:1px solid #1E1E24; border-radius:4px; padding:10px 16px; font-size:13px; margin-bottom:28px; outline:none; cursor:pointer; font-family:inherit; letter-spacing:0.5px; width:100%; max-width:260px; transition:border-color 0.2s; }
-.lang-select:focus { border-color:#00E5FF; }
-.lang-select option { background-color:#0F0F13; color:#F3F4F6; }
-.countdown-container { display:flex; align-items:center; justify-content:center; height:36px; margin-bottom:16px; }
-.countdown-text { color:#00E5FF; font-size:13px; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; font-family:'Space Grotesk',sans-serif; animation:cyanPulse 1.5s ease-in-out infinite; }
-.countdown-text.sending { animation:none; opacity:1; }
-@keyframes cyanPulse { 0% { opacity:0.4; text-shadow:0 0 0 transparent; } 50% { opacity:1; text-shadow:0 0 8px #00E5FF; } 100% { opacity:0.4; text-shadow:0 0 0 transparent; } }
-.status { font-size:13px; margin-bottom:32px; color:#8B8D98; text-align:center; min-height:44px; font-family:'Inter',sans-serif; font-weight:300; line-height:1.5; max-width:260px; word-break:break-word; }
-.btn-group { display:flex; gap:12px; }
-.btn { background:transparent; border:1px solid #1E1E24; padding:10px 20px; border-radius:4px; cursor:pointer; font-size:11px; font-weight:600; transition:all 0.2s; color:#8B8D98; font-family:'Space Grotesk',sans-serif; letter-spacing:1.5px; text-transform:uppercase; }
-.btn:hover { border-color:#F3F4F6; color:#F3F4F6; }
-.btn-send { border-color:#00E5FF; color:#00E5FF; }
-.btn-send:hover { background:rgba(0,229,255,0.1); box-shadow:0 0 12px rgba(0,229,255,0.25); }
+.lang-select { background:#FFFFFF; color:#1d1d1f; border:1px solid #D8D8DE; border-radius:9px; padding:9px 14px; font-size:12.5px; margin-bottom:26px; outline:none; cursor:pointer; font-family:inherit; width:100%; max-width:260px; transition:border-color .15s; }
+.lang-select:focus { border-color:#8B8B92; }
+.lang-select option { background:#FFFFFF; color:#1d1d1f; }
+.countdown-container { display:flex; align-items:center; justify-content:center; height:36px; margin-bottom:14px; }
+.countdown-text { color:#6E6E73; font-size:10px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; font-family:'Space Grotesk',sans-serif; animation:battito 1.6s ease-in-out infinite; }
+.countdown-text.sending { animation:none; opacity:1; color:#1d1d1f; }
+@keyframes battito { 0% { opacity:.45; } 50% { opacity:1; } 100% { opacity:.45; } }
+.status { font-size:12.5px; margin-bottom:30px; color:#6E6E73; text-align:center; min-height:44px; font-family:'Inter',sans-serif; font-weight:400; line-height:1.5; max-width:260px; word-break:break-word; }
+.btn-group { display:flex; gap:10px; }
+.btn { background:transparent; border:1px solid #D8D8DE; padding:0 16px; height:32px; border-radius:9px; cursor:pointer; font-size:10px; font-weight:700; transition:background .15s,color .15s; color:#6E6E73; font-family:'Space Grotesk',sans-serif; letter-spacing:.06em; text-transform:uppercase; }
+.btn:hover { background:#F2F2F4; color:#1d1d1f; }
+.btn-send { color:#1d1d1f; background:#F6F6F8; }
+.btn-send:hover { background:#ECECEF; }
 </style>
 </head>
 <body>
@@ -5236,6 +5248,42 @@ if (recognition) {
     regex: '\\b\\d{3}[ -]?\\d{3}[ -]?\\d{4}\\b', validator: 'nhs', anchorRequired: true, confidence: 0.94,
     anchors: { left: ['nhs', 'nhs number', 'nhs no', 'patient number'], right: [], window: 30 },
     pos: ['943 476 5919', '9434765919'], neg: ['123 456 7890']
+  });
+  /* --- CARTA D'IDENTITA' --------------------------------------------------
+     Mancava del tutto: c'erano codice fiscale, DNI, NIE e passaporto, ma il
+     numero della carta d'identita' non aveva nessuna regola. Non e' che il
+     motore sbagliasse a classificarlo: non sapeva che quel formato esistesse,
+     e un documento d'identita' partiva in chiaro.
+
+     CIE italiana : due lettere, cinque cifre, due lettere  -> CA36042JZ
+     Carta cartacea italiana (vecchia): AA + 7 cifre        -> AB1234567
+     Numero di supporto spagnolo: tre lettere + sei cifre   -> BAA123456
+     Sono formati rigidi e senza cifra di controllo pubblica: si mascherano
+     sempre quando la forma corrisponde, e con un'ancora valgono di piu'.
+     ------------------------------------------------------------------- */
+  D('IT_CIE', {
+    category: 'ID_STATALE', sub: 'carta_identita', token: 'CIE', priority: 895, locale: ['it'],
+    regex: '\\b[A-Z]{2}[0-9]{5}[A-Z]{2}\\b', confidence: 0.93,
+    anchors: { left: ['carta d identita', 'carta di identita', 'cie', 'documento',
+      'numero documento', 'identity card', 'id card', 'documento de identidad'], right: [], window: 34 },
+    hint: 'CIE: 2 lettere + 5 cifre + 2 lettere',
+    pos: ['CA36042JZ', 'AB12345CD'], neg: ['ABC1234DE', 'CA3604JZ']
+  });
+  D('IT_CI_CARTACEA', {
+    category: 'ID_STATALE', sub: 'carta_identita', token: 'CIE', priority: 860, locale: ['it'],
+    regex: '\\b[A-Z]{2}[ -]?[0-9]{7}\\b', anchorRequired: true, confidence: 0.9,
+    anchors: { left: ['carta d identita', 'carta di identita', 'documento',
+      'numero documento', 'ci n'], right: [], window: 30 },
+    hint: 'carta cartacea: 2 lettere + 7 cifre, solo con ancora',
+    pos: ['AB1234567'], neg: ['AB123456']
+  });
+  D('ES_IDESP', {
+    category: 'ID_STATALE', sub: 'carta_identita', token: 'CIE', priority: 870, locale: ['es'],
+    regex: '\\b[A-Z]{3}[0-9]{6}\\b', anchorRequired: true, confidence: 0.9,
+    anchors: { left: ['idesp', 'numero de soporte', 'num soporte', 'soporte',
+      'documento de identidad', 'dni'], right: [], window: 30 },
+    hint: 'numero de soporte del DNI spagnolo, solo con ancora',
+    pos: ['BAA123456'], neg: ['BA1234567']
   });
   D('ES_DNI', {
     category: 'ID_STATALE', sub: 'dni', token: 'DNI', priority: 890, locale: ['es'],
@@ -5929,7 +5977,14 @@ if (recognition) {
     // Prima le aziende venivano riconosciute solo dopo "datore di lavoro":
     // in un contratto, in una fattura o in un curriculum non compaiono mai
     // cosi', e restavano tutte in chiaro.
-    regex: '(?:[A-Z\u00C0-\u00DE][\\w&\u00C0-\u024F.\'-]*(?:[ \\t]+(?:[A-Z\u00C0-\u00DE][\\w&\u00C0-\u024F.\'-]*|di|de|del|della|e|y|and|of)){0,4})' +
+    // LA SIGLA DICE DOVE FINISCE, NON DOVE COMINCIA. Risalendo all'indietro
+    // per quattro parole maiuscole, "Monthly Bank Statement. Chase Bank"
+    // veniva preso tutto intero, punto fermo compreso. Adesso la risalita si
+    // ferma sulla punteggiatura forte: un punto, una virgola, un a capo
+    // chiudono il nome. E le cifre dentro al nome sono ammesse, perche'
+    // "Inarco 2012 S.L.U." e' una societa' come le altre e finiva fra gli
+    // sconosciuti solo per via di quel numero.
+    regex: '(?:[A-Z\u00C0-\u00DE][\\w&\u00C0-\u024F\'-]*(?:[ \\t]+(?:[A-Z\u00C0-\u00DE][\\w&\u00C0-\u024F\'-]*|\\d{2,4}|di|de|del|della|e|y|and|of)){0,4})' +
            '[ \\t]*,?[ \\t]*(?:S\\.?r\\.?l\\.?(?:s\\.?)?|S\\.?p\\.?A\\.?|S\\.?a\\.?s\\.?|S\\.?n\\.?c\\.?|' +
            'S\\.?L\\.?U?\\.?|S\\.?A\\.?U?\\.?|S\\.?C\\.?|' +
            'Ltd|LLC|LLP|PLC|Inc|Corp|GmbH|AG|BV|NV|SARL|SAS|Oy|AB)\\.?(?![\\w])',
@@ -6861,7 +6916,9 @@ if (recognition) {
         patternId: p.id, category: p.category, sub: p.sub, token: p.token,
         start, end, value, confidence: conf, priority: p.priority,
         validated, sensitiveExtra: !!p.sensitiveExtra, metaKeep: p.metaKeep || null,
-        truncatable: !!p.truncatable, banda: banda, review: banda === 'propose'
+        truncatable: !!p.truncatable, banda: banda, review: banda === 'propose',
+        // il veto lessicale ha bisogno di sapere se il testo lo dichiarava
+        hadAnchor: !!_hadAnchor
       });
     };
 
@@ -7040,6 +7097,79 @@ if (recognition) {
         if (m.index === re.lastIndex) re.lastIndex++;
       }
     }
+  }
+
+  /* ------------- veto lessicale sui nomi di persona ------------------
+     UNA PAROLA SOLA, CONOSCIUTA DALLA LINGUA, SENZA NIENTE INTORNO,
+     NON E' UN NOME. Le tre uscite di sicurezza:
+       1. se ha un'ancora ("Paziente: Rossi", "Sig. Esposito") vale;
+       2. se quella stessa parola compare nel documento dentro un nome di
+          due parole ("Alessandro Bianchi" -> "Bianchi" piu' avanti) vale,
+          perche' il documento stesso ha gia' detto che e' un cognome;
+       3. se il dizionario NON la conosce vale, perche' allora non e' una
+          parola della lingua ma un nome ("Scorretti", "Miklovts", "Sanz").
+     Fuori da questi tre casi non si scarta e basta: si RETROCEDE a proposta,
+     cioe' l'utente se la vede nell'elenco prima dell'invio e la copre con un
+     clic. Un veto che cancella potrebbe far partire un nome vero; un veto che
+     retrocede, no.
+     ------------------------------------------------------------------- */
+  function vetoParoleComuni(matches, text) {
+    const L = LEX();
+    if (!L || !matches || !matches.length) return matches;
+
+    // Le parole che il documento stesso ha gia' dichiarato come cognomi:
+    // stanno dentro un candidato persona di due o piu' parole.
+    const dentroNomeIntero = new Set();
+    matches.forEach(m => {
+      if (m.category !== 'PERSONA') return;
+      const w = String(m.value).trim().split(/\s+/).filter(Boolean);
+      if (w.length < 2) return;
+      w.forEach(x => dentroNomeIntero.add(x.toLowerCase().replace(/[^\p{L}']/gu, '')));
+    });
+
+    // Un nome preceduto da San / Sant' / Santa / Saint / St. non e' una
+    // persona: e' un ospedale, una via, una citta'. "Sant'Orsola" dava
+    // "Orsola", "San Diego" dava "Diego".
+    const SANTI = /(?:^|[\s(])(?:san|sant|santa|santo|saint|st)[.'\s]$/i;
+
+    return matches.filter(m => {
+      if (m.category !== 'PERSONA') return true;
+      if (m.banda === 'signal') return true;
+      const grezza = String(m.value).trim();
+      const parole = grezza.split(/\s+/).filter(Boolean);
+      if (parole.length !== 1) return true;              // le coppie non si toccano
+
+      const pulita = grezza.toLowerCase().replace(/[^\p{L}']/gu, '');
+      if (pulita.length < 2) return true;
+
+      // uscita 1: il testo lo DICHIARA. Non basta che un'ancora esista nei
+      // dintorni: la finestra delle ancore e' larga quarantacinque caratteri e
+      // pescava l'etichetta della riga precedente. In "Name: James Michael
+      // Johnson" seguito da "Sex: Male", la parola Sex trovava l'ancora "Name"
+      // della riga sopra e si salvava. L'etichetta vale se sta ATTACCATA: due
+      // punti subito prima, oppure un titolo (Sig., Dott., Mr.) subito prima.
+      const pre = text.slice(Math.max(0, m.start - 30), m.start);
+      if (/[:=]\s*$/.test(pre)) return true;
+      if (/\b(?:sig|sig\.ra|sig\.na|sr|sra|srta|dr|dott|dott\.ssa|avv|prof|ing|mr|mrs|ms|miss|don|do[n\u00F1]a|lic)\.?\s*$/i.test(pre)) return true;
+      // uscita 2: il documento la usa dentro un nome intero -> vale
+      if (dentroNomeIntero.has(pulita)) return true;
+
+      const lg = linguaIn(m.start);
+      const f = L.fascia(pulita, lg);
+      // uscita 3: sconosciuta alla lingua -> non e' una parola, e' un nome
+      if (!(f > 0)) {
+        // ...ma se e' preceduta da "San/Sant'" resta un luogo, non una persona
+        if (SANTI.test(text.slice(Math.max(0, m.start - 8), m.start))) return false;
+        return true;
+      }
+
+      // parola comune della lingua, sola, senza appigli: mai mascherata.
+      if (SANTI.test(text.slice(Math.max(0, m.start - 8), m.start))) return false;
+      // I candidati del secondo passaggio non portano una banda: senza questo
+      // il confronto con 'mask' era falso e la retrocessione non avveniva.
+      if (m.banda !== 'propose' && m.banda !== 'signal') { m.banda = 'propose'; m.review = true; }
+      return true;
+    });
   }
 
   /* ---------------- risoluzione sovrapposizioni --------------------- */
@@ -7388,6 +7518,19 @@ if (recognition) {
       runPattern(foldedAnchors(p), text, anchorIdx, ctx, level, found, cache, folded);
     });
 
+    // ------------------------------------------------------------------
+    // VETO LESSICALE SUI NOMI DI PERSONA
+    // Il dizionario c'era gia' e pesava sul punteggio, ma una parola comune
+    // scritta con la maiuscola prendeva solo uno sconto - e con lo sconto
+    // passava lo stesso. Cosi' "Sex", "Age", "Firma", "Nascita", "Paziente",
+    // "Faro", "Art" diventavano persone, e l'unico argine era una lista di
+    // eccezioni scritta a mano, parola per parola, che non finiva mai.
+    // Qui il dizionario smette di essere uno sconto e diventa un VETO.
+    // Si applica solo dove serve e con tre uscite di sicurezza, perche' il
+    // rischio di un veto e' lasciare scoperto un nome vero.
+    // ------------------------------------------------------------------
+    found = vetoParoleComuni(found, text);
+
     let kept = resolve(found);
     // Il lessico dinamico lavora sulle persone DISTINTE: senza dedup si
     // rifarebbe una scansione dell'intero documento per ogni occorrenza.
@@ -7400,7 +7543,12 @@ if (recognition) {
       }
     });
     const dyn = dynamicLexicon(text, Array.from(seenPer.values()), level, kept);
-    kept = resolve(kept.concat(dyn));
+    // Il lessico dinamico ripesca ogni parola dei nomi accettati e la copre
+    // ovunque compaia. Se fra quei nomi ne era passato uno fatto di una
+    // parola comune, il secondo passaggio lo rimetteva in circolo mascherato
+    // ("Age" tornava PER dopo essere stato retrocesso). Il veto si applica
+    // anche qui, sul risultato: e' il punto dove passano tutti.
+    kept = vetoParoleComuni(resolve(kept.concat(dyn)), text);
     kept = resolve(kept.concat(quarantine(text, kept, level)));
     kept = resolve(kept.concat(campiEtichettati(text, kept, level)));
     if (level.coverAll) kept = resolve(kept.concat(coverAll(text, kept)));
@@ -7977,7 +8125,17 @@ if (recognition) {
     if(t==='ORG'||t==='EMPID'||t==='STUID'||t==='GRADE') return 'org';
     if(t==='PROV') return 'city';
     if(t==='AMOUNT') return 'bank';
-    return 'id';
+    // DOCUMENTI e' una categoria, non un cassetto: ci vanno i documenti veri.
+    if(t==='CF'||t==='DNI'||t==='NIE'||t==='CIF'||t==='NUSS'||t==='NHS'||t==='SSN'||t==='NINO'
+       ||t==='ITIN'||t==='PIVA'||t==='PASSPORT'||t==='DL'||t==='CIE'||t==='DOCID'||t==='CASE'
+       ||t==='CATASTO'||t==='TAXID'||t==='EIN'||t==='POLICY'||t==='PERMIT'||t==='INMATE'
+       ||t==='RECORD'||t==='ID'||t==='CODE'||t==='NUM') return 'id';
+    if(t==='PLATE'||t==='VIN') return 'id';
+    // Tutto il resto non e' un documento: e' qualcosa che il motore copre
+    // senza saper dire che cos'e'. Prima finiva fra i documenti e il problema
+    // restava invisibile; adesso ha un colore suo, e ogni voce che compare li'
+    // dentro e' una regola che manca, scritta nero su bianco.
+    return 'altri';
   }
   function esc(s){ return String(s).replace(/[&<>]/g,function(c){
     return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]; }); }
@@ -8363,7 +8521,7 @@ if (recognition) {
       confScopri:'Lasciare "{v}" in chiaro?\n\nDa questo momento partira\u0027 cosi\u0027 com\u0027e\u0027, senza protezione.',
       catNomi:'nomi', catIndirizzi:'indirizzi', catLuoghi:'luoghi', catDate:'date',
       catBancari:'bancari', catContatti:'contatti', catDocumenti:'documenti',
-      catTecnici:'tecnici', catSanitari:'sanitari', catAziende:'aziende',
+      catTecnici:'tecnici', catSanitari:'sanitari', catAziende:'aziende', catAltri:'altri dati', catMano:'coperti a mano',
       avvTitolo:'Queste {n} parole partirebbero in chiaro',
       avvTesto:'Il sistema non le riconosce come dati protetti, ma potrebbero esserlo. Clicca le righe per scegliere quali coprire: quelle spente partono come sono.',
       avvTutte:'Seleziona tutte', avvNessuna:'Nessuna',
@@ -8532,7 +8690,7 @@ if (recognition) {
       confScopri:'Dejar "{v}" a la vista?\n\nA partir de ahora se enviara tal cual, sin proteccion.',
       catNomi:'nombres', catIndirizzi:'direcciones', catLuoghi:'lugares', catDate:'fechas',
       catBancari:'bancarios', catContatti:'contactos', catDocumenti:'documentos',
-      catTecnici:'t\u00e9cnicos', catSanitari:'sanitarios', catAziende:'empresas',
+      catTecnici:'t\u00e9cnicos', catSanitari:'sanitarios', catAziende:'empresas', catAltri:'otros datos', catMano:'ocultos a mano',
       avvTitolo:'Estas {n} palabras se enviarian sin proteger',
       avvTesto:'El sistema no las reconoce como datos protegidos, pero podrian serlo. Haz clic en las filas para elegir cuales ocultar: las apagadas se envian tal cual.',
       avvTutte:'Seleccionar todas', avvNessuna:'Ninguna',
@@ -8701,7 +8859,7 @@ if (recognition) {
       confScopri:'Leave "{v}" in the clear?\n\nFrom now on it will be sent as it is, unprotected.',
       catNomi:'names', catIndirizzi:'addresses', catLuoghi:'places', catDate:'dates',
       catBancari:'banking', catContatti:'contacts', catDocumenti:'documents',
-      catTecnici:'technical', catSanitari:'health', catAziende:'companies',
+      catTecnici:'technical', catSanitari:'health', catAziende:'companies', catAltri:'other data', catMano:'hidden by you',
       avvTitolo:'These {n} words would be sent in the clear',
       avvTesto:'The system does not recognise them as protected data, but they might be. Click the rows to choose which to mask: the ones switched off are sent as they are.',
       avvTutte:'Select all', avvNessuna:'None',
@@ -8774,7 +8932,8 @@ if (recognition) {
     { id:'city', k:'catLuoghi' },    { id:'date', k:'catDate' },
     { id:'bank', k:'catBancari' },   { id:'mail', k:'catContatti' },
     { id:'id',   k:'catDocumenti' }, { id:'tech', k:'catTecnici' },
-    { id:'med',  k:'catSanitari' },  { id:'org',  k:'catAziende' }
+    { id:'med',  k:'catSanitari' },  { id:'org',  k:'catAziende' },
+    { id:'altri', k:'catAltri' },  { id:'mano', k:'catMano' }
   ];
   // Etichette inventate dall'utente: id -> {nome, colore}. Il colore si assegna
   // dalla tavolozza, in ordine, cosi' non deve sceglierlo nessuno.
@@ -9038,7 +9197,10 @@ if (recognition) {
     if (testo.length < 1 || testo.length > 90) return;
     esclusi.delete(testo);
     var v = banditi.get(testo) || {};
-    v.cat = cat || 'per';
+    // Chi copre a mano ha scelto lui: la parola prende un colore suo, cosi'
+    // si distingue da quelle trovate dal motore. Prima ereditava il colore
+    // dei nomi e sembrava una rilevazione automatica.
+    v.cat = cat || 'mano';
     if (v.tok) colorDi.set(v.tok, v.cat);
     banditi.set(testo, v);
     vaiA('aggiunte');    // si va dove la parola e' appena finita
@@ -9091,7 +9253,7 @@ if (recognition) {
     if (leg) {
       var mapLeg = { per:'catNomi', addr:'catIndirizzi', city:'catLuoghi', date:'catDate',
         bank:'catBancari', mail:'catContatti', id:'catDocumenti', tech:'catTecnici',
-        med:'catSanitari', org:'catAziende' };
+        med:'catSanitari', org:'catAziende', altri:'catAltri', mano:'catMano' };
       leg.querySelectorAll('span[data-g]').forEach(function(sp){
         var g = sp.getAttribute('data-g');
         if (!mapLeg[g]) return;
@@ -9861,7 +10023,7 @@ if (recognition) {
       if (!scelti.length) return 0;
       scelti.forEach(function(x){
         var v = banditi.get(x.valore) || {};
-        v.cat = v.cat || 'id';
+        v.cat = v.cat || 'mano';
         banditi.set(x.valore, v);
       });
       vaiA('aggiunte');
@@ -10294,7 +10456,7 @@ if (recognition) {
       if (!leg) return;
       var mapLeg = { per:'catNomi', addr:'catIndirizzi', city:'catLuoghi', date:'catDate',
         bank:'catBancari', mail:'catContatti', id:'catDocumenti', tech:'catTecnici',
-        med:'catSanitari', org:'catAziende', __tutti:'tutti' };
+        med:'catSanitari', org:'catAziende', altri:'catAltri', mano:'catMano', __tutti:'tutti' };
       leg.querySelectorAll('span[data-g]').forEach(function(sp){
         var g = sp.getAttribute('data-g');
         if (!mapLeg[g]) return;
@@ -11742,6 +11904,8 @@ if (recognition) {
         '<span data-g="tech"><i class="ag-tech"></i>' + T('catTecnici') + '</span>'+
         '<span data-g="med"><i class="ag-med"></i>' + T('catSanitari') + '</span>'+
         '<span data-g="org"><i class="ag-org"></i>' + T('catAziende') + '</span>'+
+        '<span data-g="altri"><i class="ag-altri"></i>' + T('catAltri') + '</span>'+
+        '<span data-g="mano"><i class="ag-mano"></i>' + T('catMano') + '</span>'+
         '<span data-g="__tutti" class="ag-tutti"><i class="ag-arcobaleno"></i>' + T('tutti') + '</span>'+
         '<img class="ag-logo" id="ag-logo" src="' + AEGIS_LOGO + '" alt="Aegis" ' +
           'onerror="this.style.display=\'none\'">' +
@@ -12323,6 +12487,25 @@ if (recognition) {
         setTimeout(function(){ window.aegisControlloNumeri(testo); }, 400);
       }
       try { campo.setSelectionRange(campo.value.length, campo.value.length); } catch (e) {}
+      // GLI EVIDENZIATORI SFASATI. Non e' un calcolo sbagliato: la maschera
+      // colorata sta sopra il campo di testo e viene posizionata in base a
+      // come il testo si e' impaginato. Con un documento intero incollato in
+      // un colpo solo, il browser non ha ancora rifatto l'impaginazione quando
+      // la maschera si disegna, e i colori restano dove stava il testo prima.
+      // Al primo movimento del cursore il browser ricalcola e tutto torna a
+      // posto: qui quel ricalcolo lo chiediamo subito noi, invece di aspettare
+      // che sia l'utente a provocarlo per caso.
+      try {
+        requestAnimationFrame(function () {
+          void campo.offsetHeight;                      // forza l'impaginazione
+          campo.dispatchEvent(new Event('scroll', { bubbles: true }));
+          campo.dispatchEvent(new Event('input', { bubbles: true }));
+          requestAnimationFrame(function () {
+            void campo.offsetHeight;
+            campo.dispatchEvent(new Event('scroll', { bubbles: true }));
+          });
+        });
+      } catch (e) {}
       stato((window.aegisT || function(k){return k;})('docFatto', { f: file.name, n: testo.trim().length.toLocaleString() }));
       setTimeout(function () { stato(''); }, 9000);
     } catch (e) {
@@ -12929,6 +13112,6 @@ if (recognition) {
      versione vecchia di billing-ui.js e ogni correzione sembra non fare niente:
      si carica il file nuovo e si continua a eseguire quello vecchio. Ogni volta
      che billing-ui.js cambia, si alza questo numero. -->
-<script src="billing-ui.js?v=7" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
+<script src="billing-ui.js?v=8" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
 </body>
 </html>
