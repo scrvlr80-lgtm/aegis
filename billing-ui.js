@@ -949,22 +949,22 @@
             [0, 60, 260, 700].forEach(function (t) { setTimeout(montaConsumi, t); });
         });
 
-        // E se il pannello viene ricostruito in un altro momento, se ne accorge
-        // da solo: e' l'unico modo perche' il pulsante non sparisca mai piu'.
-        try {
-            new MutationObserver(function () {
-                if (document.getElementById('ag-op-consumi')) montaConsumi();
-            }).observe(document.body, { childList: true, subtree: true });
-        } catch (e) {
-            setInterval(montaConsumi, 1000);
-        }
+        // NIENTE OSSERVATORE SUL DOCUMENTO. Ne avevo messo uno: montaConsumi
+        // scrive nel pannello, la scrittura e' una mutazione, l'osservatore la
+        // vedeva e richiamava montaConsumi. Un anello che si mordeva la coda e
+        // bloccava tutta l'interfaccia. Bastano i tentativi qui sopra: si
+        // fermano da soli appena il pulsante c'e'.
 
         // IL CERCHIO DELL'ACCOUNT VA CON I PULSANTI DEL PANNELLO DI MEZZO,
         // non nella testa della chat: li' rubava spazio al nome del modello,
         // che deve stare su una riga sola. Si sposta appena il pannello
         // esiste, e si rimette a posto se il pannello viene ricostruito.
         spostaAccount();
-        setInterval(spostaAccount, 1200);
+        var giri = 0;
+        var t = setInterval(function () {
+            spostaAccount();
+            if (++giri > 20 || document.querySelector('.ag-testa .ag-account-testa')) clearInterval(t);
+        }, 700);
         // Dopo ogni risposta il consumo e' cambiato: si rilegge.
         document.addEventListener('aegis-risposta', aggiorna);
         setInterval(aggiorna, 60000);
