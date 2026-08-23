@@ -304,8 +304,13 @@
         c = document.createElement('div');
         c.className = 'ag-msel';
         c.id = 'ag-msel';
+        // La classe .lang-change-btn porta width:100px. Un foglio di stile puo'
+        // perdere contro di lei (ordine, specificita', cache): lo stile in riga no.
         c.innerHTML = '<button type="button" class="lang-change-btn ag-msel-btn" id="ag-msel-btn" ' +
-                      'title="Modello" aria-haspopup="listbox" aria-expanded="false"></button>';
+                      'title="Modello" aria-haspopup="listbox" aria-expanded="false" ' +
+                      'style="width:auto;min-width:0;max-width:none;flex:none;height:32px;' +
+                      'padding:0 11px;gap:8px;justify-content:flex-start;white-space:nowrap;' +
+                      'overflow:visible"></button>';
         sel.parentNode.insertBefore(c, sel);
         sel.style.display = 'none';          // resta, ma non si vede
 
@@ -386,7 +391,15 @@
             chiudiMenuModelli();
             // Un modello che il piano non copre non e' un vicolo cieco: si preme,
             // e si apre la vetrina che dice cosa serve per averlo.
-            if (v.getAttribute('data-ok') !== '1') { apriVetrina(v.getAttribute('data-id')); return; }
+            if (v.getAttribute('data-ok') !== '1') {
+                var mm = (stato.modelli || []).filter(function (x) { return x.id === v.getAttribute('data-id'); })[0];
+                // Un modello la cui casa non e' ancora collegata NON e' un modello
+                // che si compra: mandarlo alla vetrina dei piani sarebbe vendergli
+                // una cosa che non esiste. Si dice com'e'.
+                if (mm && mm.provider_pronto === false) { apriNonPronto(mm); return; }
+                apriVetrina(v.getAttribute('data-id'));
+                return;
+            }
             scegli(v.getAttribute('data-id'));
         });
         setTimeout(function () {
@@ -476,6 +489,24 @@
             '<div class="ag-vt-mod">' + fasce + '</div>' +
             (v.per_chi ? '<div class="ag-vt-chi">' + v.per_chi + (p.attuale ? ' \u00b7 <strong>il tuo piano</strong>' : '') + '</div>' : '') +
             '</div>';
+    }
+
+    function apriNonPronto(m) {
+        var t = (stato.vetrina_comune && stato.vetrina_comune.non_disponibile) ||
+                'Non e ancora disponibile. Lo stiamo collegando: comparira qui appena e pronto.';
+        var velo = document.createElement('div');
+        velo.className = 'ag-vt-velo'; velo.id = 'ag-vt-velo';
+        velo.addEventListener('click', chiudiVetrina);
+        document.body.appendChild(velo);
+        var d = document.createElement('div');
+        d.id = 'ag-vt'; d.className = 'ag-vt';
+        d.style.width = 'min(440px,92vw)';
+        d.innerHTML = '<button type="button" class="ag-vt-x" id="ag-vt-x" aria-label="Chiudi">&times;</button>' +
+            '<h3>' + m.etichetta + '</h3>' +
+            '<p class="ag-vt-sub">Non ancora disponibile</p>' +
+            '<p class="ag-vt-som">' + t + '</p>';
+        document.body.appendChild(d);
+        document.getElementById('ag-vt-x').addEventListener('click', chiudiVetrina);
     }
 
     function apriVetrina(idModello) {
@@ -709,8 +740,11 @@
 
     function montaConsumi() {
         var box = document.getElementById('ag-op-consumi');
-        if (!box || !stato) return;
-        if (stato.anonimo) { box.innerHTML = ''; return; }
+        if (!box) return;
+        // NIENTE CONDIZIONI. Prima si usciva se lo stato non era ancora arrivato o
+        // se l'utente risultava anonimo, e in tutti e due i casi nelle impostazioni
+        // non compariva NIENTE - nessun pulsante, nessuna spiegazione. Il pulsante
+        // c'e' sempre: al massimo dentro c'e' scritto che non c'e' ancora niente.
         if (box.querySelector('#ag-cs-btn')) { aggiornaPulsanteConsumo(); return; }
 
         box.innerHTML = '<h4>Consumo</h4>' +
@@ -724,7 +758,8 @@
     // niente vede comunque quanto gli resta.
     function aggiornaPulsanteConsumo() {
         var n = document.getElementById('ag-cs-btn-n');
-        if (!n || !stato) return;
+        if (!n) return;
+        if (!stato) { n.textContent = 'apri il dettaglio'; return; }
         var s1 = stato.sessione, s7 = stato.settimana;
         var p = Math.max(s1 ? s1.pct || 0 : 0, s7 ? s7.pct || 0 : 0);
         n.textContent = (s1 || s7) ? Math.round(p) + '% utilizzato' : 'apri il dettaglio';
@@ -778,6 +813,7 @@
             usoCache = await r.json();
         } catch (e) { usoCache = null; }
 
+        if (!stato) { corpo.innerHTML = '<p class="ag-cs-vuoto">Dati di consumo non disponibili ora.</p>'; return; }
         var t = (usoCache && usoCache.totale) || { messaggi: 0, tokens: 0 };
         var mods = (usoCache && usoCache.modelli) || [];
         var com = stato.vetrina_comune || {};
@@ -910,8 +946,18 @@
         // dei consumi va riempito dopo, non prima.
         var ing = document.getElementById('ag-opzioni-btn');
         if (ing) ing.addEventListener('click', function () {
-            [60, 260, 700].forEach(function (t) { setTimeout(montaConsumi, t); });
+            [0, 60, 260, 700].forEach(function (t) { setTimeout(montaConsumi, t); });
         });
+
+        // E se il pannello viene ricostruito in un altro momento, se ne accorge
+        // da solo: e' l'unico modo perche' il pulsante non sparisca mai piu'.
+        try {
+            new MutationObserver(function () {
+                if (document.getElementById('ag-op-consumi')) montaConsumi();
+            }).observe(document.body, { childList: true, subtree: true });
+        } catch (e) {
+            setInterval(montaConsumi, 1000);
+        }
 
         // IL CERCHIO DELL'ACCOUNT VA CON I PULSANTI DEL PANNELLO DI MEZZO,
         // non nella testa della chat: li' rubava spazio al nome del modello,
