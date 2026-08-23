@@ -267,6 +267,8 @@ body.ag-attivo{overflow:hidden;margin:0}
 .ag-ombra mark.ag-om-mail{background:rgba(0,162,199,.26)}
 .ag-ombra mark.ag-om-id{background:rgba(214,64,159,.26)}
 .ag-ombra mark.ag-om-tech{background:rgba(91,98,112,.26)}
+.ag-ombra mark.ag-om-altri{background:rgba(110,110,115,.24)}
+.ag-ombra mark.ag-om-mano{background:rgba(61,61,66,.24)}
 .ag-ombra mark.ag-om-med{background:rgba(233,61,130,.26)}
 .ag-ombra mark.ag-om-org{background:rgba(139,94,60,.26)}
 /* Quadratino arcobaleno: accende e spegne tutti i gruppi in un colpo solo.
@@ -9609,11 +9611,23 @@ if (recognition) {
     return ombraEl;
   }
 
+  // L'ANALISI NON SI RIFA' SE NIENTE E' CAMBIATO.
+  // disegnaOmbra viene richiamata da parecchi punti - ogni battuta, ogni
+  // scorrimento, ogni volta che il pannello si aggiorna - e ogni chiamata
+  // rianalizzava il testo INTERO. Su un documento incollato sono decine di
+  // millisecondi buttati a ogni giro, ed e' quello che si sente come
+  // interfaccia a scatti. Se il testo e le impostazioni sono gli stessi di un
+  // attimo prima, il disegno di prima e' ancora valido.
+  var _ombraUltimo = null;
   function disegnaOmbra(testo) {
     if (!ombraEl) return;
-    if (!ombraAttiva || !testo) { ombraEl.innerHTML = ''; return; }
+    if (!ombraAttiva || !testo) { ombraEl.innerHTML = ''; _ombraUltimo = null; return; }
+    var firma;
+    try { firma = String(testo) + '\u0000' + JSON.stringify(opzioni()); } catch (e) { firma = null; }
+    if (firma && firma === _ombraUltimo) return;
     let r;
-    try { r = AEGIS.protect(String(testo), opzioni()); } catch (e) { ombraEl.innerHTML = ''; return; }
+    try { r = AEGIS.protect(String(testo), opzioni()); } catch (e) { ombraEl.innerHTML = ''; _ombraUltimo = null; return; }
+    _ombraUltimo = firma;
     // si lavora sulle posizioni, non sulle parole: cosi' non si sbaglia
     // occorrenza quando la stessa parola compare piu' volte
     const punti = (r.matches || []).slice().sort(function (a, b) { return a.start - b.start; });
@@ -12496,14 +12510,17 @@ if (recognition) {
       // posto: qui quel ricalcolo lo chiediamo subito noi, invece di aspettare
       // che sia l'utente a provocarlo per caso.
       try {
+        // ATTENZIONE: QUI NON SI RILANCIA 'input'.
+        // L'evento input fa ripartire l'analisi dell'INTERO documento, e
+        // rimbalzando su tutti gli ascoltatori la faceva ripartire piu' volte
+        // di seguito: da li' il blocco di qualche secondo e l'interfaccia a
+        // scatti. Il riallineamento della maschera colorata non ha bisogno di
+        // rianalizzare niente: gli serve solo che il browser rifaccia
+        // l'impaginazione e che l'ombra riprenda lo scorrimento del campo.
+        // 'scroll' fa esattamente quello e non costa nulla.
         requestAnimationFrame(function () {
           void campo.offsetHeight;                      // forza l'impaginazione
-          campo.dispatchEvent(new Event('scroll', { bubbles: true }));
-          campo.dispatchEvent(new Event('input', { bubbles: true }));
-          requestAnimationFrame(function () {
-            void campo.offsetHeight;
-            campo.dispatchEvent(new Event('scroll', { bubbles: true }));
-          });
+          campo.dispatchEvent(new Event('scroll'));      // NON bubbles: solo l'ombra
         });
       } catch (e) {}
       stato((window.aegisT || function(k){return k;})('docFatto', { f: file.name, n: testo.trim().length.toLocaleString() }));
@@ -13112,6 +13129,6 @@ if (recognition) {
      versione vecchia di billing-ui.js e ogni correzione sembra non fare niente:
      si carica il file nuovo e si continua a eseguire quello vecchio. Ogni volta
      che billing-ui.js cambia, si alza questo numero. -->
-<script src="billing-ui.js?v=8" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
+<script src="billing-ui.js?v=9" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
 </body>
 </html>
