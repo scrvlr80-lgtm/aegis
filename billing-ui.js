@@ -916,6 +916,7 @@
             riempiSelettore();
             disegnaBarra();
             disegnaAccount();
+            montaConsumi();      // se il pannello e' aperto, il pulsante c'e'
         } catch (e) {
             // Silenzio voluto: senza billing l'applicazione deve restare intera.
         } finally {
@@ -944,10 +945,22 @@
 
         // Il pannello impostazioni si ricostruisce a ogni apertura: il riquadro
         // dei consumi va riempito dopo, non prima.
-        var ing = document.getElementById('ag-opzioni-btn');
-        if (ing) ing.addEventListener('click', function () {
-            [0, 60, 260, 700].forEach(function (t) { setTimeout(montaConsumi, t); });
-        });
+        // ECCO PERCHE' IL PULSANTE CONSUMO NON COMPARIVA MAI.
+        // Qui c'era document.getElementById('ag-opzioni-btn') eseguito
+        // all'avvio. Ma il pannello di mezzo NON ESISTE all'avvio: lo costruisce
+        // index.html piu' tardi, con createElement. Quindi getElementById
+        // tornava null, l'ascoltatore non veniva mai attaccato, e montaConsumi
+        // non veniva chiamata NEMMENO UNA VOLTA. Nessun errore in console,
+        // semplicemente non succedeva niente.
+        // Adesso l'ascolto sta sul documento, che esiste sempre: qualunque
+        // click sull'ingranaggio viene visto, anche se il pulsante e' nato
+        // dieci secondi dopo di noi.
+        document.addEventListener('click', function (e) {
+            var t = e.target;
+            var ing = (t && t.closest) ? t.closest('#ag-opzioni-btn') : null;
+            if (!ing) return;
+            [0, 60, 200, 500, 900].forEach(function (ms) { setTimeout(montaConsumi, ms); });
+        }, true);
 
         // NIENTE OSSERVATORE SUL DOCUMENTO. Ne avevo messo uno: montaConsumi
         // scrive nel pannello, la scrittura e' una mutazione, l'osservatore la
