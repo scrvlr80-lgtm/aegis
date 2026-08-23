@@ -350,6 +350,17 @@ body.ag-attivo{overflow:hidden;margin:0}
 .ag-av-riga .ck{width:14px;height:14px;flex:none;border:1.5px solid var(--hairline);
   border-radius:4px;position:relative}
 .ag-av-riga.sel .ck{background:var(--accent);border-color:var(--accent)}
+
+/* forbici: aprono la riga parola per parola */
+.ag-av-taglia{border:0;background:transparent;cursor:pointer;font-size:13px;line-height:1;
+  color:#8B8B92;padding:2px 6px;border-radius:6px;flex:none}
+.ag-av-taglia:hover{background:rgba(0,0,0,.07);color:#1d1d1f}
+.ag-av-taglia-no{width:25px;flex:none}
+.ag-av-chips{display:flex;flex-wrap:wrap;gap:5px;padding:2px 12px 10px 46px}
+.ag-av-chip{border:1px solid rgba(0,0,0,.16);background:#fff;color:#8B8B92;border-radius:7px;
+  padding:3px 8px;font:500 11.5px Inter,sans-serif;cursor:pointer;text-decoration:line-through}
+.ag-av-chip.on{color:#1d1d1f;border-color:rgba(0,0,0,.34);background:#F6F6F8;text-decoration:none}
+.ag-av-chip:hover{border-color:#8B8B92}
 .ag-av-riga.sel .ck::after{content:'';position:absolute;left:4px;top:1px;width:4px;height:8px;
   border:solid #fff;border-width:0 2px 2px 0;transform:rotate(42deg)}
 .ag-av-riga .n{min-width:18px;color:var(--text-light);font-size:10.5px}
@@ -10012,6 +10023,56 @@ if (recognition) {
      ================================================= */
   var RX_NUMERICO = /\b(?=[A-Za-z0-9][A-Za-z0-9 .\/-]*\d)[A-Za-z0-9][A-Za-z0-9]*(?:[ .\/-][A-Za-z0-9]+){0,4}\b/g;
 
+  /* --------------------- RIFILATURA DEI BORDI ---------------------------
+     La cattura delle sequenze prende quattro parole attorno a un numero, e
+     dentro ci finisce di tutto: "en agosto de 2026", "de 1.900",
+     "34 742013350 DESTINATARIO". Non sono dati: sono un dato piu' le parole
+     che gli stanno intorno. E la differenza si sente nella risposta del
+     modello, che riceve "consegnata C01A07" invece di "consegnata en C01A07
+     de C974B2" e capisce due cose diverse.
+
+     Qui si tolgono dai BORDI - mai dal centro - le parole che non possono
+     mai essere un dato: articoli, preposizioni, congiunzioni. Sono poche
+     decine per lingua e non cambiano mai, quindi si elencano. E si toglie
+     anche la parola tutta maiuscola in coda, che nei documenti e' sempre
+     l'etichetta della riga dopo, non parte del numero.
+     I mesi restano: "agosto 2026" e' una data, non un numero con una parola
+     attaccata.
+     -------------------------------------------------------------------- */
+  var PAROLE_VUOTE = new Set(( 
+    // italiano
+    'il lo la i gli le un uno una di del dello della dei degli delle a al allo alla ai agli ' +
+    'alle da dal dallo dalla dai dagli dalle in nel nello nella nei negli nelle con su sul ' +
+    'sullo sulla sui sugli sulle per tra fra e ed o od che non piu meno come dopo prima ' +
+    // spagnolo
+    'el la los las un una unos unas de del al a en con por para sin sobre entre desde hasta ' +
+    'y e o u que no mas menos como despues antes segun durante ' +
+    // inglese
+    'the a an of in on at to for with by from and or but not more less as after before ' +
+    'about into over under during'
+  ).split(' '));
+
+  var MESI = new Set((
+    'gennaio febbraio marzo aprile maggio giugno luglio agosto settembre ottobre novembre dicembre ' +
+    'enero febrero marzo abril mayo junio julio agosto septiembre octubre noviembre diciembre ' +
+    'january february march april may june july august september october november december'
+  ).split(' '));
+
+  function rifila(valore){
+    var pezzi = String(valore).split(/\s+/).filter(Boolean);
+    function vuota(p){
+      var n = p.toLowerCase().replace(/[^\p{L}]/gu, '');
+      return n.length > 0 && PAROLE_VUOTE.has(n);
+    }
+    // etichetta in coda: tutta maiuscola, senza cifre, e non e' un mese
+    function etichetta(p){
+      return /^[A-Z\u00C0-\u00DE]{3,}$/.test(p) && !MESI.has(p.toLowerCase());
+    }
+    while (pezzi.length && (vuota(pezzi[0]) || etichetta(pezzi[0]))) pezzi.shift();
+    while (pezzi.length && (vuota(pezzi[pezzi.length-1]) || etichetta(pezzi[pezzi.length-1]))) pezzi.pop();
+    return pezzi.join(' ').replace(/^[\s.\/-]+|[\s.\/-]+$/g, '');
+  }
+
   function sequenzeNumeriche(testo){
     var t = String(testo || '');
     if (!t.trim()) return [];
@@ -10026,7 +10087,7 @@ if (recognition) {
     var visti = {}, fuori = [], m;
     RX_NUMERICO.lastIndex = 0;
     while ((m = RX_NUMERICO.exec(t)) !== null) {
-      var val = String(m[0]).replace(/^[\s.\/-]+|[\s.\/-]+$/g, '');
+      var val = rifila(String(m[0]).replace(/^[\s.\/-]+|[\s.\/-]+$/g, ''));
       if (val.length < 4 || val.length > 40) continue;
       var cifre = (val.match(/\d/g) || []).length;
       if (cifre < 3) continue;
@@ -10047,12 +10108,49 @@ if (recognition) {
       var ov = document.createElement('div');
       ov.className = 'ag-avviso-ov';
       var scelte = elenco.map(function(){ return false; });   // spente: vedi sopra
-      var righe = elenco.map(function(x, i){
-        return '<div class="ag-av-riga" data-i="' + i + '">' +
-               '<span class="ck"></span><span class="n">' + (i+1) + '</span>' +
-               '<span class="v">' + esc(x.valore) + '</span>' +
-               '<span class="c" style="background:' + coloreCategoria('id') + '"></span></div>';
-      }).join('');
+      // OGNI RIGA SI PUO' SPEZZARE. Una sequenza catturata non e' sempre
+      // tutta un dato: in "34 742013350 DESTINATARIO" il dato e' il numero,
+      // DESTINATARIO e' l'etichetta della riga dopo. Coprire tutto insieme fa
+      // arrivare al modello "consegnata C01A07" al posto di "consegnata en
+      // C01A07 de C974B2": due frasi che significano cose diverse.
+      // Le forbici aprono la riga parola per parola. Le parole spente restano
+      // in chiaro; quelle accese si coprono, e se restano separate da un buco
+      // diventano due codici distinti invece di uno che si porta dietro le
+      // parole in mezzo.
+      var parole = elenco.map(function(x){ return String(x.valore).split(/\s+/).filter(Boolean); });
+      var tenute = parole.map(function(p){ return p.map(function(){ return true; }); });
+      var aperte = elenco.map(function(){ return false; });
+
+      function valoriDiRiga(i){
+        var out = [], corr = [];
+        parole[i].forEach(function(p, k){
+          if (tenute[i][k]) corr.push(p);
+          else if (corr.length) { out.push(corr.join(' ')); corr = []; }
+        });
+        if (corr.length) out.push(corr.join(' '));
+        return out.filter(function(v){ return v.replace(/[^A-Za-z0-9]/g, '').length >= 2; });
+      }
+      function htmlRiga(x, i){
+        var v = valoriDiRiga(i).join('  \u00b7  ') || '\u2014';
+        var chip = parole[i].map(function(p, k){
+          return '<button type="button" class="ag-av-chip' + (tenute[i][k] ? ' on' : '') +
+                 '" data-i="' + i + '" data-k="' + k + '">' + esc(p) + '</button>';
+        }).join('');
+        return '<div class="ag-av-riga' + (scelte[i] ? ' sel' : '') + '" data-i="' + i + '">' +
+                 '<span class="ck"></span><span class="n">' + (i+1) + '</span>' +
+                 '<span class="v">' + esc(v) + '</span>' +
+                 (parole[i].length > 1
+                   ? '<button type="button" class="ag-av-taglia" data-t="' + i + '">\u2702</button>'
+                   : '<span class="ag-av-taglia-no"></span>') +
+                 '<span class="c" style="background:' + coloreCategoria('id') + '"></span>' +
+               '</div>' +
+               (aperte[i] ? '<div class="ag-av-chips">' + chip + '</div>' : '');
+      }
+      function ridisegnaLista(){
+        var l = ov.querySelector('.ag-av-lista');
+        if (l) l.innerHTML = elenco.map(htmlRiga).join('');
+      }
+      var righe = elenco.map(htmlRiga).join('');
       ov.innerHTML =
         '<div class="ag-avviso">' +
           '<h3>' + T('numTitolo', { n: elenco.length }) + '</h3>' +
@@ -10077,21 +10175,42 @@ if (recognition) {
         if (pr) pr.disabled = (q === 0);
       }
       function segna(i, val){
-        scelte[i] = val;
+        scelte[i] = val && valoriDiRiga(i).length > 0;
         var r = ov.querySelector('.ag-av-riga[data-i="' + i + '"]');
-        if (r) r.classList.toggle('sel', val);
+        if (r) r.classList.toggle('sel', scelte[i]);
       }
       ov.addEventListener('click', function(e){
+        var forb = e.target.closest('.ag-av-taglia');
+        if (forb) { var j = +forb.getAttribute('data-t'); aperte[j] = !aperte[j]; ridisegnaLista(); return; }
+        var chip = e.target.closest('.ag-av-chip');
+        if (chip) {
+          var ci = +chip.getAttribute('data-i'), ck = +chip.getAttribute('data-k');
+          tenute[ci][ck] = !tenute[ci][ck];
+          if (!valoriDiRiga(ci).length) scelte[ci] = false;
+          ridisegnaLista(); conta(); return;
+        }
         var riga = e.target.closest('.ag-av-riga');
-        if (riga) { var i = +riga.getAttribute('data-i'); segna(i, !scelte[i]); conta(); return; }
+        if (riga) {
+          var i = +riga.getAttribute('data-i');
+          if (!valoriDiRiga(i).length) return;
+          segna(i, !scelte[i]); conta(); return;
+        }
         var b = e.target.closest('button'); if (!b) return;
         var a = b.getAttribute('data-a');
         if (a === 'tutte' || a === 'nessuna') {
           elenco.forEach(function(x, i){ segna(i, a === 'tutte'); });
-          conta(); return;
+          ridisegnaLista(); conta(); return;
         }
         ov.remove();
-        risolvi(a === 'copri' ? elenco.filter(function(x, i){ return scelte[i]; }) : []);
+        if (a !== 'copri') { risolvi([]); return; }
+        // Un elemento per ogni TRATTO tenuto, non per riga: una riga spezzata
+        // in due diventa due codici.
+        var esito = [];
+        elenco.forEach(function(x, i){
+          if (!scelte[i]) return;
+          valoriDiRiga(i).forEach(function(v){ esito.push({ valore: v }); });
+        });
+        risolvi(esito);
       });
     });
   }
@@ -13218,6 +13337,6 @@ if (recognition) {
      versione vecchia di billing-ui.js e ogni correzione sembra non fare niente:
      si carica il file nuovo e si continua a eseguire quello vecchio. Ogni volta
      che billing-ui.js cambia, si alza questo numero. -->
-<script src="billing-ui.js?v=11" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
+<script src="billing-ui.js?v=12" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
 </body>
 </html>
