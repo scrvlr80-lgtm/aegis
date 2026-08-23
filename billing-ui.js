@@ -92,7 +92,15 @@
             /* selettore dei modelli: menu proprio, perche' un <select> nativo
                non accetta ne' immagini ne' distintivi dentro le <option> */
             '.ag-msel{position:relative;display:inline-flex}' +
-            '.ag-msel-btn{display:inline-flex;align-items:center;gap:6px}' +
+            /* .lang-change-btn ha width:100px FISSO: il nome del modello non ci
+               stava e finiva sopra NUEVO CHAT. Qui la larghezza segue il
+               contenuto, il resto (cornice, altezza, tipo) resta identico agli
+               altri pulsanti della riga. */
+            '.ag-msel{flex:none}' +
+            '.ag-msel-btn{width:auto!important;min-width:0;max-width:none;height:32px;' +
+            'padding:0 11px;gap:8px;justify-content:flex-start;white-space:nowrap;overflow:visible}' +
+            '.ag-msel-btn img,.ag-msel-btn > svg{flex:none}' +
+            '.ag-msel-btn > svg{margin-left:1px;opacity:.75}' +
             '.ag-msel-btn img,.ag-msel-btn svg{flex:none}' +
             '.ag-msel-menu{position:fixed;z-index:3000;min-width:262px;max-height:64vh;overflow-y:auto;' +
             'background:#fff;border:1px solid rgba(0,0,0,.1);border-radius:12px;padding:6px;' +
@@ -106,9 +114,9 @@
             '.ag-msel-voce[data-ok="0"] .ag-msel-nome{color:#8b8b90}' +
             '.ag-msel-voce.scelto{background:rgba(0,113,227,.09)}' +
             '.ag-msel-nome{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
-            '.ag-msel-eti{white-space:nowrap}' +
+            '.ag-msel-eti{white-space:nowrap;letter-spacing:1px}' +
             '.ag-msel-fs{font:400 9.5px Inter,sans-serif;color:#8b8b90;text-transform:none;' +
-            'letter-spacing:0;white-space:nowrap}' +
+            'letter-spacing:0;white-space:nowrap;text-transform:none;font-family:Inter,sans-serif}' +
             /* CONSUMO: bottone nelle impostazioni + finestra dedicata */
             '.ag-cs-btn{display:flex;width:100%;align-items:center;justify-content:space-between;gap:8px;' +
             'padding:11px 13px;border:1px solid rgba(0,0,0,.12);border-radius:10px;background:transparent;' +
