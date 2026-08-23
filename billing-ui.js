@@ -46,11 +46,28 @@
     function immagineLogo(provider, etichetta) {
         var url = (stato && stato.loghi) ? stato.loghi[provider] : null;
         if (!url) return logo(provider);
-        return '<img src="' + url + '" alt="' + String(etichetta || provider).replace(/"/g, '') + '" ' +
-            'width="14" height="14" loading="lazy" decoding="async" ' +
-            'style="display:block;border-radius:3px;object-fit:contain" ' +
-            'onerror="this.replaceWith(document.createRange().createContextualFragment(' +
-            "'" + logo(provider).replace(/'/g, "\\'") + "'" + '))">';
+        // L'ATTRIBUTO onerror NON PUO' CONTENERE UN SVG. Il disegno di ripiego ha
+        // virgolette dentro: infilato in onerror="..." chiudeva l'attributo a
+        // meta' e il resto ( ')">  ) finiva stampato accanto a ogni modello.
+        // Ora l'immagine porta solo un contrassegno e il ripiego lo aggancia
+        // codice vero, dove le virgolette non danno fastidio a nessuno.
+        return '<img src="' + url + '" alt="' + String(etichetta || provider).replace(/[<>"]/g, '') + '" ' +
+            'width="14" height="14" loading="lazy" decoding="async" data-logo="' + provider + '" ' +
+            'style="display:block;border-radius:3px;object-fit:contain">';
+    }
+
+    // Dopo ogni disegno: le immagini che non caricano tornano al vettoriale.
+    function agganciaRipieghi(radice) {
+        var imgs = (radice || document).querySelectorAll('img[data-logo]:not([data-agganciato])');
+        Array.prototype.forEach.call(imgs, function (im) {
+            im.setAttribute('data-agganciato', '1');
+            im.addEventListener('error', function () {
+                var sp = document.createElement('span');
+                sp.style.cssText = 'display:inline-flex;align-items:center';
+                sp.innerHTML = logo(im.getAttribute('data-logo'));
+                if (im.parentNode) im.parentNode.replaceChild(sp, im);
+            });
+        });
     }
 
     /* -------------------------------------------------------------- stile */
@@ -89,6 +106,52 @@
             '.ag-msel-voce[data-ok="0"] .ag-msel-nome{color:#8b8b90}' +
             '.ag-msel-voce.scelto{background:rgba(0,113,227,.09)}' +
             '.ag-msel-nome{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+            '.ag-msel-eti{white-space:nowrap}' +
+            '.ag-msel-fs{font:400 9.5px Inter,sans-serif;color:#8b8b90;text-transform:none;' +
+            'letter-spacing:0;white-space:nowrap}' +
+            /* CONSUMO: bottone nelle impostazioni + finestra dedicata */
+            '.ag-cs-btn{display:flex;width:100%;align-items:center;justify-content:space-between;gap:8px;' +
+            'padding:11px 13px;border:1px solid rgba(0,0,0,.12);border-radius:10px;background:transparent;' +
+            'cursor:pointer;font:700 10px Inter,sans-serif;letter-spacing:.06em;text-transform:uppercase;' +
+            'color:#4a4a50}' +
+            '.ag-cs-btn:hover{background:rgba(0,0,0,.035)}' +
+            '.ag-cs-btn i{font-style:normal;font-weight:400;font-size:10.5px;letter-spacing:0;' +
+            'text-transform:none;color:#8b8b90;font-variant-numeric:tabular-nums}' +
+            '.ag-cs-velo{position:fixed;inset:0;background:rgba(20,20,22,.5);z-index:4200}' +
+            '.ag-cs{position:fixed;z-index:4201;left:50%;top:50%;transform:translate(-50%,-50%);' +
+            'width:min(640px,94vw);max-height:86vh;overflow-y:auto;background:#fff;border-radius:16px;' +
+            'padding:28px 30px 32px;font-family:Inter,sans-serif;box-shadow:0 24px 70px rgba(0,0,0,.3)}' +
+            '.ag-cs-x{position:absolute;top:16px;right:18px;border:0;background:transparent;font-size:22px;' +
+            'line-height:1;color:#8b8b90;cursor:pointer;padding:4px 8px}' +
+            '.ag-cs h3{margin:0 0 22px;font-size:17px;font-weight:600;color:#1d1d1f}' +
+            '.ag-cs h3 span{font-weight:400;color:#8b8b90;font-size:14px;margin-left:7px}' +
+            '.ag-cs h4{margin:26px 0 14px;font-size:14.5px;font-weight:600;color:#1d1d1f}' +
+            '.ag-cs-f{display:grid;grid-template-columns:1fr 260px auto;gap:16px;align-items:center;' +
+            'margin-bottom:16px}' +
+            '@media(max-width:620px){.ag-cs-f{grid-template-columns:1fr;gap:6px}}' +
+            '.ag-cs-f b{display:block;font-size:13.5px;font-weight:500;color:#1d1d1f}' +
+            '.ag-cs-f small{display:block;font-size:11.5px;color:#8b8b90;margin-top:2px}' +
+            '.ag-cs-tr{height:7px;border-radius:4px;background:#dbe7f6;overflow:hidden}' +
+            '.ag-cs-tr i{display:block;height:100%;border-radius:4px;background:#2f6fd0;transition:width .5s}' +
+            '.ag-cs-f.alto .ag-cs-tr i{background:#c98a1e}' +
+            '.ag-cs-f.pieno .ag-cs-tr i{background:#b03030}' +
+            '.ag-cs-pct{font-size:12.5px;color:#4a4a50;white-space:nowrap;' +
+            'font-variant-numeric:tabular-nums}' +
+            '.ag-cs-info{display:flex;gap:10px;padding:13px 15px;border:1px solid rgba(0,0,0,.1);' +
+            'border-radius:11px;background:rgba(0,0,0,.02);margin-bottom:18px}' +
+            '.ag-cs-info p{margin:0;font-size:11.5px;line-height:1.55;color:#4a4a50}' +
+            '.ag-cs-mod{display:flex;flex-direction:column;gap:11px}' +
+            '.ag-cs-m{display:grid;grid-template-columns:1fr 260px auto;gap:16px;align-items:center}' +
+            '@media(max-width:620px){.ag-cs-m{grid-template-columns:1fr;gap:5px}}' +
+            '.ag-cs-mn{display:flex;align-items:center;gap:8px;font-size:13px;color:#1d1d1f;min-width:0}' +
+            '.ag-cs-mn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+            '.ag-cs-mn small{color:#8b8b90;font-size:11px;white-space:nowrap}' +
+            '.ag-cs-agg{margin-top:24px;padding-top:16px;border-top:1px solid rgba(0,0,0,.09);' +
+            'display:flex;align-items:center;gap:8px;font-size:11.5px;color:#8b8b90}' +
+            '.ag-cs-agg button{border:0;background:transparent;cursor:pointer;color:#6e6e73;' +
+            'font-size:14px;padding:2px 5px;border-radius:6px}' +
+            '.ag-cs-agg button:hover{background:rgba(0,0,0,.06)}' +
+            '.ag-cs-vuoto{font-size:12px;color:#8b8b90;margin:0}' +
             '.ag-bd{flex:none;display:inline-flex;align-items:center;gap:3px;font:600 9px Inter,sans-serif;' +
             'letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;border-radius:9px;border:1px solid}' +
             '.ag-bd-grigio{color:#6e6e73;border-color:rgba(110,110,115,.34);background:rgba(110,110,115,.08)}' +
@@ -138,6 +201,8 @@
             '.ag-acc-cerchio:hover{filter:brightness(1.12)}' +
             '.ag-acc-cerchio:focus-visible{outline:2px solid currentColor;outline-offset:2px}' +
             '.ag-acc-cerchio.grande{width:36px;height:36px;font-size:14px}' +
+            '.ag-account-testa{flex:none;align-self:flex-start;margin-right:2px}' +
+            '.ag-account-testa .ag-acc-cerchio{width:38px;height:38px;font-size:15px}' +
             '.ag-acc-menu{position:fixed;z-index:3000;min-width:236px;background:#fff;' +
             'border:1px solid rgba(0,0,0,.1);border-radius:12px;padding:6px;' +
             'box-shadow:0 10px 34px rgba(0,0,0,.16);font-family:Inter,sans-serif}' +
@@ -199,7 +264,7 @@
     };
 
     // Il distintivo di una fascia: testo e tono vengono dalla configurazione.
-    function distintivo(fascia, consentito) {
+    function distintivo(fascia, consentito, nudo) {
         var f = (stato && stato.fasce) ? stato.fasce[fascia] : null;
         var d = f && f.distintivo;
         if (!d || !d.testo) return '';
@@ -207,6 +272,7 @@
         var ic = ICONE[d.icona] || '';
         // Un modello che il piano non copre porta comunque il suo distintivo:
         // e' proprio quello che gli dice cosa gli manca per averlo.
+        if (nudo) return '<span class="ag-msel-fs">' + String(d.testo) + '</span>';
         return '<span class="ag-bd ag-bd-' + tono + '"' +
                (d.descrizione ? ' title="' + String(d.descrizione).replace(/"/g, '') + '"' : '') +
                (consentito ? '' : ' style="opacity:.9"') + '>' +
@@ -249,10 +315,12 @@
         var m = modelloCorrente();
         if (!m) { b.textContent = 'MODELLO'; return; }
         b.innerHTML = immagineLogo(m.provider, m.etichetta) +
-            '<span>' + m.etichetta + '</span>' +
+            '<span class="ag-msel-eti">' + m.etichetta + '</span>' +
+            distintivo(m.fascia, true, true) +
             '<svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true">' +
             '<path d="M2 4l3 3 3-3" fill="none" stroke="#6E6E73" stroke-width="1.4" stroke-linecap="round"/></svg>';
         b.title = m.etichetta;
+        agganciaRipieghi(b);
     }
 
     function chiudiMenuModelli() {
@@ -296,6 +364,7 @@
         menu.setAttribute('role', 'listbox');
         menu.innerHTML = h;
         document.body.appendChild(menu);
+        agganciaRipieghi(menu);
 
         var b = document.getElementById('ag-msel-btn');
         var r = b.getBoundingClientRect();
@@ -573,14 +642,7 @@
         document.getElementById('ag-acc-esci').addEventListener('click', esci);
         document.getElementById('ag-acc-consumi').addEventListener('click', function () {
             m.remove();
-            var g = document.getElementById('ag-opzioni-btn');
-            if (g) g.click();
-            // e apre subito il dettaglio, invece di lasciarlo da cercare
-            setTimeout(function () {
-                montaConsumi();
-                var a = document.getElementById('ag-uso-apri');
-                if (a && a.getAttribute('aria-expanded') !== 'true') a.click();
-            }, 140);
+            apriConsumi();
         });
 
         setTimeout(function () {
@@ -623,74 +685,154 @@
        ==================================================================== */
     var usoCache = null;
 
-    // Nelle impostazioni compare una riga cliccabile, non un muro di numeri
-    // sempre aperto: si preme e si apre. La lettura parte solo alla prima
-    // apertura, cosi' chi non guarda i consumi non fa nessuna chiamata.
+    /* ===================== CONSUMO ======================================
+       Nel pannello Configuracion compare un pulsante CONSUMO. Aprendolo si
+       vede la stessa cosa che si vede altrove nel mestiere: due finestre a
+       scorrimento con la percentuale e QUANDO tornano, e sotto quanto ha
+       preso ciascun modello.
+
+       La logica e' quella provata: una finestra breve di sessione, che si
+       libera da sola dopo qualche ora, e una settimanale che scorre giorno
+       per giorno. Nessuna delle due si azzera a mezzanotte: escono i
+       messaggi vecchi e lo spazio torna. Ed e' per questo che si mostra il
+       "torna fra", non un numero di messaggi: i messaggi non sono uguali fra
+       loro, un modello potente ne vale molti.
+       ==================================================================== */
+
     function montaConsumi() {
         var box = document.getElementById('ag-op-consumi');
-        if (!box) return;
-        if (!stato || stato.anonimo) { box.innerHTML = ''; return; }
-        if (box.querySelector('#ag-uso-apri')) return;   // gia' montato
+        if (!box || !stato) return;
+        if (stato.anonimo) { box.innerHTML = ''; return; }
+        if (box.querySelector('#ag-cs-btn')) { aggiornaPulsanteConsumo(); return; }
 
-        box.innerHTML =
-            '<h4>Consumi</h4>' +
-            '<button type="button" class="ag-uso-apri" id="ag-uso-apri" aria-expanded="false">' +
-                '<span>I miei consumi</span><i>ultimi 7 giorni \u203A</i></button>' +
-            '<div class="ag-uso-corpo" id="ag-uso-corpo" hidden></div>';
-
-        box.querySelector('#ag-uso-apri').addEventListener('click', function () {
-            var corpo = document.getElementById('ag-uso-corpo');
-            var apri = corpo.hasAttribute('hidden');
-            if (apri) { corpo.removeAttribute('hidden'); riempiConsumi(); }
-            else corpo.setAttribute('hidden', '');
-            this.setAttribute('aria-expanded', apri ? 'true' : 'false');
-        });
+        box.innerHTML = '<h4>Consumo</h4>' +
+            '<button type="button" class="ag-cs-btn" id="ag-cs-btn">' +
+            '<span>Consumo</span><i id="ag-cs-btn-n"></i></button>';
+        box.querySelector('#ag-cs-btn').addEventListener('click', apriConsumi);
+        aggiornaPulsanteConsumo();
     }
 
-    async function riempiConsumi() {
-        var corpo = document.getElementById('ag-uso-corpo');
-        if (!corpo || !stato || stato.anonimo) return;
+    // Sul pulsante si legge subito la finestra piu' stretta: chi non apre
+    // niente vede comunque quanto gli resta.
+    function aggiornaPulsanteConsumo() {
+        var n = document.getElementById('ag-cs-btn-n');
+        if (!n || !stato) return;
+        var s1 = stato.sessione, s7 = stato.settimana;
+        var p = Math.max(s1 ? s1.pct || 0 : 0, s7 ? s7.pct || 0 : 0);
+        n.textContent = (s1 || s7) ? Math.round(p) + '% utilizzato' : 'apri il dettaglio';
+    }
 
-        corpo.innerHTML = '<p class="ag-op-nota">Lettura in corso\u2026</p>';
+    function chiudiConsumi() {
+        var a = document.getElementById('ag-cs'), b = document.getElementById('ag-cs-velo');
+        if (a) a.remove();
+        if (b) b.remove();
+    }
+
+    function barraFinestra(titolo, sotto, f, cls) {
+        var pct = Math.max(0, Math.min(100, (f && f.pct) || 0));
+        var t = stato.tetti || {};
+        var stile = pct >= (t.blocco_pct || 100) ? 'pieno' : (pct >= (t.avviso_pct || 75) ? 'alto' : '');
+        return '<div class="ag-cs-f ' + stile + ' ' + (cls || '') + '">' +
+            '<div><b>' + titolo + '</b>' + (sotto ? '<small>' + sotto + '</small>' : '') + '</div>' +
+            '<div class="ag-cs-tr"><i style="width:' + pct.toFixed(1) + '%"></i></div>' +
+            '<div class="ag-cs-pct">' + Math.round(pct) + '% utilizzato</div>' +
+            '</div>';
+    }
+
+    async function apriConsumi() {
+        if (!stato) return;
+        chiudiConsumi();
+
+        var velo = document.createElement('div');
+        velo.className = 'ag-cs-velo'; velo.id = 'ag-cs-velo';
+        velo.addEventListener('click', chiudiConsumi);
+        document.body.appendChild(velo);
+
+        var d = document.createElement('div');
+        d.id = 'ag-cs'; d.className = 'ag-cs';
+        d.setAttribute('role', 'dialog');
+        d.innerHTML = '<button type="button" class="ag-cs-x" id="ag-cs-x" aria-label="Chiudi">&times;</button>' +
+            '<h3>Limiti di utilizzo del piano<span>' + (stato.piano_etichetta || '') + '</span></h3>' +
+            '<div id="ag-cs-corpo"><p class="ag-cs-vuoto">Lettura in corso\u2026</p></div>';
+        document.body.appendChild(d);
+        document.getElementById('ag-cs-x').addEventListener('click', chiudiConsumi);
+
+        await disegnaConsumi();
+    }
+
+    async function disegnaConsumi() {
+        var corpo = document.getElementById('ag-cs-corpo');
+        if (!corpo) return;
+
         try {
             var r = await fetch(API + '/api/billing/usage?giorni=7&email=' +
                 encodeURIComponent(emailCorrente()));
             usoCache = await r.json();
-        } catch (e) {
-            corpo.innerHTML = '<p class="ag-op-nota">Non disponibili ora.</p>';
-            return;
-        }
+        } catch (e) { usoCache = null; }
 
-        var t = usoCache.totale || { messaggi: 0, tokens: 0 };
+        var t = (usoCache && usoCache.totale) || { messaggi: 0, tokens: 0 };
+        var mods = (usoCache && usoCache.modelli) || [];
+        var com = stato.vetrina_comune || {};
+
         var h = '';
 
-        if (stato.barra_visibile && (stato.sessione || stato.settimana)) {
-            h += '<div class="ag-uso-fin">' +
-                 finestraHtml('Sessione', stato.sessione) +
-                 finestraHtml('Settimana', stato.settimana) + '</div>';
+        // --- sessione ---
+        h += barraFinestra('Sessione corrente',
+            stato.sessione && stato.sessione.reset_ts
+                ? 'Si ripristina ' + quando(stato.sessione.reset_ts)
+                : 'Finestra di ' + (stato.sessione_ore || 5) + ' ore, a scorrimento',
+            stato.sessione);
+
+        // --- settimana ---
+        h += '<h4>Limiti settimanali</h4>';
+        if (com.testo) {
+            h += '<div class="ag-cs-info"><p>' + com.testo + '</p></div>';
         }
+        h += barraFinestra('Tutti i modelli',
+            stato.settimana && stato.settimana.reset_ts
+                ? 'Si ripristina ' + quando(stato.settimana.reset_ts)
+                : 'Sette giorni a scorrimento',
+            stato.settimana);
 
-        h += '<div class="ag-uso-tot">' +
-             '<div><b>' + t.messaggi + '</b><i>messaggi</i></div>' +
-             '<div><b>' + numeroBreve(t.tokens) + '</b><i>token</i></div>' +
-             '<div><b>' + (usoCache.modelli || []).length + '</b><i>modelli usati</i></div>' +
-             '</div>';
-
-        if (!(usoCache.modelli || []).length) {
-            h += '<p class="ag-op-nota">Ancora nessun messaggio in questo periodo.</p>';
+        // --- per modello ---
+        h += '<h4>Per modello \u00b7 ultimi 7 giorni</h4>';
+        if (!mods.length) {
+            h += '<p class="ag-cs-vuoto">Ancora nessun messaggio in questo periodo.</p>';
         } else {
-            h += '<div class="ag-uso-lista">' + usoCache.modelli.map(function (m) {
-                return '<div class="ag-uso-riga">' +
-                    '<span class="ag-uso-nome">' + m.etichetta + '</span>' +
-                    '<span class="ag-uso-tr"><i style="width:' + Math.max(2, m.quota_pct).toFixed(1) + '%"></i></span>' +
-                    '<span class="ag-uso-n">' + m.messaggi + ' msg</span>' +
-                    '<span class="ag-uso-p">' + Math.round(m.quota_pct) + '%</span>' +
+            h += '<div class="ag-cs-mod">' + mods.map(function (m) {
+                var pct = Math.max(0, Math.min(100, m.quota_pct || 0));
+                var f = (stato.fasce || {})[m.fascia] || {};
+                return '<div class="ag-cs-m">' +
+                    '<div class="ag-cs-mn">' + immagineLogo(m.provider, m.etichetta) +
+                        '<span>' + m.etichetta + '</span>' +
+                        '<small>' + (f.nome || '') + '</small></div>' +
+                    '<div class="ag-cs-tr"><i style="width:' + Math.max(1.5, pct).toFixed(1) + '%"></i></div>' +
+                    '<div class="ag-cs-pct">' + Math.round(pct) + '% \u00b7 ' + m.messaggi + ' msg</div>' +
                     '</div>';
-            }).join('') + '</div>' +
-            '<p class="ag-op-nota">La percentuale dice quanta parte della quota ' +
-            'ha preso ciascun modello. I piu\u2019 potenti consumano di piu\u2019 a parita\u2019 di messaggi.</p>';
+            }).join('') + '</div>';
+            h += '<div class="ag-cs-info" style="margin-top:16px"><p>' +
+                 'La percentuale dice quanta parte della quota ha preso ciascun modello, non quanti ' +
+                 'messaggi hai scritto: un modello potente pesa piu\u2019 di uno rapido a parita\u2019 di ' +
+                 'messaggi. In totale ' + t.messaggi + ' messaggi e ' + numeroBreve(t.tokens) + ' token.' +
+                 '</p></div>';
         }
+
+        // --- saldo, solo dove significa qualcosa ---
+        if (stato.a_consumo && typeof stato.saldo_eur === 'number') {
+            h += '<h4>Saldo</h4><div class="ag-cs-info"><p>Ti restano <b>' +
+                 stato.saldo_eur.toFixed(2) + ' \u20AC</b> di ricarica. Cala solo quando scrivi e non scade.</p></div>';
+        }
+
+        h += '<div class="ag-cs-agg"><span id="ag-cs-ora">Ultimo aggiornamento: proprio ora</span>' +
+             '<button type="button" id="ag-cs-ric" title="Rileggi">\u21BB</button></div>';
+
         corpo.innerHTML = h;
+        agganciaRipieghi(corpo);
+        var ric = document.getElementById('ag-cs-ric');
+        if (ric) ric.addEventListener('click', async function () {
+            await aggiorna();
+            await disegnaConsumi();
+        });
     }
 
     function finestraHtml(et, f) {
@@ -737,6 +879,18 @@
         }
     }
 
+    /* Il cerchio dell'account entra nella riga dei pulsanti, allineato con
+       la prima fila. Se il pannello non c'e' (o non e' ancora stato
+       costruito) resta dov'e' e non succede niente. */
+    function spostaAccount() {
+        var host = document.getElementById('ag-account');
+        var testa = document.querySelector('.ag-testa');
+        if (!host || !testa) return;
+        if (host.parentNode === testa) return;
+        host.classList.add('ag-account-testa');
+        testa.insertBefore(host, testa.firstChild);
+    }
+
     /* ---------------------------------------------------------- aggancio */
     function avvia() {
         stile();
@@ -747,7 +901,16 @@
         // Il pannello impostazioni si ricostruisce a ogni apertura: il riquadro
         // dei consumi va riempito dopo, non prima.
         var ing = document.getElementById('ag-opzioni-btn');
-        if (ing) ing.addEventListener('click', function () { setTimeout(montaConsumi, 60); });
+        if (ing) ing.addEventListener('click', function () {
+            [60, 260, 700].forEach(function (t) { setTimeout(montaConsumi, t); });
+        });
+
+        // IL CERCHIO DELL'ACCOUNT VA CON I PULSANTI DEL PANNELLO DI MEZZO,
+        // non nella testa della chat: li' rubava spazio al nome del modello,
+        // che deve stare su una riga sola. Si sposta appena il pannello
+        // esiste, e si rimette a posto se il pannello viene ricostruito.
+        spostaAccount();
+        setInterval(spostaAccount, 1200);
         // Dopo ogni risposta il consumo e' cambiato: si rilegge.
         document.addEventListener('aegis-risposta', aggiorna);
         setInterval(aggiorna, 60000);
