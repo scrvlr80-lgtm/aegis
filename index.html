@@ -7805,15 +7805,32 @@ if (recognition) {
       for (var i = 0; i < _memo.length; i++) {
         if (_memo[i].k === firma) {
           var v = _memo[i].v;
-          return { text: v.text, vault: v.vault.slice(), matches: v.matches ? v.matches.slice() : [],
-                   proposte: v.proposte ? v.proposte.slice() : [], segnalati: v.segnalati,
-                   stats: v.stats, report: v.report };
+          return { text: v.text,
+                   vault: v.vault.map(function (x) { return Object.assign({}, x); }),
+                   matches: v.matches.map(function (x) { return Object.assign({}, x); }),
+                   proposte: v.proposte.map(function (x) {
+                     return (x && typeof x === 'object') ? Object.assign({}, x) : x;
+                   }),
+                   segnalati: v.segnalati, stats: v.stats, report: v.report };
         }
       }
     }
     var r = protect(testo, opts);
     if (firma) {
-      _memo.push({ k: firma, v: r });
+      // Si mette da parte una COPIA, e si restituisce l'originale. Chi chiama
+      // e' libero di rimaneggiare quello che riceve - qualcuno lo fa - senza
+      // che le modifiche si trasferiscano al prossimo che chiedera' lo stesso
+      // testo. Una memoria che consegna lo stesso oggetto a tutti crea guasti
+      // che sembrano casuali e non si trovano piu'.
+      _memo.push({ k: firma, v: {
+        text: r.text,
+        vault: (r.vault || []).map(function (x) { return Object.assign({}, x); }),
+        matches: (r.matches || []).map(function (x) { return Object.assign({}, x); }),
+        proposte: (r.proposte || []).map(function (x) {
+          return (x && typeof x === 'object') ? Object.assign({}, x) : x;
+        }),
+        segnalati: r.segnalati, stats: r.stats, report: r.report
+      } });
       if (_memo.length > 8) _memo.shift();
     }
     return r;
@@ -9663,23 +9680,21 @@ if (recognition) {
     return ombraEl;
   }
 
-  // L'ANALISI NON SI RIFA' SE NIENTE E' CAMBIATO.
-  // disegnaOmbra viene richiamata da parecchi punti - ogni battuta, ogni
-  // scorrimento, ogni volta che il pannello si aggiorna - e ogni chiamata
-  // rianalizzava il testo INTERO. Su un documento incollato sono decine di
-  // millisecondi buttati a ogni giro, ed e' quello che si sente come
-  // interfaccia a scatti. Se il testo e le impostazioni sono gli stessi di un
-  // attimo prima, il disegno di prima e' ancora valido.
-  var _ombraUltimo = null;
+  // QUI NON SI SALTA MAI IL DISEGNO.
+  // Avevo messo una memoria che, a testo invariato, faceva uscire la funzione
+  // senza ridisegnare. Sbagliato: il disegno non serve solo quando cambia il
+  // TESTO, serve anche quando cambia l'IMPAGINAZIONE - il campo che cresce di
+  // una riga, una finestra ridimensionata, un documento appena incollato. Ed
+  // e' esattamente il momento in cui i colori vanno rimessi sopra le parole.
+  // Saltando il disegno, i colori restavano dove stavano prima: gli
+  // evidenziatori scomposti che sono tornati.
+  // Il risparmio vero sta nel motore, che la memoria ce l'ha dentro: qui la
+  // chiamata costa quasi zero e il disegno si rifa' sempre.
   function disegnaOmbra(testo) {
     if (!ombraEl) return;
-    if (!ombraAttiva || !testo) { ombraEl.innerHTML = ''; _ombraUltimo = null; return; }
-    var firma;
-    try { firma = String(testo) + '\u0000' + JSON.stringify(opzioni()); } catch (e) { firma = null; }
-    if (firma && firma === _ombraUltimo) return;
+    if (!ombraAttiva || !testo) { ombraEl.innerHTML = ''; return; }
     let r;
-    try { r = AEGIS.protect(String(testo), opzioni()); } catch (e) { ombraEl.innerHTML = ''; _ombraUltimo = null; return; }
-    _ombraUltimo = firma;
+    try { r = AEGIS.protect(String(testo), opzioni()); } catch (e) { ombraEl.innerHTML = ''; return; }
     // si lavora sulle posizioni, non sulle parole: cosi' non si sbaglia
     // occorrenza quando la stessa parola compare piu' volte
     const punti = (r.matches || []).slice().sort(function (a, b) { return a.start - b.start; });
@@ -11877,6 +11892,19 @@ if (recognition) {
     scorri();
   }
   function anteprima(testo){
+    // IL CAMPO COMANDA, NON L'ARGOMENTO.
+    // Diverse chiamate ad anteprima arrivano in ritardo, da lavori partiti
+    // prima: il riconoscimento dei nomi col modello, i temporizzatori, il
+    // salvataggio. Portano con se' il testo di QUANDO SONO PARTITE. Se nel
+    // frattempo l'utente ha svuotato il campo, quel testo vecchio rientrava
+    // dalla finestra e le tabelle si ripopolavano da sole qualche istante
+    // dopo essersi svuotate.
+    // Non serve rincorrere chi chiama: il pannello mostra cio' che c'e' nel
+    // campo ADESSO, quindi e' il campo a decidere. Se e' vuoto, e' vuoto.
+    try {
+      var _campo = document.getElementById('user-input');
+      if (_campo && !String(_campo.value || '').trim()) testo = '';
+    } catch(e) {}
     try { disegnaOmbra(testo); } catch(e) {}
     if(!anteprimaEl) return;
     if(!testo || !testo.trim()){
@@ -13190,6 +13218,6 @@ if (recognition) {
      versione vecchia di billing-ui.js e ogni correzione sembra non fare niente:
      si carica il file nuovo e si continua a eseguire quello vecchio. Ogni volta
      che billing-ui.js cambia, si alza questo numero. -->
-<script src="billing-ui.js?v=10" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
+<script src="billing-ui.js?v=11" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
 </body>
 </html>
