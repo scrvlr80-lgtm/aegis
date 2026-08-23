@@ -7151,8 +7151,23 @@ if (recognition) {
       // della riga sopra e si salvava. L'etichetta vale se sta ATTACCATA: due
       // punti subito prima, oppure un titolo (Sig., Dott., Mr.) subito prima.
       const pre = text.slice(Math.max(0, m.start - 30), m.start);
-      if (/[:=]\s*$/.test(pre)) return true;
-      if (/\b(?:sig|sig\.ra|sig\.na|sr|sra|srta|dr|dott|dott\.ssa|avv|prof|ing|mr|mrs|ms|miss|don|do[n\u00F1]a|lic)\.?\s*$/i.test(pre)) return true;
+      // I DUE PUNTI DA SOLI NON BASTANO. "Titolo:", "Centro:", "Fecha:",
+      // "Expediente:" sono due punti tanto quanto "Nome:", e cosi' ogni parola
+      // che apriva una riga - Informe, Centro, Salud, Unidad, Fecha, Colegio -
+      // si prendeva l'esenzione e diventava una persona. L'etichetta vale solo
+      // se e' un'etichetta DI PERSONA: sono poche e si possono elencare.
+      const ETICHETTA_PERSONA = new RegExp(
+        '\\b(?:nome|nom|name|nombre|apellidos?|cognome|paziente|patient|paciente|menor|minore'
+        + '|denunciante|denunciado|victima|v\u00edctima|vittima|titular|titolare|holder'
+        + '|solicitante|interno|condenado|condannato|afectado|demandante|demandado|sujeto'
+        + '|remitente|destinatario|mittente|autor|autore|student|studente|estudiante'
+        + '|madre|padre|mother|father|hijo|hija|figlio|figlia|esposa|esposo'
+        + '|conyuge|c\u00f3nyuge|firmante|contacto|contatto|responsable|responsabile'
+        + ')\\s*[:=]\\s*$', 'i');
+      if (ETICHETTA_PERSONA.test(pre)) return true;
+      // "D." e "Dña." sono i titoli piu' comuni in spagnolo e mancavano:
+      // senza di loro "D. Andres Fernandez" perdeva il nome di battesimo.
+      if (/(?:^|[\s(])(?:d|d[n\u00F1]a|sig|sig\.ra|sig\.na|sr|sra|srta|dr|dott|dott\.ssa|avv|prof|ing|mr|mrs|ms|miss|don|do[n\u00F1]a|lic)\.?\s*$/i.test(pre)) return true;
       // uscita 2: il documento la usa dentro un nome intero -> vale
       if (dentroNomeIntero.has(pulita)) return true;
 
@@ -7767,7 +7782,44 @@ if (recognition) {
   // GSET esce dal motore perche' il controllo della scrittura, che vive nel
   // pannello, deve poter chiedere "questo nome esiste?". Sola lettura: chi lo
   // consulta non lo modifica, e il motore non cambia comportamento.
-  root.AEGIS = { protect, restore, verify, split, normalize, selfTest, loadGazetteer, KB, GSET };
+  /* --------------- L'ANALISI NON SI RIFA' DUE VOLTE UGUALE ---------------
+     protect() e' la parte cara: su un documento incollato costa decine di
+     millisecondi. Nell'interfaccia viene chiamata da SETTE punti diversi -
+     l'ombra colorata, l'anteprima, lo specchio, la ridipintura dei messaggi -
+     e quasi sempre sullo STESSO testo, uno dopo l'altro. Il risultato era che
+     un solo aggiornamento del pannello rianalizzava il documento cinque o sei
+     volte di fila, ed e' quello che si sente come interfaccia a scatti.
+     Qui si tiene da parte l'ultima manciata di risultati: stesso testo e
+     stesse impostazioni, stessa risposta, costo zero. La memoria e' piccola
+     apposta (otto voci) e si azzera da sola: non e' un archivio, e' un
+     "l'ho appena fatto".
+     ATTENZIONE: il risultato NON si condivide fra chiamanti che lo
+     modificano. protect ritorna oggetti nuovi ogni volta tranne questa, per
+     cui si consegna sempre una copia superficiale con il vault clonato.
+     ---------------------------------------------------------------------- */
+  var _memo = [];
+  function protectMemo(testo, opts) {
+    var firma;
+    try { firma = String(testo) + '\u0000' + JSON.stringify(opts || {}); } catch (e) { firma = null; }
+    if (firma) {
+      for (var i = 0; i < _memo.length; i++) {
+        if (_memo[i].k === firma) {
+          var v = _memo[i].v;
+          return { text: v.text, vault: v.vault.slice(), matches: v.matches ? v.matches.slice() : [],
+                   proposte: v.proposte ? v.proposte.slice() : [], segnalati: v.segnalati,
+                   stats: v.stats, report: v.report };
+        }
+      }
+    }
+    var r = protect(testo, opts);
+    if (firma) {
+      _memo.push({ k: firma, v: r });
+      if (_memo.length > 8) _memo.shift();
+    }
+    return r;
+  }
+
+  root.AEGIS = { protect: protectMemo, protectDiretto: protect, restore, verify, split, normalize, selfTest, loadGazetteer, KB, GSET };
 })(typeof window !== 'undefined' ? window : globalThis);
 
 </script>
@@ -11830,6 +11882,15 @@ if (recognition) {
     if(!testo || !testo.trim()){
       anteprimaEl.innerHTML='';
       if(badge){ badge.textContent='0'; badge.classList.remove('att'); }
+      // IL PANNELLO SI SVUOTA INSIEME AL CAMPO.
+      // Prima restava l'elenco dell'ultimo testo scritto: si cancellava il
+      // prompt e le parole rilevate continuavano a stare li', come se fossero
+      // gia' state inviate. Cio' che si vede nella colonna AUTO e' cio' che
+      // partirebbe ADESSO: se non c'e' niente da inviare, non c'e' niente da
+      // elencare. Le parole coperte a mano e quelle escluse NON si toccano:
+      // quelle sono decisioni dell'utente, non rilevazioni del momento.
+      valoriPreview.clear();
+      try { disegnaColonna(); } catch(e) {}
       return;
     }
     valoriPreview.clear();
@@ -13129,6 +13190,6 @@ if (recognition) {
      versione vecchia di billing-ui.js e ogni correzione sembra non fare niente:
      si carica il file nuovo e si continua a eseguire quello vecchio. Ogni volta
      che billing-ui.js cambia, si alza questo numero. -->
-<script src="billing-ui.js?v=9" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
+<script src="billing-ui.js?v=10" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
 </body>
 </html>
