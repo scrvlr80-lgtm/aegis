@@ -32,6 +32,7 @@
      chiari quando e' spento. Il colore resta SOLO dove e' informazione:
      i codici delle categorie nello specchio e le evidenziazioni. */
   --g-bordo:#D8D8DE;--g-bordo-on:#3D3D42;--g-fondo-on:#F0F0F2;
+  --g-fondo-acceso:#F6F6F8;   /* acceso: quasi bianco, si vede solo accanto a uno spento */
   --g-fondo-hover:#F4F4F6;--g-testo-on:#1D1D1F;--g-testo-off:#6E6E73;}
 html,body{height:100%;margin:0}
 body{color:var(--text-main);background:var(--primary);overflow:hidden}
@@ -875,10 +876,14 @@ body {
   font-weight:600;transition:border-color .15s,color .15s,background .15s}
 .ag-ia:hover:not(:disabled),.ag-toggle:hover,.ag-pulsanti .ag-ingranaggio:hover,
 .lang-change-btn:hover{
-  border-color:#A9A9B2;color:var(--g-testo-on);background:var(--g-fondo-hover)}
+  border-color:var(--g-bordo);color:var(--g-testo-on);background:var(--g-fondo-hover)}
+/* ACCESO. Il bordo NON cambia: ne' colore ne' spessore. Cambia solo il
+   riempimento, di un grigio appena staccato dal bianco - quanto basta a
+   distinguerlo da spento se si guardano due pulsanti vicini, non tanto da
+   annerire la fila. Il nero sul bordo era troppo. */
 .ag-ia.on,.ag-ia.ag-pronto,.ag-toggle.on{
-  border-color:var(--g-bordo-on);color:var(--g-testo-on);
-  background:var(--g-fondo-on);font-weight:700}
+  border-color:var(--g-bordo);color:var(--g-testo-on);
+  background:var(--g-fondo-acceso);font-weight:600}
 /* scaricamento e guasto: niente arancione e niente verde, solo tono */
 .ag-ia.ag-carico{border-color:var(--g-bordo);color:var(--g-testo-off);font-weight:600}
 .ag-ia.ag-fallito{border-color:var(--g-bordo);color:var(--g-testo-off);opacity:.6}
@@ -888,7 +893,7 @@ body {
        il pallino pieno per acceso e il contorno vuoto per spento. --- */
 .ag-dot{width:8px;height:8px;background:transparent;
   box-shadow:inset 0 0 0 1.5px var(--g-bordo);transition:.15s}
-.ag-toggle.on .ag-dot{background:var(--g-bordo-on);box-shadow:none}
+.ag-toggle.on .ag-dot{background:#8B8B92;box-shadow:none}
 
 /* --- LE TRE SCHEDE. "Predeterminado" era troppo lunga: schiacciava il
        contatore e mandava tutto a capo. Adesso e' "Auto", uguale nelle
@@ -8839,16 +8844,20 @@ if (recognition) {
       '.ag-pulsanti .ag-ingranaggio{border:1px solid var(--g-bordo);gap:7px;' +
         'font-family:Inter,sans-serif;font-weight:700;letter-spacing:.04em;' +
         'font-size:10px;text-transform:uppercase;color:var(--g-testo-off);background:transparent}' +
-      '.ag-pulsanti .ag-ingranaggio:hover{border-color:var(--g-bordo-on);color:var(--g-testo-on);' +
+      '.ag-pulsanti .ag-ingranaggio:hover{border-color:var(--g-bordo);color:var(--g-testo-on);' +
         'background:var(--g-fondo-hover)}' +
       '.ag-pulsanti .ag-ingranaggio svg{width:14px;height:14px;flex:none}' +
       '.ag-pulsanti .ag-toggle-sp{width:100%!important;min-width:0!important;height:32px}' +
       '.ag-pulsanti .ag-toggle-sp .ag-lbl{flex:none}' +
       '.ag-pulsanti .ag-toggle-sp .ag-dot{display:none}' +
-      '.ag-logo{flex:none;height:72px;width:auto;display:block;object-fit:contain;' +
+      '.ag-logo{flex:none;height:38px;width:auto;display:block;object-fit:contain;' +
         'user-select:none;-webkit-user-drag:none}' +
-      '@media(max-width:1180px){.ag-logo{height:56px}}' +
-      '@media(max-width:1000px){.ag-logo{height:44px}.ag-pulsanti > *{font-size:9px}}' +
+      '@media(max-width:1000px){.ag-pulsanti > *{font-size:9px}}' +
+      /* il logo sta in fondo, accanto ai colori delle categorie: nella testa
+         rubava un quarto di larghezza ai pulsanti, che devono stare su due
+         righe da tre senza andare a capo */
+      '.ag-legenda{align-items:center}' +
+      '.ag-legenda .ag-logo{margin-left:auto;opacity:.9}' +
       '.ag-prov{display:inline-flex;align-items:center;gap:3px;flex:none;margin-right:5px}' +
       '.ag-prov i{width:7px;height:7px;border-radius:50%;display:block}' +
       '.ag-p-reg{background:var(--text-light)}' +
@@ -11698,8 +11707,6 @@ if (recognition) {
     p.className = 'ag-pannello';
     p.innerHTML =
       '<div class="ag-testa">'+
-        '<img class="ag-logo" id="ag-logo" src="' + AEGIS_LOGO + '" alt="Aegis" ' +
-          'onerror="this.style.display=\'none\'">' +
         '<div class="ag-pulsanti">' +
         '<button class="ag-ingranaggio" id="ag-opzioni-btn" type="button">' +
           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
@@ -11736,6 +11743,8 @@ if (recognition) {
         '<span data-g="med"><i class="ag-med"></i>' + T('catSanitari') + '</span>'+
         '<span data-g="org"><i class="ag-org"></i>' + T('catAziende') + '</span>'+
         '<span data-g="__tutti" class="ag-tutti"><i class="ag-arcobaleno"></i>' + T('tutti') + '</span>'+
+        '<img class="ag-logo" id="ag-logo" src="' + AEGIS_LOGO + '" alt="Aegis" ' +
+          'onerror="this.style.display=\'none\'">' +
       '</div>';
 
     scena.appendChild(p);      // finestra 1: lo specchio
