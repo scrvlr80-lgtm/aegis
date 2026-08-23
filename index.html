@@ -12925,6 +12925,10 @@ if (recognition) {
 <!-- BILLING — modulo esterno, caricato per ultimo e in modo non bloccante.
      Se il file manca o fallisce, il selettore dei modelli resta quello di
      sempre e la chat funziona identica: qui non c'e' nessuna dipendenza. -->
-<script src="billing-ui.js" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
+<!-- ?v= NON E' UN VEZZO. Senza, il browser e GitHub Pages tengono in cache la
+     versione vecchia di billing-ui.js e ogni correzione sembra non fare niente:
+     si carica il file nuovo e si continua a eseguire quello vecchio. Ogni volta
+     che billing-ui.js cambia, si alza questo numero. -->
+<script src="billing-ui.js?v=7" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
 </body>
 </html>
