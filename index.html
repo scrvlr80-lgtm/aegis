@@ -79,12 +79,21 @@ body.ag-attivo{overflow:hidden;margin:0}
    altezza 24, larghezza minima 104, corpo 9,5 - e restava piu' alto degli
    altri rompendo la fila. Qui si azzerano: la misura la decide la griglia,
    una sola volta, per tutti. */
+/* TUTTI E NOVE UGUALI, SENZA ECCEZIONI.
+   Il pulsante dell'evidenziazione porta due classi sue (.ag-toggle e
+   .ag-toggle-sp) con altezza, larghezza minima e corpo propri, dichiarate in
+   piu' punti del foglio. Vinceva sulla griglia e restava piu' alto, rompendo
+   la fila. Qui si azzerano tutte insieme e con la stessa forza: la misura la
+   decide la griglia, una volta sola, per tutti. */
+.ag-pannello .ag-testa .ag-pulsanti > *,
 .ag-testa .ag-ia,
 .ag-testa .ag-toggle,
 .ag-testa .ag-toggle-sp,
-.ag-testa .ag-ingranaggio{flex:none;width:100%;min-width:0;max-width:none;
-  height:21px;padding:0 6px;font-size:9px;line-height:1;border-radius:7px;
-  justify-content:center;text-align:center;box-sizing:border-box}
+.ag-testa .ag-ingranaggio{flex:none!important;width:100%!important;min-width:0!important;
+  max-width:none!important;height:22px!important;padding:0 6px!important;
+  font-size:9px!important;line-height:1!important;border-radius:7px!important;
+  margin:0!important;justify-content:center;text-align:center;box-sizing:border-box}
+.ag-testa .ag-toggle-sp .ag-lbl{line-height:1}
 /* In questa barra le icone rubano spazio alle parole: restano solo altrove. */
 .ag-testa .ag-ia svg{display:none}
 .ag-testa .ag-toggle-sp .ag-dot{display:none}
@@ -135,7 +144,9 @@ body.ag-attivo{overflow:hidden;margin:0}
 .ag-ia:disabled{opacity:.8}
 @media(max-width:820px){.ag-ia{font-size:9px;padding:2px 6px}}
 /* interruttore evidenziatore dentro lo specchio */
-.ag-toggle-sp{width:auto;min-width:104px;height:24px;padding:0 10px;font-size:9.5px;flex:none}
+/* Fuori dalla barra dei nove non viene usato: qui non si dichiara piu'
+   nessuna altezza, cosi' non puo' tornare a litigare con la griglia. */
+.ag-toggle-sp{width:auto;padding:0 10px;font-size:9.5px;flex:none}
 /* riga 2: la conversazione, si allunga a riempire */
 .ag-corpo{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;background:var(--console-bg)}
 .ag-lista{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;padding:18px 16px;
@@ -789,6 +800,22 @@ body {
 .chat-input-wrapper { display: flex; align-items: flex-end; padding: 15px 25px 25px 25px; background: transparent; position: relative; border-top: 1px solid var(--hairline); }
 .input-inner { flex-grow: 1; min-width: 0; display: flex; align-items: flex-end; background: var(--primary); border-radius: var(--ui-border-radius); border: 1px solid var(--hairline); box-shadow: inset 0 2px 5px rgba(0,0,0,0.5); padding: 8px 12px; gap: 10px; transition: border-color 0.3s; }
 .input-inner:focus-within { border-color: var(--accent); }
+/* I DUE BOTTONI NUOVI DELLA BARRA. Senza queste righe erano rettangoli
+   vuoti: nessuna misura, nessun colore, e il disegno dentro non si vedeva.
+   Stessa forma, stessa misura e stesso colore del microfono e della graffetta. */
+/* Usavo var(--text-light), che nel tema chiaro e' quasi bianco su fondo
+   bianco: i disegni c'erano ma non si vedevano. Colore esplicito, lo stesso
+   grigio degli altri elementi della barra. E disegni a TRATTO, non pieni:
+   a venti pixel una sagoma piena diventa una macchia. */
+.arch-btn, .web-btn { background-color: transparent; border: none; color: #6E6E73;
+  width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center;
+  justify-content: center; cursor: pointer; transition: all .2s; flex-shrink: 0;
+  margin-bottom: 2px; padding: 0; }
+.arch-btn svg, .web-btn svg { width: 19px; height: 19px; fill: none;
+  stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.arch-btn:hover, .web-btn:hover { color: #1d1d1f; background: rgba(0,0,0,.055); }
+.web-btn.on { color: #2f6a52; background: rgba(47,106,82,.13); }
+
 .mic-btn { background-color: transparent; border: none; color: var(--text-light); width: 34px; height: 34px; border-radius: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; flex-shrink: 0; margin-bottom: 2px; }
 .mic-btn:hover { color: var(--accent); background: rgba(0, 229, 255, 0.05); }
 .mic-btn svg { width: 20px; height: 20px; fill: currentColor; }
@@ -1268,7 +1295,7 @@ body {
                  questo dispositivo, indicizzato su cio' che il modello vedrebbe
                  (il testo mascherato), e che si richiede a parole. -->
             <button class="icon-btn arch-btn" id="arch-btn" title="Archivia un documento" type="button">
-                <svg viewBox="0 0 24 24"><path d="M20 6h-8l-1.4-1.4A2 2 0 0 0 9.2 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2zm-8 11-3.5-3.5 1.4-1.4L12 14.2l3.1-3.1 1.4 1.4L12 17z"/></svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="5" rx="1.2"/><path d="M5 9v9.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V9"/><path d="M10 13h4"/></svg>
             </button>
             <input type="file" id="arch-file-input" style="display:none;" multiple>
             <input type="file" id="mini-file-input" style="display:none;">
@@ -1277,7 +1304,7 @@ body {
                  ha acceso lui. Spento, una richiesta di ricerca non parte a
                  vuoto: gli si dice che manca l'interruttore. -->
             <button class="icon-btn web-btn" id="web-btn" type="button" aria-pressed="false">
-                <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 2c1.3 0 2.5 1.9 3.1 4.6H8.9C9.5 5.9 10.7 4 12 4zM4.3 10h3.4a20 20 0 0 0 0 4H4.3a8 8 0 0 1 0-4zm0 6h3.6c.5 2 1.3 3.6 2.2 4.6A8 8 0 0 1 4.3 16zm5.5 0h4.4C13.6 18.5 12.7 20 12 20s-1.6-1.5-2.2-4zm-.2-2a17 17 0 0 1 0-4h4.8a17 17 0 0 1 0 4H9.6zm4.5 6.6c.9-1 1.7-2.6 2.2-4.6h3.6a8 8 0 0 1-5.8 4.6zM16.3 14a20 20 0 0 0 0-4h3.4a8 8 0 0 1 0 4h-3.4zm-.4-6c-.5-2-1.3-3.6-2.2-4.6A8 8 0 0 1 19.7 8h-3.8z"/></svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7"/><path d="M3.7 10.5h13.6"/><path d="M10.5 3.5c1.9 2 2.9 4.4 2.9 7s-1 5-2.9 7c-1.9-2-2.9-4.4-2.9-7s1-5 2.9-7z"/><path d="M15.8 15.8 21 21"/></svg>
             </button>
             <textarea id="user-input" class="chat-input" placeholder="ESCRIBE AQUÍ..." rows="1"
                 onkeypress="handleKeyPress(event)"
@@ -8878,6 +8905,9 @@ if (recognition) {
       webNotaLegale:'Scoprire un dato lo manda a un servizio esterno oltre che al modello. Se e\' un dato di una persona, sei tu a deciderlo: valuta se puoi. Cio\' che non spunti resta coperto.',
       webMandaProtetto:'Manda coperto',
       webScopriEManda:'Scopri i selezionati e manda',
+      aiutoMic:'Detta il messaggio a voce',
+      aiutoGraffetta:'Carica un documento: puoi metterlo nel messaggio o tenerlo da parte per questa conversazione',
+      aiutoArchivio:'Archivia un documento su questo dispositivo: lo sistema da solo e lo ritrovi chiedendolo a parole',
       opCancella:'Cancella la cronologia locale',
       opNota:'Le conversazioni e la corrispondenza fra codici e dati reali restano solo su questo dispositivo. Cancellandole non si recuperano.',
       opEsci:'Esci dall\u0027account', opChiudi:'Chiudi',
@@ -9114,6 +9144,9 @@ if (recognition) {
       webNotaLegale:'Descubrir un dato lo envia a un servicio externo, ademas del modelo. Si es el dato de una persona, la decision es tuya: valora si puedes. Lo que no marques sigue oculto.',
       webMandaProtetto:'Enviar oculto',
       webScopriEManda:'Descubrir los marcados y enviar',
+      aiutoMic:'Dicta el mensaje con la voz',
+      aiutoGraffetta:'Sube un documento: puedes ponerlo en el mensaje o guardarlo para esta conversacion',
+      aiutoArchivio:'Archiva un documento en este dispositivo: lo ordena solo y lo recuperas pidiendolo con palabras',
       opCancella:'Borrar el historial local',
       opNota:'Las conversaciones y la correspondencia entre codigos y datos reales solo estan en este dispositivo. Si las borras no se recuperan.',
       opEsci:'Cerrar sesion', opChiudi:'Cerrar',
@@ -9350,6 +9383,9 @@ if (recognition) {
       webNotaLegale:'Revealing an item sends it to an outside service as well as to the model. If it belongs to a person, the decision is yours: consider whether you may. Anything you leave unticked stays hidden.',
       webMandaProtetto:'Send hidden',
       webScopriEManda:'Reveal ticked and send',
+      aiutoMic:'Dictate the message',
+      aiutoGraffetta:'Upload a document: put it in the message or keep it for this conversation',
+      aiutoArchivio:'File a document on this device: it sorts it out itself and you get it back just by asking',
       opCancella:'Delete local history',
       opNota:'Conversations and the mapping between codes and real data live only on this device. Deleting them cannot be undone.',
       opEsci:'Sign out', opChiudi:'Close',
@@ -9467,9 +9503,9 @@ if (recognition) {
          andare a capo e uscire sopra e sotto. line-height bloccato a 1 per lo
          stesso motivo: e' l'interlinea che fa traboccare il testo, non il
          corpo del carattere. */
-      '.ag-pulsanti{flex:1 1 auto;min-width:0;display:grid;gap:5px;' +
+      '.ag-pulsanti{flex:1 1 auto;min-width:0;display:grid;gap:3px;' +
         'grid-template-columns:repeat(3,minmax(0,1fr))}' +
-      '.ag-pulsanti > *{width:100%;height:21px;margin:0;border-radius:7px;' +
+      '.ag-pulsanti > *{width:100%;height:22px;margin:0;border-radius:7px;' +
         'display:inline-flex;align-items:center;justify-content:center;text-align:center;' +
         'padding:0 6px;font-size:9px;line-height:1;box-sizing:border-box;white-space:nowrap;' +
         'overflow:hidden;text-overflow:ellipsis;max-width:none;min-width:0;flex:none}' +
@@ -9482,7 +9518,12 @@ if (recognition) {
       '.ag-pulsanti .ag-ingranaggio:hover{border-color:var(--g-bordo);color:var(--g-testo-on);' +
         'background:var(--g-fondo-hover)}' +
       '.ag-pulsanti .ag-ingranaggio svg{width:14px;height:14px;flex:none}' +
-      '.ag-pulsanti .ag-toggle-sp{width:100%!important;min-width:0!important;height:32px}' +
+      /* ERA QUI. Questa riga imponeva 32 px al solo pulsante
+         dell'evidenziazione, e viene iniettata DOPO il foglio di stile: per
+         quattro giri ho corretto l'altezza nel posto sbagliato mentre il
+         valore vero stava scritto qui. Adesso e' 22, come tutti gli altri,
+         e non c'e' piu' nessuna riga che dica un'altezza diversa. */
+      '.ag-pulsanti .ag-toggle-sp{width:100%!important;min-width:0!important;height:22px!important;padding:0 6px!important}' +
       '.ag-pulsanti .ag-toggle-sp .ag-lbl{flex:none}' +
       '.ag-pulsanti .ag-toggle-sp .ag-dot{display:none}' +
       '.ag-logo{flex:none;height:38px;width:auto;display:block;object-fit:contain;' +
@@ -14248,6 +14289,7 @@ if (recognition) {
     b.classList.toggle('on', on);
     b.setAttribute('aria-pressed', on ? 'true' : 'false');
     b.title = (window.aegisT || function (k) { return k; })(on ? 'webOn' : 'webOff');
+    try { if (window.aegisAiutiBarra) window.aegisAiutiBarra(); } catch (e) {}
   }
   window.aegisWebAttivo = webAttivo;
 
@@ -14417,6 +14459,28 @@ if (recognition) {
       if (document.getElementById('web-btn')) { disegnaWeb(); clearInterval(_gw); }
     }, 400);
     setTimeout(function () { clearInterval(_gw); }, 12000);
+  } catch (e) {}
+
+  /* Le nuvolette delle tre icone della barra. Sono scritte nella lingua
+     dell'interfaccia e si riscrivono quando la lingua cambia: un'icona senza
+     nome e' un indovinello, e qui ce ne sono tre di fila. */
+  function aiutiBarra() {
+    var T = window.aegisT || function (k) { return k; };
+    var m = document.getElementById('mic-btn');
+    var g = document.getElementById('img-btn');
+    var a = document.getElementById('arch-btn');
+    var w = document.getElementById('web-btn');
+    if (m) m.title = T('aiutoMic');
+    if (g) g.title = T('aiutoGraffetta');
+    if (a) a.title = T('aiutoArchivio');
+    if (w) w.title = T(webAttivo() ? 'webOn' : 'webOff');
+  }
+  window.aegisAiutiBarra = aiutiBarra;
+  try {
+    var _ab = setInterval(function () {
+      if (document.getElementById('web-btn')) { aiutiBarra(); clearInterval(_ab); }
+    }, 400);
+    setTimeout(function () { clearInterval(_ab); }, 12000);
   } catch (e) {}
 
   window.AEGIS_ARCHIVIO = { apri: apriArchivio };
@@ -14685,6 +14749,6 @@ if (recognition) {
      versione vecchia di billing-ui.js e ogni correzione sembra non fare niente:
      si carica il file nuovo e si continua a eseguire quello vecchio. Ogni volta
      che billing-ui.js cambia, si alza questo numero. -->
-<script src="billing-ui.js?v=21" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
+<script src="billing-ui.js?v=23" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
 </body>
 </html>
