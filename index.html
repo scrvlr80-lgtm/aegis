@@ -603,6 +603,46 @@ body {
 .history-btn-date { display: block; font-size: 10px; color: var(--text-light); margin-bottom: 6px; font-family: 'Space Grotesk', sans-serif; letter-spacing: 1px; text-transform: uppercase; }
 .history-btn-title { display: block; font-size: 14px; color: var(--text-main); font-weight: 400; }
 /* --- Riga cronologia con menu tre puntini --- */
+/* codice della conversazione: icona che al passaggio mostra il codice */
+.history-code { display:inline-flex; align-items:center; gap:6px; background:transparent;
+  border:1px solid var(--hairline); color:var(--text-light); border-radius:8px;
+  padding:0 9px; height:30px; cursor:pointer; font-family:'Space Grotesk',sans-serif;
+  font-size:10.5px; letter-spacing:.06em; flex:none; transition:color .15s,border-color .15s; }
+.history-code:hover { color:var(--text-main); border-color:var(--text-light); }
+.history-code.fatto { color:#2f6a52; border-color:rgba(47,106,82,.45); }
+.history-code-txt { max-width:0; overflow:hidden; white-space:nowrap; opacity:0;
+  transition:max-width .18s ease, opacity .18s ease; }
+.history-code:hover .history-code-txt,.history-code.fatto .history-code-txt { max-width:110px; opacity:1; }
+
+/* pannello degli argomenti da integrare */
+.ag-arg-lista { display:flex; flex-direction:column; gap:8px; max-height:46vh; overflow-y:auto;
+  margin-top:4px; }
+.ag-arg-riga { display:flex; gap:11px; align-items:flex-start; padding:11px 13px;
+  border:1px solid rgba(0,0,0,.11); border-radius:11px; cursor:pointer; background:#fff; }
+.ag-arg-riga:hover { border-color:rgba(0,0,0,.26); }
+.ag-arg-riga input { margin-top:3px; width:16px; height:16px; flex:none; cursor:pointer; }
+.ag-arg-l { font:700 11px 'Space Grotesk',sans-serif; color:#8b8b90; flex:none; margin-top:2px; }
+.ag-arg-c { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.ag-arg-c b { font-size:12.5px; font-weight:600; color:#1d1d1f; }
+.ag-arg-c i { font-style:normal; font-size:11.5px; color:#6e6e73; line-height:1.45; }
+.ag-arg-piede { display:flex; gap:9px; justify-content:flex-end; margin-top:16px; }
+
+/* pannello memoria chat */
+.ag-mem-riga { display:flex; gap:9px; margin-top:14px; }
+.ag-mem-inp { flex:1 1 auto; min-width:0; border:1px solid rgba(0,0,0,.16); border-radius:9px;
+  padding:0 12px; height:36px; font:500 12.5px 'Space Grotesk',sans-serif; letter-spacing:.08em;
+  text-transform:uppercase; color:#1d1d1f; background:#fff; outline:none; }
+.ag-mem-inp:focus { border-color:#8b8b92; }
+.ag-mem-err { display:none; margin-top:8px; font-size:11.5px; color:#b03030; }
+.ag-mem-lista { display:flex; flex-direction:column; gap:7px; margin-top:18px; }
+.ag-mem-voce { display:flex; align-items:center; gap:10px; padding:9px 12px;
+  border:1px solid rgba(0,0,0,.1); border-radius:10px; }
+.ag-mem-n { flex:1 1 auto; min-width:0; font-size:12.5px; color:#1d1d1f; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap; }
+.ag-mem-d { font-size:10.5px; color:#8b8b90; flex:none; }
+.ag-mem-x2 { flex:none; font-size:11px; padding:4px 10px; border:1px solid rgba(0,0,0,.16);
+  background:transparent; border-radius:7px; cursor:pointer; color:#6e6e73; }
+.ag-mem-x2:hover { background:rgba(0,0,0,.05); color:#1d1d1f; }
 .history-row { position: relative; display: flex; align-items: stretch; gap: 0; }
 .history-row .history-btn-main { flex: 1; padding-right: 44px; }
 .history-dots { position: absolute; top: 8px; right: 8px; width: 30px; height: 30px; border-radius: 6px; border: none; background: transparent; color: var(--text-light); cursor: pointer; font-size: 18px; line-height: 1; display: flex; align-items: center; justify-content: center; transition: all 0.15s; z-index: 2; }
@@ -8678,6 +8718,31 @@ if (recognition) {
       opSfoca:'Sfoca quando la finestra perde il fuoco',
       opSfocaD:'Protegge lo schermo quando passi a un\u0027altra applicazione, per esempio per condividerlo.',
       opAzzera:'Azzera le mie scelte sui termini',
+      cronCopiato:'copiato',
+      argTitolo:'Che cosa vuoi portarti dietro?',
+      argQuanti:'argomenti',
+      argTutti:'Seleziona tutti',
+      argIntegra:'Integra alla conversazione',
+      argNota:'Gli argomenti scelti diventano una Skill: restano su questo dispositivo e il modello li consulta quando servono, senza rileggerli tutti ogni volta.',
+      argFatto:'{n} argomenti integrati. Li trovi nel pannello Skills.',
+      btnMemoria:'Memoria chat',
+      btnAgente:'Modo agente',
+      btnUpgrade:'Migliora piano',
+      memTitolo:'Memoria delle conversazioni',
+      memIntro:'Riprendi in mano una conversazione di prima. Copia il suo codice dalla cronologia, incollalo qui, e scegli quali argomenti portarti dietro. Restano su questo dispositivo.',
+      memIncolla:'Incolla qui il codice (AG-…)',
+      memApri:'Apri',
+      memVuoto:'Nessuna memoria integrata.',
+      memNonTrovato:'Nessuna conversazione con questo codice su questo dispositivo.',
+      memElimina:'Togli',
+      memConferma:'Togliere questa memoria?',
+      agTitolo:'Modo agente',
+      agTesto:'Non e\' ancora attivo. Quando lo sara\', l\'assistente potra\' lavorare da solo su cartelle e posta, sempre e solo sui dati gia\' protetti su questo dispositivo.',
+      salTitolo:'Saldo a consumo',
+      salResiduo:'Saldo residuo',
+      salRicarica:'Ricarica',
+      salNota:'Con il piano a consumo paghi quello che usi. Il saldo cala solo quando scrivi e non scade.',
+      salChiedi:'Il pagamento online non e\' ancora attivo: scrivici e ricarichiamo a mano.',
       opCancella:'Cancella la cronologia locale',
       opNota:'Le conversazioni e la corrispondenza fra codici e dati reali restano solo su questo dispositivo. Cancellandole non si recuperano.',
       opEsci:'Esci dall\u0027account', opChiudi:'Chiudi',
@@ -8847,6 +8912,31 @@ if (recognition) {
       opSfoca:'Difuminar cuando la ventana pierde el foco',
       opSfocaD:'Protege la pantalla cuando pasas a otra aplicacion, por ejemplo para compartirla.',
       opAzzera:'Borrar mis decisiones sobre los terminos',
+      cronCopiato:'copiado',
+      argTitolo:'¿Que quieres llevarte contigo?',
+      argQuanti:'temas',
+      argTutti:'Seleccionar todos',
+      argIntegra:'Integrar a la conversacion',
+      argNota:'Los temas elegidos se convierten en una Skill: se quedan en este dispositivo y el modelo los consulta cuando hacen falta, sin releerlos enteros cada vez.',
+      argFatto:'{n} temas integrados. Los tienes en el panel Skills.',
+      btnMemoria:'Memoria chats',
+      btnAgente:'Modo agente',
+      btnUpgrade:'Mejorar plan',
+      memTitolo:'Memoria de las conversaciones',
+      memIntro:'Retoma una conversacion anterior. Copia su codigo desde el historial, pegalo aqui y elige que temas llevarte. Se quedan en este dispositivo.',
+      memIncolla:'Pega aqui el codigo (AG-…)',
+      memApri:'Abrir',
+      memVuoto:'Ninguna memoria integrada.',
+      memNonTrovato:'No hay ninguna conversacion con este codigo en este dispositivo.',
+      memElimina:'Quitar',
+      memConferma:'¿Quitar esta memoria?',
+      agTitolo:'Modo agente',
+      agTesto:'Todavia no esta activo. Cuando lo este, el asistente podra trabajar solo sobre carpetas y correo, siempre sobre los datos ya protegidos en este dispositivo.',
+      salTitolo:'Saldo de pago por uso',
+      salResiduo:'Saldo restante',
+      salRicarica:'Recargar',
+      salNota:'Con el plan de pago por uso pagas lo que usas. El saldo baja solo cuando escribes y no caduca.',
+      salChiedi:'El pago online todavia no esta activo: escribenos y recargamos a mano.',
       opCancella:'Borrar el historial local',
       opNota:'Las conversaciones y la correspondencia entre codigos y datos reales solo estan en este dispositivo. Si las borras no se recuperan.',
       opEsci:'Cerrar sesion', opChiudi:'Cerrar',
@@ -9016,6 +9106,31 @@ if (recognition) {
       opSfoca:'Blur when the window loses focus',
       opSfocaD:'Protects the screen when you switch to another application, for example to share it.',
       opAzzera:'Reset my decisions on terms',
+      cronCopiato:'copied',
+      argTitolo:'What do you want to bring along?',
+      argQuanti:'topics',
+      argTutti:'Select all',
+      argIntegra:'Add to this conversation',
+      argNota:'The chosen topics become a Skill: they stay on this device and the model consults them when needed, without re-reading everything each time.',
+      argFatto:'{n} topics added. You will find them in the Skills panel.',
+      btnMemoria:'Chat memory',
+      btnAgente:'Agent mode',
+      btnUpgrade:'Upgrade plan',
+      memTitolo:'Conversation memory',
+      memIntro:'Pick up an earlier conversation. Copy its code from the history, paste it here, and choose which topics to bring along. They stay on this device.',
+      memIncolla:'Paste the code here (AG-…)',
+      memApri:'Open',
+      memVuoto:'No memory added.',
+      memNonTrovato:'No conversation with this code on this device.',
+      memElimina:'Remove',
+      memConferma:'Remove this memory?',
+      agTitolo:'Agent mode',
+      agTesto:'Not active yet. When it is, the assistant will be able to work on folders and mail by itself, always on data already protected on this device.',
+      salTitolo:'Pay-as-you-go balance',
+      salResiduo:'Remaining balance',
+      salRicarica:'Top up',
+      salNota:'On pay-as-you-go you pay for what you use. The balance only goes down when you write, and it does not expire.',
+      salChiedi:'Online payment is not active yet: write to us and we top it up by hand.',
       opCancella:'Delete local history',
       opNota:'Conversations and the mapping between codes and real data live only on this device. Deleting them cannot be undone.',
       opEsci:'Sign out', opChiudi:'Close',
@@ -9125,17 +9240,26 @@ if (recognition) {
          una riga all'altra. */
       '.ag-testa{display:flex;align-items:center;gap:14px;flex-wrap:nowrap;' +
         'min-height:auto;padding:11px 14px}' +
-      '.ag-pulsanti{flex:1 1 auto;min-width:0;display:grid;gap:9px;' +
+      /* NOVE PULSANTI NELLO SPAZIO DI SEI.
+         Prima: 2 file da 32 px + 9 di distacco = 73 px.
+         Adesso: 3 file da 21 px + 2 distacchi da 5 = 73 px. Identico.
+         L'altezza scende, la larghezza no: le scritte restano su una riga sola
+         e, se una lingua le allunga, si accorciano con i puntini invece di
+         andare a capo e uscire sopra e sotto. line-height bloccato a 1 per lo
+         stesso motivo: e' l'interlinea che fa traboccare il testo, non il
+         corpo del carattere. */
+      '.ag-pulsanti{flex:1 1 auto;min-width:0;display:grid;gap:5px;' +
         'grid-template-columns:repeat(3,minmax(0,1fr))}' +
-      '.ag-pulsanti > *{width:100%;height:32px;margin:0;border-radius:9px;' +
+      '.ag-pulsanti > *{width:100%;height:21px;margin:0;border-radius:7px;' +
         'display:inline-flex;align-items:center;justify-content:center;text-align:center;' +
-        'padding:0 8px;font-size:10px;box-sizing:border-box;white-space:nowrap;' +
+        'padding:0 6px;font-size:9px;line-height:1;box-sizing:border-box;white-space:nowrap;' +
         'overflow:hidden;text-overflow:ellipsis;max-width:none;min-width:0;flex:none}' +
+      '.ag-pulsanti > * svg{width:11px;height:11px;flex:none}' +
       /* l ingranaggio e un pulsante come gli altri: stessa cornice, stessa
          misura, con la sua etichetta accanto all icona */
-      '.ag-pulsanti .ag-ingranaggio{border:1px solid var(--g-bordo);gap:7px;' +
-        'font-family:Inter,sans-serif;font-weight:700;letter-spacing:.04em;' +
-        'font-size:10px;text-transform:uppercase;color:var(--g-testo-off);background:transparent}' +
+      '.ag-pulsanti .ag-ingranaggio{border:1px solid var(--g-bordo);gap:5px;' +
+        'font-family:Inter,sans-serif;font-weight:700;letter-spacing:.02em;' +
+        'font-size:9px;line-height:1;text-transform:uppercase;color:var(--g-testo-off);background:transparent}' +
       '.ag-pulsanti .ag-ingranaggio:hover{border-color:var(--g-bordo);color:var(--g-testo-on);' +
         'background:var(--g-fondo-hover)}' +
       '.ag-pulsanti .ag-ingranaggio svg{width:14px;height:14px;flex:none}' +
@@ -11450,6 +11574,11 @@ if (recognition) {
         // Riquadro dei consumi: lo riempie billing-ui.js, che vive fuori da
         // questo file. Se non c'e', resta un div vuoto e non si vede nulla.
         '<div class="ag-op-sez" id="ag-op-consumi"></div>' +
+        // Il pannello della memoria si raggiunge anche da qui, non solo dal
+        // pulsante in alto: chi cerca le cose nelle impostazioni le trova.
+        '<div class="ag-op-sez"><h4>' + T('memTitolo') + '</h4>' +
+          '<p class="ag-op-nota">' + T('memIntro') + '</p>' +
+          '<button type="button" class="ag-op-btn" id="ag-op-memoria">' + T('btnMemoria') + '</button></div>' +
         '<div class="ag-op-sez"><h4>' + T('opAvvisi') + '</h4>' + righeAvvisi + '</div>' +
         '<div class="ag-op-sez"><h4>' + T('opProtezione') + '</h4>' +
           '<label class="ag-op-riga"><input type="checkbox" id="op-riempi"' + (RIEMPIMENTO ? ' checked' : '') + '>' +
@@ -12155,6 +12284,12 @@ if (recognition) {
         '<button class="ag-ia" id="ag-riservato-btn" type="button"></button>'+
 
         '<button class="ag-toggle ag-toggle-sp on" id="ag-sp-hl" data-aiuto="Accende e spegne i colori sui codici nello specchio. Non cambia cio\u0027 che viene inviato."><span class="ag-dot"></span><span class="ag-lbl"></span></button>'+
+
+        // TERZA FILA. La griglia resta di tre colonne e l'altezza complessiva
+        // non cambia: i pulsanti si stringono, non si allargano in basso.
+        '<button class="ag-ia" id="ag-memoria-btn" type="button" data-aiuto="Riprendi una conversazione di prima: incolla il suo codice e scegli quali argomenti portarti dietro.">' + T('btnMemoria') + '</button>'+
+        '<button class="ag-ia" id="ag-agente-btn" type="button" data-aiuto="Presto: l\u0027assistente lavora da solo su cartelle e posta, sempre sui dati gia\u0027 protetti.">' + T('btnAgente') + '</button>'+
+        '<button class="ag-ia" id="ag-upgrade-btn" type="button" data-aiuto="Vedi i piani e quanto rende ciascuno.">' + T('btnUpgrade') + '</button>'+
         '</div>'+
       '</div>'+
       '<div class="ag-corpo">'+
@@ -12905,6 +13040,71 @@ if (recognition) {
     }
   }
 
+  /* ============ CODICE DELLA CONVERSAZIONE E SUOI ARGOMENTI ==============
+     Il codice e' un'impronta corta dell'identificativo di sessione. Non e'
+     un segreto e non serve a proteggere niente: serve a NOMINARE una
+     conversazione in modo che l'utente possa scriverla altrove. Le lettere
+     ambigue (I, O, 0, 1) sono escluse apposta, perche' questo codice viene
+     letto e riscritto a mano.
+     ===================================================================== */
+  var ALFABETO = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  function codiceDi(id) {
+    var s2 = String(id || ''), h1 = 0x811c9dc5, h2 = 0x01000193;
+    for (var i = 0; i < s2.length; i++) {
+      h1 = (h1 ^ s2.charCodeAt(i)) >>> 0; h1 = (h1 * 16777619) >>> 0;
+      h2 = (h2 + s2.charCodeAt(i) * (i + 7)) >>> 0;
+    }
+    var n = (h1 ^ h2) >>> 0, out = '';
+    for (var k = 0; k < 6; k++) { out += ALFABETO[n % ALFABETO.length]; n = Math.floor(n / ALFABETO.length) + 7; }
+    return 'AG-' + out.slice(0, 3) + out.slice(3);
+  }
+  function chatDaCodice(cod) {
+    var c = String(cod || '').trim().toUpperCase();
+    var tutte = leggi();
+    for (var i = 0; i < tutte.length; i++) if (codiceDi(tutte[i].id) === c) return tutte[i];
+    return null;
+  }
+
+  /* Gli ARGOMENTI di una conversazione.
+     Non si chiede a nessun modello di riassumere: costerebbe una chiamata,
+     richiederebbe la rete, e soprattutto manderebbe fuori di qui il testo di
+     una conversazione che questa applicazione promette di non far uscire.
+     Si taglia dove l'utente ha cambiato discorso - una domanda nuova dopo una
+     risposta - e ogni pezzo prende come titolo la domanda che l'ha aperto.
+     E' esatto per costruzione: il titolo sono le parole dell'utente. */
+  function argomentiDi(chat) {
+    var msg = (chat && chat.messaggi) || [], out = [], corr = null;
+    msg.forEach(function (m) {
+      var t = String(m.content || '').replace(/\s+/g, ' ').trim();
+      if (!t) return;
+      if (m.role === 'user') {
+        if (corr && corr.risposte === 0) { corr.testo += '\n\n' + t; return; }
+        corr = { titolo: titoloDa(t), testo: t, risposte: 0 };
+        out.push(corr);
+      } else if (corr) {
+        corr.testo += '\n\n' + t;
+        corr.risposte++;
+      }
+    });
+    // Gli scambi di una riga sola non sono argomenti: si accorpano al vicino.
+    var uniti = [];
+    out.forEach(function (a) {
+      if (a.testo.length < 140 && uniti.length) {
+        var p = uniti[uniti.length - 1];
+        p.testo += '\n\n' + a.testo;
+      } else uniti.push(a);
+    });
+    return uniti.slice(0, 12).map(function (a, i) {
+      return {
+        lettera: String.fromCharCode(65 + i),
+        titolo: a.titolo,
+        // Il paragrafo che l'utente legge nell'elenco: l'inizio del pezzo.
+        estratto: a.testo.replace(/\s+/g, ' ').slice(0, 190) + (a.testo.length > 190 ? '\u2026' : ''),
+        testo: a.testo
+      };
+    });
+  }
+
   function titoloDa(testo) {
     var t = String(testo || '').replace(/\s+/g, ' ').trim();
     if (t.length > 60) t = t.slice(0, 60).replace(/\s\S*$/, '') + '…';
@@ -13008,6 +13208,42 @@ if (recognition) {
       b.appendChild(s1); b.appendChild(s2);
       b.onclick = function () { carica(chat); };
 
+      /* ---- IL CODICE DELLA CONVERSAZIONE ----------------------------------
+         Un'etichetta corta e stabile, ricavata dall'identificativo della
+         sessione: la stessa conversazione da' sempre lo stesso codice, e da un
+         codice non si risale a niente perche' non esce da questo dispositivo.
+         Serve a riprendere in mano una vecchia conversazione senza doverla
+         ritrovare a occhio: si copia, si incolla nella chat di adesso, e AEGIS
+         chiede quali argomenti di quella conversazione portarsi dietro.
+         --------------------------------------------------------------------- */
+      var codice = codiceDi(chat.id);
+      var copia = document.createElement('button');
+      copia.className = 'history-code'; copia.type = 'button';
+      copia.title = codice;
+      copia.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">' +
+        '<path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" ' +
+        'd="M9 9h9v9H9z"/><path fill="none" stroke="currentColor" stroke-width="1.7" ' +
+        'stroke-linejoin="round" d="M6 15H5V6h9v1"/></svg>' +
+        '<span class="history-code-txt">' + codice + '</span>';
+      copia.onclick = function (e) {
+        e.stopPropagation();
+        try { navigator.clipboard.writeText(codice); } catch (err) {}
+        copia.classList.add('fatto');
+        copia.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">' +
+          '<path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
+          'stroke-linejoin="round" d="M5 12.5l4.5 4.5L19 7.5"/></svg>' +
+          '<span class="history-code-txt">' +
+          ((window.aegisT || function(k){return k;})('cronCopiato') || 'copiato') + '</span>';
+        setTimeout(function () {
+          copia.classList.remove('fatto');
+          copia.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">' +
+            '<path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" ' +
+            'd="M9 9h9v9H9z"/><path fill="none" stroke="currentColor" stroke-width="1.7" ' +
+            'stroke-linejoin="round" d="M6 15H5V6h9v1"/></svg>' +
+            '<span class="history-code-txt">' + codice + '</span>';
+        }, 1600);
+      };
+
       var punti = document.createElement('button');
       punti.className = 'history-dots'; punti.type = 'button';
       punti.innerHTML = '&#8942;';
@@ -13044,7 +13280,7 @@ if (recognition) {
         riga.remove();
       };
 
-      riga.appendChild(b); riga.appendChild(punti); riga.appendChild(menu);
+      riga.appendChild(b); riga.appendChild(copia); riga.appendChild(punti); riga.appendChild(menu);
       griglia.appendChild(riga);
     });
   }
@@ -13126,7 +13362,241 @@ if (recognition) {
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', avvia);
   else avvia();
 
-  window.AEGIS_CRONOLOGIA = { leggi: leggi, svuota: function () {
+  /* ================= IL PANNELLO DEGLI ARGOMENTI =========================
+     Si apre quando nel campo compare un codice di conversazione. Mostra gli
+     argomenti di quella conversazione con una casella ciascuno; quelli
+     spuntati diventano una Skill - cioe' finiscono nello stesso archivio
+     locale che il modello consulta a ogni domanda - e da quel momento la
+     conversazione di adesso "ricorda" quella di allora.
+     Tutto resta qui dentro: si legge da localStorage e si scrive in
+     IndexedDB, nessuna riga esce dal dispositivo.
+     ===================================================================== */
+  function apriArgomenti(chat, codice, campo) {
+    var arg = argomentiDi(chat);
+    var T = window.aegisT || function (k) { return k; };
+    if (!arg.length) return false;
+
+    var velo = document.createElement('div');
+    velo.className = 'ag-vt-velo'; velo.id = 'ag-arg-velo';
+    document.body.appendChild(velo);
+
+    var d = document.createElement('div');
+    d.className = 'ag-vt'; d.id = 'ag-arg';
+    d.style.width = 'min(680px,94vw)';
+    d.innerHTML =
+      '<button type="button" class="ag-vt-x" id="ag-arg-x" aria-label="Chiudi">&times;</button>' +
+      '<h3>' + T('argTitolo') + '</h3>' +
+      '<p class="ag-vt-sub">' + codice + ' \u00b7 ' +
+        (chat.titolo || '') + ' \u00b7 ' + arg.length + ' ' + T('argQuanti') + '</p>' +
+      '<div class="ag-arg-lista">' +
+        arg.map(function (a) {
+          return '<label class="ag-arg-riga"><input type="checkbox" data-i="' + a.lettera + '">' +
+                 '<span class="ag-arg-l">' + a.lettera + '</span>' +
+                 '<span class="ag-arg-c"><b>' + escapeHtml(a.titolo) + '</b>' +
+                 '<i>' + escapeHtml(a.estratto) + '</i></span></label>';
+        }).join('') +
+      '</div>' +
+      '<div class="ag-arg-piede">' +
+        '<button type="button" class="leggero" id="ag-arg-tutti">' + T('argTutti') + '</button>' +
+        '<button type="button" id="ag-arg-ok">' + T('argIntegra') + '</button>' +
+      '</div>' +
+      '<p class="ag-vt-som" style="margin-top:12px">' + T('argNota') + '</p>';
+    document.body.appendChild(d);
+
+    function chiudi() { var a = document.getElementById('ag-arg'), b = document.getElementById('ag-arg-velo');
+      if (a) a.remove(); if (b) b.remove(); }
+    velo.onclick = chiudi;
+    d.querySelector('#ag-arg-x').onclick = chiudi;
+    d.querySelector('#ag-arg-tutti').onclick = function () {
+      var c = d.querySelectorAll('input[type=checkbox]');
+      var acceso = Array.prototype.every.call(c, function (x) { return x.checked; });
+      Array.prototype.forEach.call(c, function (x) { x.checked = !acceso; });
+    };
+    d.querySelector('#ag-arg-ok').onclick = async function () {
+      var scelte = [];
+      Array.prototype.forEach.call(d.querySelectorAll('input[type=checkbox]'), function (x) {
+        if (x.checked) {
+          var a = arg.filter(function (y) { return y.lettera === x.getAttribute('data-i'); })[0];
+          if (a) scelte.push(a);
+        }
+      });
+      if (!scelte.length) { chiudi(); return; }
+      var testo = scelte.map(function (a) {
+        return '### ' + a.titolo + '\n' + a.testo;
+      }).join('\n\n---\n\n');
+      try {
+        await caricaRag();
+        await window.AEGIS_RAG.aggiungi(codice + ' \u00b7 ' + (chat.titolo || 'conversazione'), testo);
+      } catch (e) { alert('Skills: ' + (e && e.message)); }
+      // Il codice sparisce dal campo: ha fatto il suo lavoro e non deve
+      // partire verso il modello, che non saprebbe cosa farsene.
+      if (campo) {
+        campo.value = String(campo.value).replace(new RegExp(codice.replace('-', '\\-'), 'ig'), '').trim();
+        try { campo.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {}
+      }
+      chiudi();
+      try { if (window.aegisAvviso) window.aegisAvviso(T('argFatto').replace('{n}', scelte.length)); } catch (e) {}
+    };
+    return true;
+  }
+
+  function escapeHtml(t) {
+    return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // aegis-rag.js si carica solo quando serve: e' lo stesso archivio delle Skill.
+  function caricaRag() {
+    if (window.AEGIS_RAG) return Promise.resolve();
+    return new Promise(function (ok, ko) {
+      var t = document.createElement('script');
+      t.src = 'aegis-rag.js';
+      t.onload = function () { ok(); };
+      t.onerror = function () { ko(new Error('aegis-rag.js')); };
+      document.head.appendChild(t);
+    });
+  }
+
+  /* Il riconoscimento del codice nel campo. Si guarda a ogni battuta, ma il
+     pannello si apre UNA VOLTA per codice: chi lo incolla due volte non se lo
+     ritrova due volte in faccia. */
+  var _codiciVisti = {};
+  var RX_CODICE = /\bAG-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}\b/i;
+  function guardaCodice(campo) {
+    if (!campo) return;
+    var m = RX_CODICE.exec(String(campo.value || ''));
+    if (!m) return;
+    var cod = m[0].toUpperCase();
+    if (_codiciVisti[cod]) return;
+    var chat = chatDaCodice(cod);
+    if (!chat) return;                       // non e' di questo dispositivo
+    _codiciVisti[cod] = true;
+    apriArgomenti(chat, cod, campo);
+  }
+  try {
+    document.addEventListener('input', function (e) {
+      if (e.target && e.target.id === 'user-input') guardaCodice(e.target);
+    }, true);
+    document.addEventListener('paste', function (e) {
+      if (e.target && e.target.id === 'user-input') setTimeout(function () { guardaCodice(e.target); }, 30);
+    }, true);
+  } catch (e) {}
+
+  /* ============== PANNELLO "MEMORIA CHAT" ================================
+     Lo stesso pannello si apre dal pulsante in alto e dalle impostazioni.
+     Fa due cose: si incolla un codice e si scelgono gli argomenti (la strada
+     lunga passa dalla cronologia, questa e' la scorciatoia), e si vede cosa
+     e' gia' stato integrato, con la possibilita' di toglierlo.
+     Le memorie sono Skill a tutti gli effetti: stesso archivio, stessa
+     ricerca. Qui si vedono solo quelle nate da un codice, riconoscibili dal
+     nome che comincia per AG-.
+     ===================================================================== */
+  async function apriMemoria() {
+    var T = window.aegisT || function (k) { return k; };
+    var velo = document.createElement('div');
+    velo.className = 'ag-vt-velo'; velo.id = 'ag-mem-velo';
+    document.body.appendChild(velo);
+    var d = document.createElement('div');
+    d.className = 'ag-vt'; d.id = 'ag-mem';
+    d.style.width = 'min(600px,94vw)';
+    d.innerHTML =
+      '<button type="button" class="ag-vt-x" id="ag-mem-x" aria-label="Chiudi">&times;</button>' +
+      '<h3>' + T('memTitolo') + '</h3>' +
+      '<p class="ag-vt-som">' + T('memIntro') + '</p>' +
+      '<div class="ag-mem-riga">' +
+        '<input type="text" id="ag-mem-cod" class="ag-mem-inp" placeholder="' + T('memIncolla') + '" autocomplete="off">' +
+        '<button type="button" id="ag-mem-ok">' + T('memApri') + '</button>' +
+      '</div>' +
+      '<div class="ag-mem-err" id="ag-mem-err"></div>' +
+      '<div class="ag-mem-lista" id="ag-mem-lista"></div>';
+    document.body.appendChild(d);
+
+    function chiudi() { var a = document.getElementById('ag-mem'), b = document.getElementById('ag-mem-velo');
+      if (a) a.remove(); if (b) b.remove(); }
+    velo.onclick = chiudi;
+    d.querySelector('#ag-mem-x').onclick = chiudi;
+
+    function prova() {
+      var v = String(document.getElementById('ag-mem-cod').value || '').trim().toUpperCase();
+      var err = document.getElementById('ag-mem-err');
+      var m = RX_CODICE.exec(v);
+      var chat = m ? chatDaCodice(m[0].toUpperCase()) : null;
+      if (!chat) { err.textContent = T('memNonTrovato'); err.style.display = 'block'; return; }
+      err.style.display = 'none';
+      chiudi();
+      // Il pannello degli argomenti e' lo stesso della strada lunga: una sola
+      // implementazione, un solo comportamento da mantenere.
+      apriArgomenti(chat, m[0].toUpperCase(), document.getElementById('user-input'));
+    }
+    d.querySelector('#ag-mem-ok').onclick = prova;
+    d.querySelector('#ag-mem-cod').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); prova(); }
+    });
+
+    // elenco delle memorie gia' integrate
+    var lista = d.querySelector('#ag-mem-lista');
+    try {
+      await caricaRag();
+      var tutte = (await window.AEGIS_RAG.elenco()).filter(function (x) {
+        return /^AG-/i.test(String(x.nome || ''));
+      });
+      if (!tutte.length) { lista.innerHTML = '<p class="ag-vt-som">' + T('memVuoto') + '</p>'; return; }
+      lista.innerHTML = tutte.map(function (x) {
+        return '<div class="ag-mem-voce" data-id="' + x.id + '">' +
+          '<span class="ag-mem-n">' + escapeHtml(x.nome) + '</span>' +
+          '<span class="ag-mem-d">' + (x.pezzi || 0) + ' pezzi</span>' +
+          '<button type="button" class="leggero ag-mem-x2" data-x="' + x.id + '">' +
+          T('memElimina') + '</button></div>';
+      }).join('');
+      lista.addEventListener('click', async function (e) {
+        var b = e.target.closest ? e.target.closest('.ag-mem-x2') : null;
+        if (!b) return;
+        if (!confirm(T('memConferma'))) return;
+        await window.AEGIS_RAG.elimina(b.getAttribute('data-x'));
+        var v = b.closest('.ag-mem-voce'); if (v) v.remove();
+        if (!lista.querySelector('.ag-mem-voce')) lista.innerHTML = '<p class="ag-vt-som">' + T('memVuoto') + '</p>';
+      });
+    } catch (e) {
+      lista.innerHTML = '<p class="ag-vt-som">Skills: ' + (e && e.message) + '</p>';
+    }
+  }
+
+  function apriAgente() {
+    var T = window.aegisT || function (k) { return k; };
+    var velo = document.createElement('div');
+    velo.className = 'ag-vt-velo'; velo.id = 'ag-ag-velo';
+    document.body.appendChild(velo);
+    var d = document.createElement('div');
+    d.className = 'ag-vt'; d.style.width = 'min(460px,92vw)'; d.id = 'ag-ag';
+    d.innerHTML = '<button type="button" class="ag-vt-x" id="ag-ag-x">&times;</button>' +
+      '<h3>' + T('agTitolo') + '</h3><p class="ag-vt-som">' + T('agTesto') + '</p>';
+    document.body.appendChild(d);
+    function chiudi(){ var a=document.getElementById('ag-ag'),b=document.getElementById('ag-ag-velo');
+      if(a)a.remove(); if(b)b.remove(); }
+    velo.onclick = chiudi; d.querySelector('#ag-ag-x').onclick = chiudi;
+  }
+
+  // I tre pulsanti nuovi. L'ascolto sta sul documento perche' il pannello di
+  // mezzo nasce dopo di noi: e' la stessa lezione del pulsante CONSUMO.
+  try {
+    document.addEventListener('click', function (e) {
+      var t = e.target;
+      if (!t || !t.closest) return;
+      if (t.closest('#ag-memoria-btn') || t.closest('#ag-op-memoria')) { e.preventDefault(); apriMemoria(); return; }
+      if (t.closest('#ag-agente-btn'))  { e.preventDefault(); apriAgente(); return; }
+      if (t.closest('#ag-upgrade-btn')) {
+        e.preventDefault();
+        // La vetrina dei piani vive in billing-ui.js: se non c'e', non si
+        // finge che ci sia.
+        if (window.AEGIS_BILLING && window.AEGIS_BILLING.vetrina) window.AEGIS_BILLING.vetrina();
+        return;
+      }
+    }, true);
+  } catch (e) {}
+
+  window.AEGIS_MEMORIA = { apri: apriMemoria };
+
+  window.AEGIS_CRONOLOGIA = { leggi: leggi, codiceDi: codiceDi, argomentiDi: argomentiDi, svuota: function () {
     try { localStorage.removeItem(CHIAVE); } catch (e) {}
   } };
 })();
@@ -13388,6 +13858,6 @@ if (recognition) {
      versione vecchia di billing-ui.js e ogni correzione sembra non fare niente:
      si carica il file nuovo e si continua a eseguire quello vecchio. Ogni volta
      che billing-ui.js cambia, si alza questo numero. -->
-<script src="billing-ui.js?v=13" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
+<script src="billing-ui.js?v=16" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
 </body>
 </html>
