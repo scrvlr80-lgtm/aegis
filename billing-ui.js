@@ -159,6 +159,16 @@
             '.ag-cs-agg button{border:0;background:transparent;cursor:pointer;color:#6e6e73;' +
             'font-size:14px;padding:2px 5px;border-radius:6px}' +
             '.ag-cs-agg button:hover{background:rgba(0,0,0,.06)}' +
+            '.ag-cs-saldo{border:1px solid rgba(0,0,0,.11);border-radius:13px;padding:16px 17px}' +
+            '.ag-cs-saldo-n{font:600 26px Inter,sans-serif;color:#1d1d1f;font-variant-numeric:tabular-nums;' +
+            'display:flex;align-items:baseline;gap:8px}' +
+            '.ag-cs-saldo-n i{font-style:normal;font-size:11.5px;font-weight:400;color:#8b8b90}' +
+            '.ag-cs-saldo-r{display:flex;justify-content:space-between;font-size:11px;color:#8b8b90}' +
+            '.ag-cs-ric{margin-top:14px;width:100%;height:36px;border:1px solid rgba(0,0,0,.2);' +
+            'border-radius:9px;background:#F6F6F8;cursor:pointer;font:600 11px Inter,sans-serif;' +
+            'letter-spacing:.05em;text-transform:uppercase;color:#1d1d1f}' +
+            '.ag-cs-ric:hover{background:#ECECEF}' +
+            '.ag-cs-saldo-p{margin:10px 0 0;font-size:11px;color:#6e6e73;line-height:1.5}' +
             '.ag-cs-vuoto{font-size:12px;color:#8b8b90;margin:0}' +
             '.ag-bd{flex:none;display:inline-flex;align-items:center;gap:3px;font:600 9px Inter,sans-serif;' +
             'letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;border-radius:9px;border:1px solid}' +
@@ -192,6 +202,9 @@
             '.ag-vt-som{font-size:12px;color:#3c3c41;line-height:1.45;margin:0}' +
             '.ag-vt-ul{margin:0;padding-left:16px;display:flex;flex-direction:column;gap:5px}' +
             '.ag-vt-ul li{font-size:11.5px;color:#4a4a50;line-height:1.45}' +
+            '.ag-vt-posti{font:600 10px Inter,sans-serif;letter-spacing:.05em;text-transform:uppercase;' +
+            'color:#2f6a52;background:rgba(47,106,82,.1);border:1px solid rgba(47,106,82,.3);' +
+            'border-radius:8px;padding:3px 8px;align-self:flex-start}' +
             '.ag-vt-chi{font-size:10.5px;color:#6e6e73;margin-top:auto;padding-top:6px;' +
             'border-top:1px solid rgba(0,0,0,.07)}' +
             '.ag-vt-mod{font-size:10.5px;color:#6e6e73;display:flex;flex-wrap:wrap;gap:4px}' +
@@ -471,6 +484,11 @@
             : (Number(p.prezzo_eur || 0) > 0
                 ? (p.prezzo_eur + ' \u20AC <small>/ mese</small>')
                 : '<small>gratuito</small>');
+        // I posti si dicono solo dove sono piu' di uno: scrivere "1 posto" su
+        // un piano personale non aggiunge niente e fa sembrare piccolo cio' che
+        // piccolo non e'.
+        var posti = Number(p.posti || 1) > 1
+            ? '<div class="ag-vt-posti">' + p.posti + ' persone sotto lo stesso abbonamento</div>' : '';
 
         // Quali modelli si aprono davvero con questo piano: non un elenco
         // scritto a mano, ma le fasce che il piano copre.
@@ -482,6 +500,7 @@
         return '<div class="ag-vt-p' + (p.attuale ? ' attuale' : '') + '">' +
             '<div class="ag-vt-t"><b>' + (v.titolo || p.etichetta || id) + '</b>' +
                 '<span class="ag-vt-pr">' + prezzo + '</span></div>' +
+            posti +
             (v.sommario ? '<p class="ag-vt-som">' + v.sommario + '</p>' : '') +
             (v.punti && v.punti.length
                 ? '<ul class="ag-vt-ul">' + v.punti.map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ul>'
@@ -513,7 +532,9 @@
         if (!stato || !stato.piani) return;
         chiudiVetrina();
 
-        var m = (stato.modelli || []).filter(function (x) { return x.id === idModello; })[0];
+        // idModello puo' mancare: la vetrina si apre anche dal pulsante
+        // 'Migliora piano', dove nessun modello e' stato premuto.
+        var m = idModello ? (stato.modelli || []).filter(function (x) { return x.id === idModello; })[0] : null;
         var fascia = m ? ((stato.fasce || {})[m.fascia] || {}) : {};
         var com = stato.vetrina_comune || {};
 
@@ -861,10 +882,29 @@
                  '</p></div>';
         }
 
-        // --- saldo, solo dove significa qualcosa ---
+        // --- SALDO: sezione a parte, come si aspetta chi paga a consumo ---
+        // Si mostra quanto resta, quanto e' stato caricato, e quanto costa un
+        // euro di modello. Il pulsante di ricarica non finge: finche' il
+        // checkout non e' collegato lo dice, invece di aprire un vicolo cieco.
         if (stato.a_consumo && typeof stato.saldo_eur === 'number') {
-            h += '<h4>Saldo</h4><div class="ag-cs-info"><p>Ti restano <b>' +
-                 stato.saldo_eur.toFixed(2) + ' \u20AC</b> di ricarica. Cala solo quando scrivi e non scade.</p></div>';
+            var car = (typeof stato.caricato_eur === 'number') ? stato.caricato_eur : null;
+            var usato = (car != null) ? Math.max(0, car - stato.saldo_eur) : null;
+            var pct = (car > 0) ? Math.min(100, (usato / car) * 100) : 0;
+            h += '<h4>Saldo</h4>' +
+                 '<div class="ag-cs-saldo">' +
+                   '<div class="ag-cs-saldo-n">' + stato.saldo_eur.toFixed(2) + ' \u20AC' +
+                     '<i>rimanenti</i></div>' +
+                   (car != null
+                     ? '<div class="ag-cs-tr" style="margin:12px 0 8px"><i style="width:' +
+                       pct.toFixed(1) + '%"></i></div>' +
+                       '<div class="ag-cs-saldo-r"><span>' + usato.toFixed(2) +
+                       ' \u20AC usati</span><span>' + car.toFixed(2) + ' \u20AC caricati</span></div>'
+                     : '') +
+                   '<button type="button" class="ag-cs-ric" id="ag-cs-ricarica">Ricarica saldo</button>' +
+                   '<p class="ag-cs-saldo-p">Paghi ' +
+                     (stato.ricarico && stato.ricarico !== 1 ? ('il ' + (stato.ricarico === 2 ? 'doppio' : stato.ricarico + '\u00d7') + ' del costo del modello') : 'il costo del modello') +
+                     '. Il saldo cala solo quando scrivi e non scade.</p>' +
+                 '</div>';
         }
 
         h += '<div class="ag-cs-agg"><span id="ag-cs-ora">Ultimo aggiornamento: proprio ora</span>' +
@@ -872,6 +912,13 @@
 
         corpo.innerHTML = h;
         agganciaRipieghi(corpo);
+        var rc = document.getElementById('ag-cs-ricarica');
+        if (rc) rc.addEventListener('click', function () {
+            var st = stato.checkout || {};
+            if (st.collegato) { /* qui andra' il checkout vero, quando esistera' */ }
+            var min = stato.ricarica_minima_eur ? (' Ricarica minima ' + stato.ricarica_minima_eur + ' \u20AC.') : '';
+            alert((st.conseguenza || 'Il pagamento online non e ancora attivo: scrivici e ricarichiamo a mano.') + min);
+        });
         var ric = document.getElementById('ag-cs-ric');
         if (ric) ric.addEventListener('click', async function () {
             await aggiorna();
@@ -937,7 +984,7 @@
     }
 
     /* ---------------------------------------------------------- aggancio */
-    var VERSIONE = 8;
+    var VERSIONE = 16;
 
     function avvia() {
         // Si stampa la versione: se in console non compare il numero che ti
@@ -996,6 +1043,7 @@
     }
 
     window.AEGIS_BILLING = {
+        vetrina: function () { apriVetrina(null); },
         aggiorna: aggiorna,
         get stato() { return stato; },
         // Il frontend puo' segnalare la fine di un turno per aggiornare subito
