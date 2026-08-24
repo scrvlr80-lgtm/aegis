@@ -675,6 +675,9 @@ body {
 .ag-dv-slash:hover { background:#3d3d42; }
 .ag-dv-parola { background:#F2F2F4; border-radius:5px; padding:1px 6px;
   font:600 11px ui-monospace,Menlo,monospace; color:#1d1d1f; }
+/* interruttore della ricerca in internet: acceso si vede, e si vede poco */
+.web-btn.on { background:rgba(47,106,82,.12); border-radius:50%; color:#2f6a52; }
+.web-btn.on svg { fill:#2f6a52; }
 
 /* archivio */
 .ag-ar-inp { flex:1 1 auto; min-width:0; border:1px solid rgba(0,0,0,.16); border-radius:9px;
@@ -1269,6 +1272,13 @@ body {
             </button>
             <input type="file" id="arch-file-input" style="display:none;" multiple>
             <input type="file" id="mini-file-input" style="display:none;">
+            <!-- RICERCA IN INTERNET: interruttore, non azione. Il modello puo'
+                 cercare solo se questo e' accesso, e l'utente lo sa perche' lo
+                 ha acceso lui. Spento, una richiesta di ricerca non parte a
+                 vuoto: gli si dice che manca l'interruttore. -->
+            <button class="icon-btn web-btn" id="web-btn" type="button" aria-pressed="false">
+                <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 2c1.3 0 2.5 1.9 3.1 4.6H8.9C9.5 5.9 10.7 4 12 4zM4.3 10h3.4a20 20 0 0 0 0 4H4.3a8 8 0 0 1 0-4zm0 6h3.6c.5 2 1.3 3.6 2.2 4.6A8 8 0 0 1 4.3 16zm5.5 0h4.4C13.6 18.5 12.7 20 12 20s-1.6-1.5-2.2-4zm-.2-2a17 17 0 0 1 0-4h4.8a17 17 0 0 1 0 4H9.6zm4.5 6.6c.9-1 1.7-2.6 2.2-4.6h3.6a8 8 0 0 1-5.8 4.6zM16.3 14a20 20 0 0 0 0-4h3.4a8 8 0 0 1 0 4h-3.4zm-.4-6c-.5-2-1.3-3.6-2.2-4.6A8 8 0 0 1 19.7 8h-3.8z"/></svg>
+            </button>
             <textarea id="user-input" class="chat-input" placeholder="ESCRIBE AQUÍ..." rows="1"
                 onkeypress="handleKeyPress(event)"
                 autocomplete="on" autocorrect="on" autocapitalize="sentences" spellcheck="true"></textarea>
@@ -4054,6 +4064,14 @@ body {
         if (chiediConsenso(function () { handleSendMessage(); })) return;
         // Un codice di conversazione non e' un messaggio: apre il pannello.
         try { if (window.aegisCodiceInAttesa && window.aegisCodiceInAttesa()) return; } catch (e) {}
+        // Ricerca in internet: interruttore e codici. Si controlla PRIMA che
+        // parta qualsiasi cosa, perche' dopo non si torna indietro.
+        try {
+          if (window.aegisControlloRicerca) {
+            var _rc = await window.aegisControlloRicerca(userInput.value);
+            if (_rc === 'ferma') return;
+          }
+        } catch (e) {}
         const text = userInput.value.trim();
         // Se c'e' un'immagine selezionata, usiamo il flusso Vision (testo opzionale).
         if (selectedImageDataUrl) { await sendImageMessage(text); return; }
@@ -8846,6 +8864,20 @@ if (recognition) {
       docInMemoriaFatto:'"{f}" e\' nella memoria di questa conversazione, protetto.',
       docNoMaschera:'Non riesco a proteggere questo testo adesso: non lo metto in memoria in chiaro.',
       opDocReset:'Torna a chiedermi dove mettere i documenti',
+      webOff:'Ricerca in internet: spenta',
+      webOn:'Ricerca in internet: accesa',
+      webTitoloSpento:'La ricerca in internet e\' spenta',
+      webCorpoSpento:'Mi stai chiedendo di cercare qualcosa fuori da qui, ma l\'interruttore del mondo e\' chiuso: senza, non posso guardare da nessuna parte e finirei per risponderti a memoria. Lo accendo?',
+      webAccendi:'Accendi e manda',
+      webMandaComunque:'Manda cosi\'',
+      webAnnulla:'Torna indietro',
+      webTitoloCodici:'Vuoi davvero cercare questo?',
+      webCorpoCodici:'Nel messaggio ci sono {n} dati che hai coperto. Un codice come [[PER_01]] su internet non esiste: la ricerca non trovera\' niente, o trovera\' la cosa sbagliata. Se vuoi che cerchi davvero, devi scoprire il dato - e allora quel dato lo leggera\' anche il motore di ricerca, non solo il modello.',
+      webScopreCosa:'diventerebbe: {v}',
+      webScopreIgnoto:'non riesco a risalire al valore',
+      webNotaLegale:'Scoprire un dato lo manda a un servizio esterno oltre che al modello. Se e\' un dato di una persona, sei tu a deciderlo: valuta se puoi. Cio\' che non spunti resta coperto.',
+      webMandaProtetto:'Manda coperto',
+      webScopriEManda:'Scopri i selezionati e manda',
       opCancella:'Cancella la cronologia locale',
       opNota:'Le conversazioni e la corrispondenza fra codici e dati reali restano solo su questo dispositivo. Cancellandole non si recuperano.',
       opEsci:'Esci dall\u0027account', opChiudi:'Chiudi',
@@ -9068,6 +9100,20 @@ if (recognition) {
       docInMemoriaFatto:'"{f}" esta en la memoria de esta conversacion, protegido.',
       docNoMaschera:'No puedo proteger este texto ahora: no lo guardo en claro.',
       opDocReset:'Volver a preguntarme donde poner los documentos',
+      webOff:'Busqueda en internet: apagada',
+      webOn:'Busqueda en internet: encendida',
+      webTitoloSpento:'La busqueda en internet esta apagada',
+      webCorpoSpento:'Me pides buscar algo fuera de aqui, pero el interruptor del mundo esta cerrado: sin el no puedo mirar en ningun sitio y acabaria respondiendote de memoria. ¿Lo enciendo?',
+      webAccendi:'Enciende y envia',
+      webMandaComunque:'Envia asi',
+      webAnnulla:'Volver atras',
+      webTitoloCodici:'¿De verdad quieres buscar esto?',
+      webCorpoCodici:'En el mensaje hay {n} datos que has ocultado. Un codigo como [[PER_01]] no existe en internet: la busqueda no encontrara nada, o encontrara algo equivocado. Si quieres que busque de verdad, hay que descubrir el dato, y entonces lo leera tambien el buscador, no solo el modelo.',
+      webScopreCosa:'pasaria a ser: {v}',
+      webScopreIgnoto:'no consigo recuperar el valor',
+      webNotaLegale:'Descubrir un dato lo envia a un servicio externo, ademas del modelo. Si es el dato de una persona, la decision es tuya: valora si puedes. Lo que no marques sigue oculto.',
+      webMandaProtetto:'Enviar oculto',
+      webScopriEManda:'Descubrir los marcados y enviar',
       opCancella:'Borrar el historial local',
       opNota:'Las conversaciones y la correspondencia entre codigos y datos reales solo estan en este dispositivo. Si las borras no se recuperan.',
       opEsci:'Cerrar sesion', opChiudi:'Cerrar',
@@ -9290,6 +9336,20 @@ if (recognition) {
       docInMemoriaFatto:'"{f}" is in this conversation memory, protected.',
       docNoMaschera:'I cannot protect this text right now: I will not store it in the clear.',
       opDocReset:'Ask me again where to put documents',
+      webOff:'Internet search: off',
+      webOn:'Internet search: on',
+      webTitoloSpento:'Internet search is off',
+      webCorpoSpento:'You are asking me to look something up outside, but the switch to the world is closed: without it I cannot look anywhere and would end up answering from memory. Shall I turn it on?',
+      webAccendi:'Turn on and send',
+      webMandaComunque:'Send anyway',
+      webAnnulla:'Go back',
+      webTitoloCodici:'Do you really want to search for this?',
+      webCorpoCodici:'There are {n} items in this message that you hid. A code like [[PER_01]] does not exist on the internet: the search will find nothing, or the wrong thing. If you want a real search, the item has to be revealed — and then the search engine reads it too, not just the model.',
+      webScopreCosa:'would become: {v}',
+      webScopreIgnoto:'cannot recover the value',
+      webNotaLegale:'Revealing an item sends it to an outside service as well as to the model. If it belongs to a person, the decision is yours: consider whether you may. Anything you leave unticked stays hidden.',
+      webMandaProtetto:'Send hidden',
+      webScopriEManda:'Reveal ticked and send',
       opCancella:'Delete local history',
       opNota:'Conversations and the mapping between codes and real data live only on this device. Deleting them cannot be undone.',
       opEsci:'Sign out', opChiudi:'Close',
@@ -14160,6 +14220,205 @@ if (recognition) {
     }, true);
   } catch (e) {}
 
+  /* ================= RICERCA IN INTERNET: L'AVVERTIMENTO ==================
+     Il problema. Un codice non e' una parola: [[PER_01]] su internet non
+     esiste, e cercarlo non da' zero risultati - da' risultati sbagliati, o
+     manda il modello a inventare. Peggio: se l'utente scopre il dato per far
+     funzionare la ricerca, quel dato finisce in un motore di ricerca esterno,
+     che e' molto piu' di "il modello lo legge".
+
+     Perche' l'avvertimento e' LOCALE e non scritto dal modello. Per chiedere
+     al modello "ha senso cercare questa cosa?" bisognerebbe prima mandargliela:
+     la domanda arriverebbe dopo il fatto. Quindi il controllo si fa qui, prima
+     che parta niente, e il messaggio e' costruito su cio' che c'e' davvero nel
+     testo - quali codici, di che tipo, quanti - non su una frase fissa.
+     ===================================================================== */
+  var CHIAVE_WEB = 'aegis_web_attivo';
+  function webAttivo() {
+    try { return localStorage.getItem(CHIAVE_WEB) === '1'; } catch (e) { return false; }
+  }
+  function webImposta(v) {
+    try { v ? localStorage.setItem(CHIAVE_WEB, '1') : localStorage.removeItem(CHIAVE_WEB); } catch (e) {}
+    disegnaWeb();
+  }
+  function disegnaWeb() {
+    var b = document.getElementById('web-btn');
+    if (!b) return;
+    var on = webAttivo();
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    b.title = (window.aegisT || function (k) { return k; })(on ? 'webOn' : 'webOff');
+  }
+  window.aegisWebAttivo = webAttivo;
+
+  /* Chi chiede una ricerca a interruttore spento non deve ricevere una
+     risposta inventata: deve sapere che manca un interruttore. */
+  var RX_CERCA = new RegExp(
+    '(cerca|cercare|ricerc\\w*|guarda|controlla|verifica)\\s+(su\\s+)?(internet|web|google|in\\s+rete)'
+    + '|(busca|buscar|busque\\w*|mira|comprueba|verifica)\\s+(en\\s+)?(internet|la\\s+web|google|la\\s+red)'
+    + '|(search|look\\s+up|google|check)\\s+(on\\s+|in\\s+)?(the\\s+)?(internet|web|google|online)'
+    + '|(ultime|latest|ultimas)\\s+notizie|noticias\\s+de\\s+hoy', 'i');
+
+  function chiedeRicerca(testo) { return RX_CERCA.test(String(testo || '')); }
+
+  /* I codici presenti nel testo che sta per partire, col loro significato.
+     Serve a costruire un avvertimento vero: "cercherai PER_01 e IBAN_02", non
+     "attenzione, ci sono dati". */
+  function codiciNelMessaggio(testo) {
+    var protetto = mascheraTesto(testo);
+    var conta = {}, m, rx = /\[\[([A-Z]+)_(\d+)\]\]/g;
+    while ((m = rx.exec(protetto)) !== null) {
+      var k = m[1] + '_' + m[2];
+      conta[k] = (conta[k] || 0) + 1;
+    }
+    return Object.keys(conta).map(function (k) {
+      var tipo = k.split('_')[0];
+      return { codice: k, tipo: tipo, quante: conta[k], valore: valorePerCodice(k) };
+    });
+  }
+
+  // Il valore reale dietro un codice: sta nel vault di questa sessione, e non
+  // esce da qui. Serve solo a far vedere all'utente cosa sta per scoprire.
+  function valorePerCodice(cod) {
+    try {
+      var v = (typeof vault !== 'undefined' && vault) ? vault : null;
+      if (v && typeof v.forEach === 'function') {
+        var trovato = null;
+        v.forEach(function (val, k) {
+          if (String(k) === cod || String(k) === '[[' + cod + ']]') trovato = val;
+        });
+        if (trovato) return String(trovato);
+      }
+      if (typeof valoriPreview !== 'undefined' && valoriPreview && valoriPreview.get) {
+        var p = valoriPreview.get(cod) || valoriPreview.get('[[' + cod + ']]');
+        if (p) return String(p);
+      }
+    } catch (e) {}
+    return null;
+  }
+
+  /* IL CONTROLLO PRIMA DELL'INVIO.
+     Ritorna 'manda' | 'ferma'. Chi chiama si ferma su 'ferma'. */
+  window.aegisControlloRicerca = async function (testo) {
+    var T = window.aegisT || function (k) { return k; };
+    var vuole = chiedeRicerca(testo);
+
+    // 1) chiede di cercare ma l'interruttore e' spento
+    if (vuole && !webAttivo()) {
+      return await avvisoWeb({
+        titolo: T('webTitoloSpento'),
+        corpo: T('webCorpoSpento'),
+        azioni: [
+          { v: 'accendi', etichetta: T('webAccendi'), primario: true },
+          { v: 'manda', etichetta: T('webMandaComunque') },
+          { v: 'ferma', etichetta: T('webAnnulla') }
+        ]
+      }) === 'ferma' ? 'ferma' : 'manda_forse';
+    }
+
+    // 2) ricerca accesa e nel testo ci sono codici: e' il caso delicato
+    if (webAttivo()) {
+      var cod = codiciNelMessaggio(testo);
+      if (cod.length) return await avvisoCodici(cod);
+    }
+    return 'manda';
+  };
+
+  function avvisoWeb(cfg) {
+    return new Promise(function (risolvi) {
+      var velo = document.createElement('div');
+      velo.className = 'ag-vt-velo'; velo.id = 'ag-w-velo';
+      document.body.appendChild(velo);
+      var d = document.createElement('div');
+      d.className = 'ag-vt'; d.id = 'ag-w'; d.style.width = 'min(520px,93vw)';
+      d.innerHTML = '<h3>' + cfg.titolo + '</h3><p class="ag-vt-som">' + cfg.corpo + '</p>' +
+        '<div class="ag-arg-piede">' + cfg.azioni.map(function (a) {
+          return '<button type="button" class="' + (a.primario ? '' : 'leggero') +
+                 '" data-v="' + a.v + '">' + a.etichetta + '</button>';
+        }).join('') + '</div>';
+      document.body.appendChild(d);
+      function chiudi(v) {
+        var a = document.getElementById('ag-w'), b = document.getElementById('ag-w-velo');
+        if (a) a.remove(); if (b) b.remove();
+        if (v === 'accendi') { webImposta(true); risolvi('manda'); return; }
+        risolvi(v);
+      }
+      velo.onclick = function () { chiudi('ferma'); };
+      d.addEventListener('click', function (e) {
+        var b = e.target.closest ? e.target.closest('[data-v]') : null;
+        if (b) chiudi(b.getAttribute('data-v'));
+      });
+    });
+  }
+
+  /* Il pannello che elenca i codici e permette di scoprirne alcuni.
+     Scoprire vuol dire aggiungere il valore reale agli ESCLUSI: lo stesso
+     meccanismo della scheda "rimosse", non una scorciatoia nuova. Cosi' la
+     scelta resta visibile e reversibile dov'e' sempre stata. */
+  function avvisoCodici(cod) {
+    var T = window.aegisT || function (k) { return k; };
+    return new Promise(function (risolvi) {
+      var velo = document.createElement('div');
+      velo.className = 'ag-vt-velo'; velo.id = 'ag-w-velo';
+      document.body.appendChild(velo);
+      var d = document.createElement('div');
+      d.className = 'ag-vt'; d.id = 'ag-w'; d.style.width = 'min(620px,94vw)';
+      var nomiTipo = { PER: T('catNomi'), ORG: T('catAziende'), ADDR: T('catIndirizzi'),
+        CITY: T('catLuoghi'), DATE: T('catDate'), IBAN: T('catBancari'), EMAIL: T('catContatti'),
+        PHONE: T('catContatti') };
+      d.innerHTML =
+        '<h3>' + T('webTitoloCodici') + '</h3>' +
+        '<p class="ag-vt-som">' + T('webCorpoCodici').replace('{n}', cod.length) + '</p>' +
+        '<div class="ag-arg-lista">' + cod.map(function (c, i) {
+          return '<label class="ag-arg-riga"><input type="checkbox" data-i="' + i + '">' +
+            '<span class="ag-arg-l">' + (nomiTipo[c.tipo] || c.tipo) + '</span>' +
+            '<span class="ag-arg-c"><b>' + escapeHtml(c.codice) + '</b>' +
+            '<i>' + (c.valore ? T('webScopreCosa').replace('{v}', escapeHtml(c.valore))
+                              : T('webScopreIgnoto')) +
+            (c.quante > 1 ? ' \u00b7 ' + c.quante + '\u00d7' : '') + '</i></span></label>';
+        }).join('') + '</div>' +
+        '<p class="ag-dv-cmd">' + T('webNotaLegale') + '</p>' +
+        '<div class="ag-arg-piede">' +
+          '<button type="button" class="leggero" data-v="ferma">' + T('webAnnulla') + '</button>' +
+          '<button type="button" class="leggero" data-v="protetto">' + T('webMandaProtetto') + '</button>' +
+          '<button type="button" data-v="scopri">' + T('webScopriEManda') + '</button>' +
+        '</div>';
+      document.body.appendChild(d);
+      function chiudi(v) {
+        if (v === 'scopri') {
+          var scelti = [];
+          Array.prototype.forEach.call(d.querySelectorAll('input[type=checkbox]'), function (x) {
+            if (x.checked) scelti.push(cod[+x.getAttribute('data-i')]);
+          });
+          // Nessuna spunta = nessuno scoprimento: si manda protetto e basta.
+          scelti.forEach(function (c) {
+            if (c.valore) { try { esclusi.add(c.valore); banditi.delete(c.valore); } catch (e) {} }
+          });
+          if (scelti.length) { try { aggiorna(); } catch (e) {} }
+        }
+        var a = document.getElementById('ag-w'), b = document.getElementById('ag-w-velo');
+        if (a) a.remove(); if (b) b.remove();
+        risolvi(v === 'ferma' ? 'ferma' : 'manda');
+      }
+      velo.onclick = function () { chiudi('ferma'); };
+      d.addEventListener('click', function (e) {
+        var b = e.target.closest ? e.target.closest('[data-v]') : null;
+        if (b) chiudi(b.getAttribute('data-v'));
+      });
+    });
+  }
+
+  try {
+    document.addEventListener('click', function (e) {
+      var t = e.target; if (!t || !t.closest) return;
+      if (t.closest('#web-btn')) { e.preventDefault(); webImposta(!webAttivo()); return; }
+    }, true);
+    var _gw = setInterval(function () {
+      if (document.getElementById('web-btn')) { disegnaWeb(); clearInterval(_gw); }
+    }, 400);
+    setTimeout(function () { clearInterval(_gw); }, 12000);
+  } catch (e) {}
+
   window.AEGIS_ARCHIVIO = { apri: apriArchivio };
 
   window.AEGIS_MEMORIA = { apri: apriMemoria };
@@ -14426,6 +14685,6 @@ if (recognition) {
      versione vecchia di billing-ui.js e ogni correzione sembra non fare niente:
      si carica il file nuovo e si continua a eseguire quello vecchio. Ogni volta
      che billing-ui.js cambia, si alza questo numero. -->
-<script src="billing-ui.js?v=20" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
+<script src="billing-ui.js?v=21" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
 </body>
 </html>
