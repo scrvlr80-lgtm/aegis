@@ -73,11 +73,18 @@ body.ag-attivo{overflow:hidden;margin:0}
    larghezza. Serve perche' le stesse parole in lingue diverse cambiano molto:
    "Analisi profonda" diventa "Analisis profundo" e "Deep scan". Con i pulsanti
    a larghezza libera qualcuno finiva tagliato fuori dallo schermo. */
-.ag-testa{display:flex;align-items:center;gap:7px;min-height:52px;padding:8px 12px;flex:none;
+.ag-testa{display:flex;align-items:center;gap:10px;min-height:52px;padding:10px;flex:none;
   flex-wrap:wrap;border-bottom:1px solid var(--hairline);background:var(--primary)}
+/* TUTTI E NOVE UGUALI. Il pulsante dell'evidenziazione aveva regole sue -
+   altezza 24, larghezza minima 104, corpo 9,5 - e restava piu' alto degli
+   altri rompendo la fila. Qui si azzerano: la misura la decide la griglia,
+   una sola volta, per tutti. */
 .ag-testa .ag-ia,
-.ag-testa .ag-toggle-sp{flex:1 1 120px;min-width:112px;max-width:none;
-  justify-content:center;text-align:center}
+.ag-testa .ag-toggle,
+.ag-testa .ag-toggle-sp,
+.ag-testa .ag-ingranaggio{flex:none;width:100%;min-width:0;max-width:none;
+  height:21px;padding:0 6px;font-size:9px;line-height:1;border-radius:7px;
+  justify-content:center;text-align:center;box-sizing:border-box}
 /* In questa barra le icone rubano spazio alle parole: restano solo altrove. */
 .ag-testa .ag-ia svg{display:none}
 .ag-testa .ag-toggle-sp .ag-dot{display:none}
@@ -643,13 +650,65 @@ body {
 .ag-mem-x2 { flex:none; font-size:11px; padding:4px 10px; border:1px solid rgba(0,0,0,.16);
   background:transparent; border-radius:7px; cursor:pointer; color:#6e6e73; }
 .ag-mem-x2:hover { background:rgba(0,0,0,.05); color:#1d1d1f; }
+.ag-mem-n { flex:1 1 auto; min-width:0; text-align:left; background:transparent; border:0;
+  cursor:pointer; font:500 12.5px Inter,sans-serif; color:#1d1d1f; padding:0;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ag-mem-n:hover { text-decoration:underline; }
+.ag-mv-t { width:100%; min-height:46vh; margin-top:12px; resize:vertical; box-sizing:border-box;
+  border:1px solid rgba(0,0,0,.16); border-radius:10px; padding:12px 13px;
+  font:400 12.5px/1.6 ui-monospace,Menlo,Consolas,monospace; color:#1d1d1f; background:#fff; outline:none; }
+.ag-mv-t:focus { border-color:#8b8b92; }
+/* dove va il documento */
+.ag-dv-scelte { display:flex; flex-direction:column; gap:9px; margin-top:16px; }
+.ag-dv-b { display:flex; flex-direction:column; gap:4px; text-align:left; padding:13px 15px;
+  border:1px solid rgba(0,0,0,.13); border-radius:12px; background:#fff; cursor:pointer; }
+.ag-dv-b:hover { border-color:rgba(0,0,0,.34); background:#FAFAFB; }
+.ag-dv-b b { font-size:13px; font-weight:600; color:#1d1d1f; }
+.ag-dv-b i { font-style:normal; font-size:11.5px; color:#6e6e73; line-height:1.5; }
+.ag-dv-ric { display:flex; align-items:center; gap:9px; margin-top:15px; font-size:11.5px;
+  color:#6e6e73; cursor:pointer; }
+.ag-dv-ric input { width:15px; height:15px; cursor:pointer; }
+.ag-dv-cmd { margin:16px 0 0; padding-top:14px; border-top:1px solid rgba(0,0,0,.09);
+  font-size:11.5px; color:#6e6e73; line-height:1.7; }
+.ag-dv-slash { display:inline-block; background:#1d1d1f; color:#fff; border-radius:5px;
+  padding:1px 6px; font:600 11px ui-monospace,Menlo,monospace; cursor:pointer; }
+.ag-dv-slash:hover { background:#3d3d42; }
+.ag-dv-parola { background:#F2F2F4; border-radius:5px; padding:1px 6px;
+  font:600 11px ui-monospace,Menlo,monospace; color:#1d1d1f; }
+
+/* archivio */
+.ag-ar-inp { flex:1 1 auto; min-width:0; border:1px solid rgba(0,0,0,.16); border-radius:9px;
+  padding:0 12px; height:36px; font:400 12.5px Inter,sans-serif; color:#1d1d1f; background:#fff; outline:none; }
+.ag-ar-inp:focus { border-color:#8b8b92; }
+.ag-ar-lista { display:flex; flex-direction:column; gap:8px; margin-top:16px;
+  max-height:52vh; overflow-y:auto; }
+.ag-ar-voce { border:1px solid rgba(0,0,0,.1); border-radius:11px; padding:11px 13px; }
+.ag-ar-p { font:600 9.5px 'Space Grotesk',sans-serif; letter-spacing:.08em; text-transform:uppercase;
+  color:#8b8b90; margin-bottom:3px; }
+.ag-ar-n { font-size:12.5px; font-weight:600; color:#1d1d1f; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap; }
+.ag-ar-e { font-size:11px; color:#6e6e73; line-height:1.45; margin-top:4px; }
+.ag-ar-e.ag-ar-no { color:#8b8b90; font-style:italic; }
+.ag-ar-b { display:flex; align-items:center; gap:7px; margin-top:9px; }
+.ag-ar-kb { flex:1 1 auto; font-size:10.5px; color:#8b8b90; }
+.ag-ar-b button { font-size:11px; padding:4px 10px; border:1px solid rgba(0,0,0,.16);
+  background:transparent; border-radius:7px; cursor:pointer; color:#6e6e73; }
+.ag-ar-b button:hover { background:rgba(0,0,0,.05); color:#1d1d1f; }
 .history-row { position: relative; display: flex; align-items: stretch; gap: 0; }
-.history-row .history-btn-main { flex: 1; padding-right: 44px; }
-.history-dots { position: absolute; top: 8px; right: 8px; width: 30px; height: 30px; border-radius: 6px; border: none; background: transparent; color: var(--text-light); cursor: pointer; font-size: 18px; line-height: 1; display: flex; align-items: center; justify-content: center; transition: all 0.15s; z-index: 2; }
+/* DUE ICONE, NON UNA. I tre puntini erano piazzati in un punto fisso in alto
+   a destra; aggiungendo il codice accanto, le due si accavallavano. Adesso
+   stanno in colonna dentro la riga, allineate al centro, e il testo lascia
+   loro lo spazio che serve invece di finirci sotto. */
+.history-row .history-btn-main { flex: 1 1 auto; min-width: 0; padding-right: 12px; }
+.history-row-azioni { flex: none; display: flex; flex-direction: column; gap: 4px;
+  align-items: center; justify-content: center; padding: 6px 6px 6px 0; }
+.history-code { width: 34px; justify-content: center; }
+.history-code:hover, .history-code.fatto { width: auto; }
+.history-dots { position: static; width: 34px; height: 26px; border-radius: 6px; border: none; background: transparent; color: var(--text-light); cursor: pointer; font-size: 18px; line-height: 1; display: flex; align-items: center; justify-content: center; transition: all 0.15s; z-index: 2; }
 .history-dots:hover { background: rgba(255,255,255,0.08); color: var(--accent); }
 /* Il fondo era rimasto quello del tema scuro di partenza: una finestrella
    nera in mezzo a un'interfaccia bianca, con le scritte quasi illeggibili. */
-.history-menu { position: absolute; top: 40px; right: 8px; background: var(--primary); border: 1px solid var(--hairline); border-radius: 10px; padding: 5px; min-width: 172px; z-index: 50; box-shadow: 0 10px 30px rgba(0,0,0,0.14); display: none; flex-direction: column; }
+.history-menu { position: absolute; top: 44px; right: 10px; background: var(--primary); border: 1px solid var(--hairline); border-radius: 10px; padding: 5px; min-width: 172px; z-index: 50; box-shadow: 0 10px 30px rgba(0,0,0,0.14); display: none; flex-direction: column; }
 .history-menu.open { display: flex; }
 .history-menu button { background: transparent; border: none; color: var(--text-main); text-align: left; padding: 10px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; font-family: 'Inter', sans-serif; transition: background 0.15s; display: flex; align-items: center; gap: 8px; }
 .history-menu button { color: var(--text-main); }
@@ -1201,6 +1260,15 @@ body {
                 <svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
             </button>
             <input type="file" id="img-file-input" accept="image/png,image/jpeg,image/jpg,image/webp,image/gif" style="display:none;" onchange="handleImageSelected(this)">
+            <!-- ARCHIVIO: si lascia qui un file e non ci si pensa piu'. Non e' un
+                 allegato da mandare al modello: e' un documento che resta su
+                 questo dispositivo, indicizzato su cio' che il modello vedrebbe
+                 (il testo mascherato), e che si richiede a parole. -->
+            <button class="icon-btn arch-btn" id="arch-btn" title="Archivia un documento" type="button">
+                <svg viewBox="0 0 24 24"><path d="M20 6h-8l-1.4-1.4A2 2 0 0 0 9.2 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2zm-8 11-3.5-3.5 1.4-1.4L12 14.2l3.1-3.1 1.4 1.4L12 17z"/></svg>
+            </button>
+            <input type="file" id="arch-file-input" style="display:none;" multiple>
+            <input type="file" id="mini-file-input" style="display:none;">
             <textarea id="user-input" class="chat-input" placeholder="ESCRIBE AQUÍ..." rows="1"
                 onkeypress="handleKeyPress(event)"
                 autocomplete="on" autocorrect="on" autocapitalize="sentences" spellcheck="true"></textarea>
@@ -3984,6 +4052,8 @@ body {
         // l'utente entra, il messaggio parte da solo; se cambia idea, non ha
         // perso niente.
         if (chiediConsenso(function () { handleSendMessage(); })) return;
+        // Un codice di conversazione non e' un messaggio: apre il pannello.
+        try { if (window.aegisCodiceInAttesa && window.aegisCodiceInAttesa()) return; } catch (e) {}
         const text = userInput.value.trim();
         // Se c'e' un'immagine selezionata, usiamo il flusso Vision (testo opzionale).
         if (selectedImageDataUrl) { await sendImageMessage(text); return; }
@@ -3995,7 +4065,12 @@ body {
         userInput.style.height = (window.innerWidth <= 600) ? '40px' : '42px';
         if (window.aegisAdattaCampo) window.aegisAdattaCampo(userInput);
         if (clearInputBtn) clearInputBtn.classList.remove('visible');
-        userInput.disabled = true;
+        // IL CAMPO RESTA VIVO. Bloccarlo mentre il modello risponde impediva
+        // perfino di cliccarci dentro: chi voleva scrivere la domanda
+        // successiva, o correggere un refuso, doveva aspettare. Si toglie solo
+        // il pulsante di invio, che e' l'unica cosa che non deve partire due
+        // volte; scrivere, selezionare e incollare restano possibili.
+        userInput.disabled = false;
         if (sendBtn) { sendBtn.disabled = true; sendBtn.style.display = 'none'; }
         micBtn.classList.add('mic-blink');
         const stopBtn = document.getElementById('stop-btn');
@@ -8743,6 +8818,34 @@ if (recognition) {
       salRicarica:'Ricarica',
       salNota:'Con il piano a consumo paghi quello che usi. Il saldo cala solo quando scrivi e non scade.',
       salChiedi:'Il pagamento online non e\' ancora attivo: scrivici e ricarichiamo a mano.',
+      arTitolo:'Archivio',
+      arIntro:'Lascia qui i tuoi documenti: restano su questo dispositivo, nel loro formato originale. Non scegliere nome ne\' cartella - li mette dove vanno, guardando cosa c\'e\' dentro. Poi chiedili a parole.',
+      arCerca:'Cerca: "il contratto di Pietro", "la fattura del 2026"…',
+      arAggiungi:'Aggiungi',
+      arApri:'Apri',
+      arSkill:'Rendi consultabile',
+      arVuoto:'Archivio vuoto.',
+      arNonLetto:'Formato non leggibile: archiviato, ma si ritrova per nome e data.',
+      arSkillFatto:'Aggiunto alle Skill: il modello lo consultera\' quando serve.',
+      arFatto:'{n} archiviati.',
+      btnArchivio:'Archivio',
+      memApriVoce:'Apri e modifica',
+      memGiaMascherato:'Testo gia\' protetto: i dati reali sono sostituiti dai codici, come nella chat.',
+      memSalva:'Salva',
+      memAnnulla:'Annulla',
+      docTitolo:'Che cosa ne faccio?',
+      docNelMessaggio:'Mettilo nel messaggio',
+      docNelMessaggioSpieg:'Finisce nel campo qui sotto. Lo proteggi e lo mandi adesso, come qualsiasi altro testo.',
+      docInMemoria:'Tienilo da parte per questa conversazione',
+      docInMemoriaSpieg:'Non parte adesso. Viene protetto e messo nella memoria: il modello lo consulta quando serve, per tutta la sessione, senza rileggerlo ogni volta.',
+      docNonChiedere:'Fai sempre cosi\', non chiedermelo piu\' (si riattiva dalle impostazioni)',
+      docComando1:'Per mettere un documento nella memoria senza passare di qui, scrivi',
+      docComando2:'nel campo del messaggio.',
+      docSlashAiuto:'Clicca sul simbolo per cambiarlo con quello che preferisci.',
+      docSlashCambia:'Con quale simbolo vuoi richiamare la memoria?',
+      docInMemoriaFatto:'"{f}" e\' nella memoria di questa conversazione, protetto.',
+      docNoMaschera:'Non riesco a proteggere questo testo adesso: non lo metto in memoria in chiaro.',
+      opDocReset:'Torna a chiedermi dove mettere i documenti',
       opCancella:'Cancella la cronologia locale',
       opNota:'Le conversazioni e la corrispondenza fra codici e dati reali restano solo su questo dispositivo. Cancellandole non si recuperano.',
       opEsci:'Esci dall\u0027account', opChiudi:'Chiudi',
@@ -8937,6 +9040,34 @@ if (recognition) {
       salRicarica:'Recargar',
       salNota:'Con el plan de pago por uso pagas lo que usas. El saldo baja solo cuando escribes y no caduca.',
       salChiedi:'El pago online todavia no esta activo: escribenos y recargamos a mano.',
+      arTitolo:'Archivo',
+      arIntro:'Deja aqui tus documentos: se quedan en este dispositivo, en su formato original. No elijas nombre ni carpeta: los coloca donde van mirando lo que hay dentro. Luego pidelos con palabras.',
+      arCerca:'Busca: "el contrato de Pedro", "la factura de 2026"…',
+      arAggiungi:'Anadir',
+      arApri:'Abrir',
+      arSkill:'Hacer consultable',
+      arVuoto:'Archivo vacio.',
+      arNonLetto:'Formato no legible: archivado, pero se encuentra por nombre y fecha.',
+      arSkillFatto:'Anadido a las Skills: el modelo lo consultara cuando haga falta.',
+      arFatto:'{n} archivados.',
+      btnArchivio:'Archivo',
+      memApriVoce:'Abrir y editar',
+      memGiaMascherato:'Texto ya protegido: los datos reales estan sustituidos por codigos, como en el chat.',
+      memSalva:'Guardar',
+      memAnnulla:'Cancelar',
+      docTitolo:'¿Que hago con el?',
+      docNelMessaggio:'Ponlo en el mensaje',
+      docNelMessaggioSpieg:'Va al campo de abajo. Lo proteges y lo envias ahora, como cualquier otro texto.',
+      docInMemoria:'Guardalo para esta conversacion',
+      docInMemoriaSpieg:'No se envia ahora. Se protege y se guarda en la memoria: el modelo lo consulta cuando hace falta, durante toda la sesion, sin releerlo entero cada vez.',
+      docNonChiedere:'Hazlo siempre asi, no me lo preguntes mas (se reactiva desde las opciones)',
+      docComando1:'Para guardar un documento en la memoria sin pasar por aqui, escribe',
+      docComando2:'en el campo del mensaje.',
+      docSlashAiuto:'Haz clic en el simbolo para cambiarlo por el que prefieras.',
+      docSlashCambia:'¿Con que simbolo quieres llamar a la memoria?',
+      docInMemoriaFatto:'"{f}" esta en la memoria de esta conversacion, protegido.',
+      docNoMaschera:'No puedo proteger este texto ahora: no lo guardo en claro.',
+      opDocReset:'Volver a preguntarme donde poner los documentos',
       opCancella:'Borrar el historial local',
       opNota:'Las conversaciones y la correspondencia entre codigos y datos reales solo estan en este dispositivo. Si las borras no se recuperan.',
       opEsci:'Cerrar sesion', opChiudi:'Cerrar',
@@ -9131,6 +9262,34 @@ if (recognition) {
       salRicarica:'Top up',
       salNota:'On pay-as-you-go you pay for what you use. The balance only goes down when you write, and it does not expire.',
       salChiedi:'Online payment is not active yet: write to us and we top it up by hand.',
+      arTitolo:'Archive',
+      arIntro:'Drop your documents here: they stay on this device, in their original format. Do not pick a name or a folder — it files them by what is inside. Then just ask for them in words.',
+      arCerca:'Search: "Peter\'s contract", "2026 invoice"…',
+      arAggiungi:'Add',
+      arApri:'Open',
+      arSkill:'Make searchable',
+      arVuoto:'Archive is empty.',
+      arNonLetto:'Unreadable format: archived, but findable by name and date.',
+      arSkillFatto:'Added to Skills: the model will consult it when needed.',
+      arFatto:'{n} archived.',
+      btnArchivio:'Archive',
+      memApriVoce:'Open and edit',
+      memGiaMascherato:'Text already protected: real data is replaced by codes, as in the chat.',
+      memSalva:'Save',
+      memAnnulla:'Cancel',
+      docTitolo:'What should I do with it?',
+      docNelMessaggio:'Put it in the message',
+      docNelMessaggioSpieg:'It goes into the field below. You protect it and send it now, like any other text.',
+      docInMemoria:'Keep it for this conversation',
+      docInMemoriaSpieg:'It is not sent now. It is protected and kept in memory: the model consults it when needed, for the whole session, without re-reading it every time.',
+      docNonChiedere:'Always do this, stop asking (can be re-enabled in settings)',
+      docComando1:'To put a document in memory without coming here, type',
+      docComando2:'in the message field.',
+      docSlashAiuto:'Click the symbol to change it to whatever you prefer.',
+      docSlashCambia:'Which symbol should call up the memory?',
+      docInMemoriaFatto:'"{f}" is in this conversation memory, protected.',
+      docNoMaschera:'I cannot protect this text right now: I will not store it in the clear.',
+      opDocReset:'Ask me again where to put documents',
       opCancella:'Delete local history',
       opNota:'Conversations and the mapping between codes and real data live only on this device. Deleting them cannot be undone.',
       opEsci:'Sign out', opChiudi:'Close',
@@ -11579,6 +11738,11 @@ if (recognition) {
         '<div class="ag-op-sez"><h4>' + T('memTitolo') + '</h4>' +
           '<p class="ag-op-nota">' + T('memIntro') + '</p>' +
           '<button type="button" class="ag-op-btn" id="ag-op-memoria">' + T('btnMemoria') + '</button></div>' +
+        '<div class="ag-op-sez"><h4>' + T('arTitolo') + '</h4>' +
+          '<p class="ag-op-nota">' + T('arIntro') + '</p>' +
+          '<button type="button" class="ag-op-btn" id="ag-op-archivio">' + T('btnArchivio') + '</button></div>' +
+        '<div class="ag-op-sez"><button type="button" class="ag-op-btn" id="ag-op-docreset">' +
+          T('opDocReset') + '</button></div>' +
         '<div class="ag-op-sez"><h4>' + T('opAvvisi') + '</h4>' + righeAvvisi + '</div>' +
         '<div class="ag-op-sez"><h4>' + T('opProtezione') + '</h4>' +
           '<label class="ag-op-riga"><input type="checkbox" id="op-riempi"' + (RIEMPIMENTO ? ' checked' : '') + '>' +
@@ -11751,7 +11915,18 @@ if (recognition) {
   window.aegisPreparaContesto = async function(domanda){
     try {
       if (!window.AEGIS_RAG) return '';
-      var chiaro = await window.AEGIS_RAG.contesto(domanda);
+      // LA DOMANDA SI CERCA IN TUTTE E DUE LE LINGUE.
+      // Nell'archivio convivono due tipi di pezzi: le Skill dell'utente, che
+      // sono in chiaro, e le memorie delle conversazioni, che sono mascherate.
+      // Cercando "Bianchi" si trovano solo le prime; cercando "[[PER_07]]"
+      // solo le seconde. Si cerca quindi con la domanda E con la sua versione
+      // mascherata insieme: chi risponde a una delle due viene trovato.
+      var interrogazione = domanda;
+      try {
+        var q = maschera(String(domanda || ''), false);
+        if (q && q.testo && q.testo !== domanda) interrogazione = domanda + ' ' + q.testo;
+      } catch (e) {}
+      var chiaro = await window.AEGIS_RAG.contesto(interrogazione);
       if (!chiaro) return '';
       // STESSA FUNZIONE, STESSO VAULT. Non e' una mascheratura "per il RAG":
       // e' la mascheratura, quella che tratta cio' che l'utente scrive. Per
@@ -12884,6 +13059,18 @@ if (recognition) {
         stato((window.aegisT || function(k){return k;})('docNiente'), true);
         return;
       }
+      // CHE COSA VUOI FARNE?
+      // Un documento appena caricato puo' servire a due cose diverse: mandarlo
+      // adesso, oppure lasciarlo li' perche' il modello possa consultarlo per
+      // tutta la sessione. Prima decideva l'applicazione al posto suo; adesso
+      // si chiede, una volta, con la possibilita' di non chiederlo piu'.
+      var scelta = await window.aegisDoveVaIlDocumento(file.name);
+      if (scelta === 'annulla') { stato(''); return; }
+      if (scelta === 'memoria') {
+        await window.aegisInMemoriaSessione(file.name, testo);
+        stato('');
+        return;
+      }
       var prima = campo.value ? campo.value.replace(/\s+$/, '') + '\n\n' : '';
       campo.value = prima + testo.trim();
       campo.dispatchEvent(new Event('input', { bubbles: true }));
@@ -13099,7 +13286,9 @@ if (recognition) {
         lettera: String.fromCharCode(65 + i),
         titolo: a.titolo,
         // Il paragrafo che l'utente legge nell'elenco: l'inizio del pezzo.
-        estratto: a.testo.replace(/\s+/g, ' ').slice(0, 190) + (a.testo.length > 190 ? '\u2026' : ''),
+        // Anche cio' che si LEGGE nel pannello e' mascherato: e' la stessa
+        // schermata che l'utente potrebbe avere alle spalle qualcuno.
+        estratto: '',
         testo: a.testo
       };
     });
@@ -13280,7 +13469,12 @@ if (recognition) {
         riga.remove();
       };
 
-      riga.appendChild(b); riga.appendChild(copia); riga.appendChild(punti); riga.appendChild(menu);
+      // Le due iconcine in una colonna loro: cosi' non possono sovrapporsi
+      // ne' finire sopra al titolo, qualunque lunghezza abbia.
+      var az = document.createElement('div');
+      az.className = 'history-row-azioni';
+      az.appendChild(copia); az.appendChild(punti);
+      riga.appendChild(b); riga.appendChild(az); riga.appendChild(menu);
       griglia.appendChild(riga);
     });
   }
@@ -13375,6 +13569,14 @@ if (recognition) {
     var arg = argomentiDi(chat);
     var T = window.aegisT || function (k) { return k; };
     if (!arg.length) return false;
+    // UN PANNELLO SOLO. Se ne restava aperto un altro sotto - capita quando lo
+    // stesso codice arriva sia dall'incollaggio sia dal pannello memoria -
+    // premendo Integra rispondevano tutti e due, e finivano nelle Skill anche
+    // gli argomenti che non erano stati spuntati in quello davanti.
+    (function () {
+      var v = document.getElementById('ag-arg-velo'), a = document.getElementById('ag-arg');
+      if (v) v.remove(); if (a) a.remove();
+    })();
 
     var velo = document.createElement('div');
     velo.className = 'ag-vt-velo'; velo.id = 'ag-arg-velo';
@@ -13387,13 +13589,15 @@ if (recognition) {
       '<button type="button" class="ag-vt-x" id="ag-arg-x" aria-label="Chiudi">&times;</button>' +
       '<h3>' + T('argTitolo') + '</h3>' +
       '<p class="ag-vt-sub">' + codice + ' \u00b7 ' +
-        (chat.titolo || '') + ' \u00b7 ' + arg.length + ' ' + T('argQuanti') + '</p>' +
+        escapeHtml(mascheraTesto(chat.titolo || '')) + ' \u00b7 ' + arg.length + ' ' + T('argQuanti') + '</p>' +
       '<div class="ag-arg-lista">' +
         arg.map(function (a) {
+          var tit = mascheraTesto(a.titolo) || a.titolo;
+          var est = mascheraTesto(a.testo).replace(/\s+/g, ' ').slice(0, 190);
           return '<label class="ag-arg-riga"><input type="checkbox" data-i="' + a.lettera + '">' +
                  '<span class="ag-arg-l">' + a.lettera + '</span>' +
-                 '<span class="ag-arg-c"><b>' + escapeHtml(a.titolo) + '</b>' +
-                 '<i>' + escapeHtml(a.estratto) + '</i></span></label>';
+                 '<span class="ag-arg-c"><b>' + escapeHtml(tit) + '</b>' +
+                 '<i>' + escapeHtml(est) + '\u2026</i></span></label>';
         }).join('') +
       '</div>' +
       '<div class="ag-arg-piede">' +
@@ -13421,12 +13625,21 @@ if (recognition) {
         }
       });
       if (!scelte.length) { chiudi(); return; }
+      // ============ IL TESTO CHE SI SALVA E' QUELLO MASCHERATO ============
+      // La cronologia locale conserva la conversazione IN CHIARO: quello che
+      // hai scritto tu e la risposta gia' ricostruita con i nomi veri. Se si
+      // travasasse cosi' com'e' dentro le Skill, si creerebbe un secondo
+      // archivio di dati in chiaro che il modello consulta a ogni domanda -
+      // esattamente cio' che questa applicazione promette di non fare.
+      // Si maschera qui, con la stessa funzione della chat e sullo stesso
+      // vault: "Pietro Rossi" diventa [[PER_07]] e resta [[PER_07]] anche
+      // nella conversazione di adesso, senza niente da riconciliare.
       var testo = scelte.map(function (a) {
-        return '### ' + a.titolo + '\n' + a.testo;
+        return '### ' + mascheraTesto(a.titolo) + '\n' + mascheraTesto(a.testo);
       }).join('\n\n---\n\n');
       try {
         await caricaRag();
-        await window.AEGIS_RAG.aggiungi(codice + ' \u00b7 ' + (chat.titolo || 'conversazione'), testo);
+        await window.AEGIS_RAG.aggiungi(codice + ' \u00b7 ' + mascheraTesto(chat.titolo || 'conversazione'), testo);
       } catch (e) { alert('Skills: ' + (e && e.message)); }
       // Il codice sparisce dal campo: ha fatto il suo lavoro e non deve
       // partire verso il modello, che non saprebbe cosa farsene.
@@ -13446,6 +13659,35 @@ if (recognition) {
   }
 
   // aegis-rag.js si carica solo quando serve: e' lo stesso archivio delle Skill.
+  function caricaStorage() {
+    if (window.AEGIS_STORAGE) return Promise.resolve();
+    return new Promise(function (ok, ko) {
+      var t = document.createElement('script');
+      t.src = 'aegis-storage.js';
+      t.onload = function () { ok(); };
+      t.onerror = function () { ko(new Error('aegis-storage.js')); };
+      document.head.appendChild(t);
+    });
+  }
+
+  /* La funzione che maschera, passata all'archivio. E' LA STESSA della chat:
+     stesso motore, stesse impostazioni, stesso vault. Cosi' un documento
+     archiviato e una conversazione parlano lo stesso linguaggio di codici, e
+     non c'e' niente da riconciliare. */
+  function mascheraTesto(testo) {
+    var t = String(testo || '');
+    if (!t) return '';
+    try {
+      var r = (typeof maschera === 'function') ? maschera(t, false) : null;
+      var out = (r && r.testo) || '';
+      // Se il mascheratore non e' disponibile NON si consegna il testo in
+      // chiaro: si consegna niente. Meglio una Skill vuota che una Skill che
+      // contiene i nomi veri.
+      return out;
+    } catch (e) { return ''; }
+  }
+  function mascheraPerArchivio(testo) { return mascheraTesto(testo); }
+
   function caricaRag() {
     if (window.AEGIS_RAG) return Promise.resolve();
     return new Promise(function (ok, ko) {
@@ -13460,19 +13702,31 @@ if (recognition) {
   /* Il riconoscimento del codice nel campo. Si guarda a ogni battuta, ma il
      pannello si apre UNA VOLTA per codice: chi lo incolla due volte non se lo
      ritrova due volte in faccia. */
-  var _codiciVisti = {};
+  var _ultimoCodice = { cod: null, ts: 0 };
   var RX_CODICE = /\bAG-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}\b/i;
   function guardaCodice(campo) {
-    if (!campo) return;
+    if (!campo) return false;
     var m = RX_CODICE.exec(String(campo.value || ''));
-    if (!m) return;
+    if (!m) return false;
     var cod = m[0].toUpperCase();
-    if (_codiciVisti[cod]) return;
+    // Prima bloccavo per sempre un codice gia' usato: la seconda volta che lo
+    // incollavi non succedeva piu' niente e il codice partiva verso il
+    // modello, che rispondeva "non so cosa sia". Adesso il blocco dura pochi
+    // secondi, giusto per non riaprire il pannello mentre lo stai chiudendo.
+    if (_ultimoCodice.cod === cod && (Date.now() - _ultimoCodice.ts) < 4000) return false;
     var chat = chatDaCodice(cod);
-    if (!chat) return;                       // non e' di questo dispositivo
-    _codiciVisti[cod] = true;
+    if (!chat) return false;                 // non e' di questo dispositivo
+    _ultimoCodice = { cod: cod, ts: Date.now() };
     apriArgomenti(chat, cod, campo);
+    return true;
   }
+  // E se il codice arriva fino al pulsante invia - scritto a mano, incollato
+  // di corsa - non si manda al modello: si apre il pannello. E' la stessa
+  // logica della lingua, che cambia da sola quando la scrivi nel prompt.
+  window.aegisCodiceInAttesa = function () {
+    var campo = document.getElementById('user-input');
+    return guardaCodice(campo);
+  };
   try {
     document.addEventListener('input', function (e) {
       if (e.target && e.target.id === 'user-input') guardaCodice(e.target);
@@ -13543,13 +13797,17 @@ if (recognition) {
       if (!tutte.length) { lista.innerHTML = '<p class="ag-vt-som">' + T('memVuoto') + '</p>'; return; }
       lista.innerHTML = tutte.map(function (x) {
         return '<div class="ag-mem-voce" data-id="' + x.id + '">' +
-          '<span class="ag-mem-n">' + escapeHtml(x.nome) + '</span>' +
+          '<button type="button" class="ag-mem-n" data-o="' + x.id + '" title="' +
+            T('memApriVoce') + '">' + escapeHtml(x.nome) + '</button>' +
           '<span class="ag-mem-d">' + (x.pezzi || 0) + ' pezzi</span>' +
           '<button type="button" class="leggero ag-mem-x2" data-x="' + x.id + '">' +
           T('memElimina') + '</button></div>';
       }).join('');
       lista.addEventListener('click', async function (e) {
-        var b = e.target.closest ? e.target.closest('.ag-mem-x2') : null;
+        var t = e.target; if (!t || !t.getAttribute) return;
+        var apriId = t.getAttribute('data-o');
+        if (apriId) { apriVoceMemoria(apriId); return; }
+        var b = t.closest ? t.closest('.ag-mem-x2') : null;
         if (!b) return;
         if (!confirm(T('memConferma'))) return;
         await window.AEGIS_RAG.elimina(b.getAttribute('data-x'));
@@ -13559,6 +13817,45 @@ if (recognition) {
     } catch (e) {
       lista.innerHTML = '<p class="ag-vt-som">Skills: ' + (e && e.message) + '</p>';
     }
+  }
+
+  /* Apre una memoria per leggerla e correggerla. Il testo mostrato e' quello
+     archiviato, cioe' gia' mascherato: nessun dato reale compare qui dentro,
+     e cio' che si modifica resta mascherato per costruzione. */
+  async function apriVoceMemoria(id) {
+    var T = window.aegisT || function (k) { return k; };
+    var doc;
+    try { await caricaRag(); doc = await window.AEGIS_RAG.leggi(id); }
+    catch (e) { alert('Skills: ' + (e && e.message)); return; }
+    if (!doc) return;
+
+    var velo = document.createElement('div');
+    velo.className = 'ag-vt-velo'; velo.id = 'ag-mv-velo';
+    document.body.appendChild(velo);
+    var d = document.createElement('div');
+    d.className = 'ag-vt'; d.id = 'ag-mv'; d.style.width = 'min(700px,95vw)';
+    d.innerHTML =
+      '<button type="button" class="ag-vt-x" id="ag-mv-x">&times;</button>' +
+      '<h3>' + escapeHtml(doc.nome) + '</h3>' +
+      '<p class="ag-vt-sub">' + T('memGiaMascherato') + '</p>' +
+      '<textarea id="ag-mv-t" class="ag-mv-t" spellcheck="false"></textarea>' +
+      '<div class="ag-arg-piede">' +
+        '<button type="button" class="leggero" id="ag-mv-ann">' + T('memAnnulla') + '</button>' +
+        '<button type="button" id="ag-mv-ok">' + T('memSalva') + '</button>' +
+      '</div>';
+    document.body.appendChild(d);
+    document.getElementById('ag-mv-t').value = doc.testo || '';
+
+    function chiudi() { var a = document.getElementById('ag-mv'), b = document.getElementById('ag-mv-velo');
+      if (a) a.remove(); if (b) b.remove(); }
+    velo.onclick = chiudi;
+    d.querySelector('#ag-mv-x').onclick = chiudi;
+    d.querySelector('#ag-mv-ann').onclick = chiudi;
+    d.querySelector('#ag-mv-ok').onclick = async function () {
+      var t = document.getElementById('ag-mv-t').value;
+      try { await window.AEGIS_RAG.sostituisci(id, t); } catch (e) { alert('Skills: ' + (e && e.message)); }
+      chiudi();
+    };
   }
 
   function apriAgente() {
@@ -13593,6 +13890,277 @@ if (recognition) {
       }
     }, true);
   } catch (e) {}
+
+  /* ================== PANNELLO ARCHIVIO INTELLIGENTE =====================
+     Si apre dal pulsante nella barra di scrittura, dalle impostazioni e dal
+     pannello della memoria. Fa tre cose: archivia, cerca a parole, restituisce
+     il file nel suo formato.
+     La ricerca maschera la DOMANDA prima di cercarla, perche' l'indice e' fatto
+     di codici: scrivere "Pietro Rossi" diventa cercare [[PER_07]], e funziona
+     senza che il nome vero entri mai nell'indice.
+     ===================================================================== */
+  async function apriArchivio(preselezione) {
+    var T = window.aegisT || function (k) { return k; };
+    try { await caricaStorage(); } catch (e) { alert('aegis-storage.js: ' + (e && e.message)); return; }
+
+    var velo = document.createElement('div');
+    velo.className = 'ag-vt-velo'; velo.id = 'ag-ar-velo';
+    document.body.appendChild(velo);
+    var d = document.createElement('div');
+    d.className = 'ag-vt'; d.id = 'ag-ar'; d.style.width = 'min(720px,95vw)';
+    d.innerHTML =
+      '<button type="button" class="ag-vt-x" id="ag-ar-x">&times;</button>' +
+      '<h3>' + T('arTitolo') + '</h3>' +
+      '<p class="ag-vt-som">' + T('arIntro') + '</p>' +
+      '<div class="ag-mem-riga">' +
+        '<input type="text" id="ag-ar-q" class="ag-ar-inp" placeholder="' + T('arCerca') + '" autocomplete="off">' +
+        '<button type="button" class="leggero" id="ag-ar-add">' + T('arAggiungi') + '</button>' +
+      '</div>' +
+      '<div class="ag-ar-lista" id="ag-ar-lista"></div>';
+    document.body.appendChild(d);
+
+    function chiudi() { var a = document.getElementById('ag-ar'), b = document.getElementById('ag-ar-velo');
+      if (a) a.remove(); if (b) b.remove(); }
+    velo.onclick = chiudi; d.querySelector('#ag-ar-x').onclick = chiudi;
+    d.querySelector('#ag-ar-add').onclick = function () {
+      var i = document.getElementById('arch-file-input'); if (i) i.click();
+    };
+
+    var lista = d.querySelector('#ag-ar-lista');
+    function riga(f) {
+      var kb = f.byte > 1048576 ? (f.byte / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(f.byte / 1024)) + ' KB';
+      return '<div class="ag-ar-voce" data-id="' + f.id + '">' +
+        '<div class="ag-ar-p">' + escapeHtml((f.percorso || []).join(' / ')) + '</div>' +
+        '<div class="ag-ar-n">' + escapeHtml(f.nome) + '</div>' +
+        (f.estratto ? '<div class="ag-ar-e">' + escapeHtml(f.estratto.slice(0, 150)) + '\u2026</div>'
+                    : '<div class="ag-ar-e ag-ar-no">' + T('arNonLetto') + '</div>') +
+        '<div class="ag-ar-b">' +
+          '<span class="ag-ar-kb">' + kb + '</span>' +
+          '<button type="button" class="leggero" data-g="' + f.id + '">' + T('arApri') + '</button>' +
+          '<button type="button" class="leggero" data-r="' + f.id + '">' + T('arSkill') + '</button>' +
+          '<button type="button" class="leggero" data-x="' + f.id + '">' + T('memElimina') + '</button>' +
+        '</div></div>';
+    }
+    async function disegna(q) {
+      var v = q && q.trim()
+        ? await window.AEGIS_STORAGE.cerca(mascheraPerArchivio(q) || q, 12)
+        : await window.AEGIS_STORAGE.elenco();
+      lista.innerHTML = v.length ? v.map(riga).join('')
+        : '<p class="ag-vt-som">' + T('arVuoto') + '</p>';
+    }
+    d.querySelector('#ag-ar-q').addEventListener('input', function () {
+      clearTimeout(window.__arT);
+      var v = this.value;
+      window.__arT = setTimeout(function () { disegna(v); }, 220);
+    });
+    lista.addEventListener('click', async function (e) {
+      var t = e.target; if (!t.closest) return;
+      var g = t.getAttribute && t.getAttribute('data-g');
+      var r = t.getAttribute && t.getAttribute('data-r');
+      var x = t.getAttribute && t.getAttribute('data-x');
+      if (g) { await window.AEGIS_STORAGE.scarica(g); return; }
+      if (x) {
+        if (!confirm(T('memConferma'))) return;
+        await window.AEGIS_STORAGE.elimina(x);
+        disegna(document.getElementById('ag-ar-q').value); return;
+      }
+      if (r) {
+        // Porta il documento nella memoria consultabile: l'estratto e' gia'
+        // mascherato, quindi entra nelle Skill senza altri passaggi.
+        var f = await window.AEGIS_STORAGE.leggi(r);
+        if (!f) return;
+        try {
+          await caricaRag();
+          var testo = Object.keys(f.tf || {}).length ? (f.estratto || '') : '';
+          if (!testo) { alert(T('arNonLetto')); return; }
+          await window.AEGIS_RAG.aggiungi('\u{1F5C2} ' + f.nome, testo);
+          alert(T('arSkillFatto'));
+        } catch (err) { alert('Skills: ' + (err && err.message)); }
+      }
+    });
+    await disegna(preselezione || '');
+  }
+
+  /* L'archiviazione vera e propria: presa dal pulsante della barra. */
+  async function archiviaFile(files) {
+    if (!files || !files.length) return;
+    var T = window.aegisT || function (k) { return k; };
+    try { await caricaStorage(); } catch (e) { alert('aegis-storage.js: ' + (e && e.message)); return; }
+    var fatti = [];
+    for (var i = 0; i < files.length; i++) {
+      try { fatti.push(await window.AEGIS_STORAGE.archivia(files[i], mascheraPerArchivio)); }
+      catch (e) {}
+    }
+    if (!fatti.length) return;
+    // Si dice DOVE e' finito: un archivio che nasconde dove mette le cose non
+    // e' comodo, e' inquietante.
+    var dove = fatti.map(function (f) { return (f.percorso || []).join(' / ') + ' / ' + f.nome; }).join('\n');
+    alert(T('arFatto').replace('{n}', fatti.length) + '\n\n' + dove);
+    apriArchivio('');
+  }
+
+  try {
+    document.addEventListener('click', function (e) {
+      var t = e.target; if (!t || !t.closest) return;
+      if (t.closest('#arch-btn')) {
+        e.preventDefault();
+        var i = document.getElementById('arch-file-input'); if (i) i.click();
+        return;
+      }
+      if (t.closest('#ag-op-archivio')) { e.preventDefault(); apriArchivio(''); return; }
+      if (t.closest('#ag-op-docreset')) {
+        e.preventDefault();
+        if (window.aegisDocResetPreferenza) window.aegisDocResetPreferenza();
+        alert((window.aegisT||function(k){return k;})('opDocReset'));
+        return;
+      }
+    }, true);
+    document.addEventListener('change', function (e) {
+      if (e.target && e.target.id === 'arch-file-input') {
+        archiviaFile(e.target.files);
+        e.target.value = '';
+        return;
+      }
+      if (e.target && e.target.id === 'mini-file-input') {
+        var f = e.target.files && e.target.files[0];
+        e.target.value = '';
+        if (!f) return;
+        // Si legge come qualunque documento e va diritto in memoria: chi ha
+        // scritto il comando ha gia' detto dove lo vuole.
+        f.text().then(function (t) {
+          if (!t || !t.trim()) { alert((window.aegisT||function(k){return k;})('docNiente')); return; }
+          window.aegisInMemoriaSessione(f.name, t);
+        }).catch(function () {
+          alert((window.aegisT||function(k){return k;})('docNiente'));
+        });
+      }
+    }, true);
+  } catch (e) {}
+
+  /* ============ DOVE VA A FINIRE UN DOCUMENTO APPENA CARICATO ============
+     Due destinazioni, non una:
+       - NEL MESSAGGIO: finisce nel campo, lo mascheri e lo mandi. E' quello
+         che serve quando la domanda riguarda quel documento e basta.
+       - NELLA MEMORIA DI SESSIONE: non parte adesso. Viene mascherato e messo
+         da parte, e il modello lo consulta a ogni domanda per tutta la
+         sessione, senza rileggerlo per intero ogni volta. E' quello che serve
+         quando il documento fa da sfondo a una conversazione lunga.
+     La domanda si fa UNA VOLTA. Chi spunta "non chiedermelo piu'" sceglie
+     anche la destinazione predefinita, e la puo' cambiare dalle impostazioni:
+     una scorciatoia che non si puo' disfare non e' una scorciatoia, e' una
+     trappola.
+     ===================================================================== */
+  var CHIAVE_DOC = 'aegis_doc_destinazione';
+
+  function _docPreferenza() {
+    try { return localStorage.getItem(CHIAVE_DOC) || ''; } catch (e) { return ''; }
+  }
+  window.aegisDocResetPreferenza = function () {
+    try { localStorage.removeItem(CHIAVE_DOC); } catch (e) {}
+  };
+
+  window.aegisDoveVaIlDocumento = function (nomeFile) {
+    var T = window.aegisT || function (k) { return k; };
+    var pref = _docPreferenza();
+    if (pref === 'messaggio' || pref === 'memoria') return Promise.resolve(pref);
+
+    return new Promise(function (risolvi) {
+      var velo = document.createElement('div');
+      velo.className = 'ag-vt-velo'; velo.id = 'ag-dv-velo';
+      document.body.appendChild(velo);
+      var d = document.createElement('div');
+      d.className = 'ag-vt'; d.id = 'ag-dv'; d.style.width = 'min(560px,94vw)';
+      d.innerHTML =
+        '<h3>' + T('docTitolo') + '</h3>' +
+        '<p class="ag-vt-sub">' + escapeHtml(String(nomeFile || '')) + '</p>' +
+        '<div class="ag-dv-scelte">' +
+          '<button type="button" class="ag-dv-b" data-v="messaggio">' +
+            '<b>' + T('docNelMessaggio') + '</b><i>' + T('docNelMessaggioSpieg') + '</i></button>' +
+          '<button type="button" class="ag-dv-b" data-v="memoria">' +
+            '<b>' + T('docInMemoria') + '</b><i>' + T('docInMemoriaSpieg') + '</i></button>' +
+        '</div>' +
+        '<label class="ag-dv-ric"><input type="checkbox" id="ag-dv-ric"> ' + T('docNonChiedere') + '</label>' +
+        '<p class="ag-dv-cmd">' + T('docComando1') +
+          ' <span class="ag-dv-slash" id="ag-dv-slash" title="' + T('docSlashAiuto') + '">/</span>' +
+          '<span class="ag-dv-parola">database</span> ' + T('docComando2') + '</p>';
+      document.body.appendChild(d);
+
+      function chiudi(v) {
+        try {
+          if (document.getElementById('ag-dv-ric').checked && v !== 'annulla') {
+            localStorage.setItem(CHIAVE_DOC, v);
+          }
+        } catch (e) {}
+        var a = document.getElementById('ag-dv'), b = document.getElementById('ag-dv-velo');
+        if (a) a.remove(); if (b) b.remove();
+        risolvi(v);
+      }
+      velo.onclick = function () { chiudi('annulla'); };
+      d.addEventListener('click', function (e) {
+        var b = e.target.closest ? e.target.closest('.ag-dv-b') : null;
+        if (b) { chiudi(b.getAttribute('data-v')); return; }
+        if (e.target && e.target.id === 'ag-dv-slash') { cambiaRichiamo(); }
+      });
+    });
+  };
+
+  /* Il simbolo che richiama la memoria si puo' cambiare: c'e' chi ha la barra
+     scomoda sulla tastiera, e chi la usa per altro. */
+  var CHIAVE_RICHIAMO = 'aegis_richiamo';
+  function richiamo() {
+    try { return localStorage.getItem(CHIAVE_RICHIAMO) || '/'; } catch (e) { return '/'; }
+  }
+  function cambiaRichiamo() {
+    var T = window.aegisT || function (k) { return k; };
+    var v = prompt(T('docSlashCambia'), richiamo());
+    if (v === null) return;
+    v = String(v).trim().slice(0, 3);
+    if (!v) return;
+    try { localStorage.setItem(CHIAVE_RICHIAMO, v); } catch (e) {}
+    var el = document.getElementById('ag-dv-slash');
+    if (el) el.textContent = v;
+  }
+
+  /* Il comando nel campo: "<richiamo>database" apre il caricamento diretto
+     nella memoria di sessione. Si riconosce mentre si scrive, come il codice
+     della conversazione: nessun menu da cercare. */
+  function guardaComando(campo) {
+    if (!campo) return false;
+    var r = richiamo();
+    var v = String(campo.value || '');
+    var rx = new RegExp(r.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + 'database\\s*$', 'i');
+    if (!rx.test(v)) return false;
+    campo.value = v.replace(rx, '').trim();
+    try { campo.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {}
+    var i = document.getElementById('mini-file-input');
+    if (i) i.click();
+    return true;
+  }
+
+  /* Mette un documento nella memoria di sessione. MASCHERATO, sempre: e' un
+     archivio che il modello consulta da solo, e quindi non puo' contenere
+     dati reali. */
+  window.aegisInMemoriaSessione = async function (nome, testoGrezzo) {
+    var T = window.aegisT || function (k) { return k; };
+    var protetto = mascheraTesto(testoGrezzo);
+    if (!protetto) { alert(T('docNoMaschera')); return false; }
+    try {
+      await caricaRag();
+      var cod = (typeof currentSessionId !== 'undefined' && currentSessionId)
+        ? codiceDi(currentSessionId) : 'AG-SESSION';
+      await window.AEGIS_RAG.aggiungi(cod + ' \u00b7 ' + String(nome || 'documento'), protetto);
+      alert(T('docInMemoriaFatto').replace('{f}', String(nome || '')));
+      return true;
+    } catch (e) { alert('Skills: ' + (e && e.message)); return false; }
+  };
+
+  try {
+    document.addEventListener('input', function (e) {
+      if (e.target && e.target.id === 'user-input') guardaComando(e.target);
+    }, true);
+  } catch (e) {}
+
+  window.AEGIS_ARCHIVIO = { apri: apriArchivio };
 
   window.AEGIS_MEMORIA = { apri: apriMemoria };
 
@@ -13858,6 +14426,6 @@ if (recognition) {
      versione vecchia di billing-ui.js e ogni correzione sembra non fare niente:
      si carica il file nuovo e si continua a eseguire quello vecchio. Ogni volta
      che billing-ui.js cambia, si alza questo numero. -->
-<script src="billing-ui.js?v=16" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
+<script src="billing-ui.js?v=20" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
 </body>
 </html>
