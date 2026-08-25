@@ -149,7 +149,8 @@
         continue;
       }
       annota({ tipo: 'fine', giri: _giri });
-      return { stato: 'finito', risposta: (risposta && risposta.testo) || '', giri: _giri };
+      return { stato: 'finito', risposta: (risposta && risposta.testo) || '',
+               senza_strumenti: !!(risposta && risposta.senza_strumenti), giri: _giri };
     }
     annota({ tipo: 'tetto_raggiunto', giri: _giri });
     return { stato: 'tetto', giri: _giri, messaggio: 'Raggiunto il numero massimo di passi per questo piano.' };
@@ -226,10 +227,18 @@
         nome = _nomeLibero(nome, esistenti);
 
         var f = await _cartella.getFileHandle(nome, { create: true });
+        /* IL CONTENUTO TORNA IN CHIARO PRIMA DI TOCCARE IL DISCO.
+           Il modello lavora sui codici e quindi scrive [[PER_01]]. Ma questo
+           e' il TUO disco, sul TUO computer: un file pieno di codici non
+           serve a niente. Si passa dal ripristino - la stessa funzione della
+           chat, lo stesso vault - cosi' sul file ci finiscono i nomi veri.
+           Il modello continua a non averli mai visti. */
+        var testo = String(a.contenuto || '');
+        try { if (root.aegisDecodifica) testo = root.aegisDecodifica(testo); } catch (e) {}
         var w = await f.createWritable();
-        await w.write(String(a.contenuto || ''));
+        await w.write(testo);
         await w.close();
-        return { scritto: nome, cartella: _cartella.name, byte: String(a.contenuto || '').length };
+        return { scritto: nome, cartella: _cartella.name, byte: testo.length };
       } catch (e) {
         if (e && e.name === 'AbortError') return { errore: 'nessuna cartella scelta' };
         return { errore: 'non sono riuscito a scrivere: ' + (e && e.message) };
@@ -312,6 +321,90 @@
     // Tutto il resto che sia testo si legge com'e'.
     return await file.text();
   }
+
+  /* Scegliere la cartella una volta sola. Il selettore del browser si apre
+     solo dopo un gesto umano: e' per questo che sta dentro conferma(), che
+     parte dal clic sul pulsante. */
+  async function _apriCartella() {
+    if (!root.showDirectoryPicker) throw new Error('Servono Chrome o Edge per aprire una cartella.');
+    if (!_cartella) _cartella = await root.showDirectoryPicker({ mode: 'readwrite' });
+    var p = await _cartella.queryPermission({ mode: 'readwrite' });
+    if (p !== 'granted') {
+      p = await _cartella.requestPermission({ mode: 'readwrite' });
+      if (p !== 'granted') throw new Error('permesso negato sulla cartella');
+    }
+    return _cartella;
+  }
+
+  registra({
+    nome: 'cartelle.elenca',
+    agisce: true,
+    descrizione: 'Elenca i file di una cartella del computer. La prima volta chiede di scegliere la cartella.',
+    parametri: { sottocartella: 'facoltativa' },
+    prepara: async function (a) {
+      return { descrizione: 'Aprire una cartella e leggerne l\u2019elenco dei file',
+               cartella: _cartella ? _cartella.name : '(la sceglierai tu adesso)',
+               sottocartella: a.sottocartella || '\u2014' };
+    },
+    conferma: async function (ap, a) {
+      try {
+        var dir = await _apriCartella();
+        if (a.sottocartella) {
+          try { dir = await dir.getDirectoryHandle(String(a.sottocartella)); }
+          catch (e) { return { errore: 'sottocartella non trovata: ' + a.sottocartella }; }
+        }
+        var file = [], cartelle = [];
+        for await (var v of dir.values()) {
+          if (v.kind === 'directory') cartelle.push(v.name);
+          else file.push(v.name);
+          if (file.length + cartelle.length > 400) break;
+        }
+        // I NOMI DEI FILE SONO DATI. "Contratto Bianchi 2024.pdf" contiene un
+        // cognome quanto il documento dentro. Passano dal mascheratore come
+        // qualunque altro testo prima di arrivare al modello.
+        return {
+          cartella: dir.name,
+          cartelle: cartelle.map(function (n) { return _mascheraSicura(n) || n; }),
+          file: file.map(function (n) { return _mascheraSicura(n) || n; }),
+          quanti: file.length
+        };
+      } catch (e) {
+        if (e && e.name === 'AbortError') return { errore: 'nessuna cartella scelta' };
+        return { errore: String(e && e.message || e) };
+      }
+    }
+  });
+
+  registra({
+    nome: 'cartelle.apri',
+    agisce: true,
+    descrizione: 'Apre e legge il contenuto di un file dentro la cartella scelta. Restituisce il testo mascherato.',
+    parametri: { nome: 'nome del file' },
+    prepara: async function (a) {
+      return { descrizione: 'Leggere un file dalla cartella',
+               cartella: _cartella ? _cartella.name : '(da scegliere)', file: a.nome || '' };
+    },
+    conferma: async function (ap, a) {
+      try {
+        var dir = await _apriCartella();
+        var nome = String(a.nome || '');
+        // Il nome arriva mascherato dall'elenco: si rimette in chiaro per
+        // trovarlo davvero sul disco.
+        try { if (root.aegisDecodifica) nome = root.aegisDecodifica(nome); } catch (e) {}
+        var h = await dir.getFileHandle(nome);
+        var f = await h.getFile();
+        if (f.size > 8 * 1024 * 1024) return { errore: 'file troppo grande (oltre 8 MB)' };
+        var grezzo = await estraiTesto(f);
+        var m = _mascheraSicura(grezzo);
+        if (!m && grezzo) return { errore: 'non sono riuscito a proteggere il testo: non lo restituisco in chiaro' };
+        return { file: a.nome, caratteri: grezzo.length, testo_mascherato: m.slice(0, 12000) };
+      } catch (e) {
+        if (e && e.name === 'NotFoundError') return { errore: 'file non trovato: ' + a.nome };
+        if (e && e.name === 'AbortError') return { errore: 'nessuna cartella scelta' };
+        return { errore: String(e && e.message || e) };
+      }
+    }
+  });
 
   registra({
     nome: 'documenti.leggi',
@@ -468,13 +561,30 @@
         '4. Un solo strumento per volta. Guarda il risultato prima di decidere il passo dopo.',
         '5. I codici fra doppie parentesi quadre (per esempio [[PER_01]]) sono dati protetti.',
         '   Non provare a indovinare cosa nascondono, non chiederlo, e riportali sempre identici.',
-        '6. Se non ti serve nessuno strumento, rispondi subito con {"testo":"..."}.'
+        '6. Se non ti serve nessuno strumento, rispondi subito con {"testo":"..."}.',
+        '',
+        'IMPORTANTE: non descrivere a parole cosa faresti. Se il compito richiede di',
+        'scrivere un file, leggere una cartella o eseguire un calcolo, DEVI chiamare lo',
+        'strumento corrispondente. Rispondere a parole senza chiamarlo e\u2019 un errore.',
+        '',
+        'ESEMPI:',
+        'compito: "scrivi un file di prova con dentro ciao"',
+        'risposta: {"strumento":"cartelle.scrivi","args":{"nome":"prova.txt","contenuto":"ciao"}}',
+        'compito: "dimmi che file ci sono nella cartella"',
+        'risposta: {"strumento":"cartelle.elenca","args":{}}'
       ].join('\n');
     }
 
-    // Estrae il JSON anche se il modello lo ha incartato male.
+    /* Estrae il JSON anche se il modello lo ha incartato male.
+       Ritorna null quando JSON non ce n'e' proprio: chi chiama decide se
+       insistere o arrendersi. Prima ritornavo direttamente {testo}, e questo
+       nascondeva il guasto peggiore: un modello che ignora gli strumenti e
+       risponde a parole sembrava un agente che aveva finito. Non aveva
+       nemmeno cominciato. */
     function leggiRisposta(grezzo) {
       var t = String(grezzo || '').trim();
+      // Il server aggiunge la marca della lingua: va tolta o rompe il JSON.
+      t = t.replace(/\[LANG:[^\]]*\]/gi, '').trim();
       t = t.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
       var i = t.indexOf('{'), j = t.lastIndexOf('}');
       if (i !== -1 && j > i) {
@@ -483,9 +593,7 @@
           if (o && (o.strumento || o.testo !== undefined)) return o;
         } catch (e) {}
       }
-      // Non e' JSON: lo trattiamo come risposta finale. Meglio una risposta
-      // in piu' che un agente che si pianta.
-      return { testo: t };
+      return null;
     }
 
     return async function chiedi(storia, strumenti) {
@@ -513,7 +621,42 @@
       var dati = await risposta.json();
       var testo = dati && dati.choices && dati.choices[0] && dati.choices[0].message
         ? dati.choices[0].message.content : '';
-      return leggiRisposta(testo);
+      var letto = leggiRisposta(testo);
+      if (letto) return letto;
+
+      /* SECONDA E ULTIMA CHIAMATA. Se non ha risposto in JSON gli si rimanda
+         indietro cio' che ha scritto, dicendogli senza giri di parole che
+         quel formato non serve a niente. I modelli piccoli sbagliano la
+         prima volta e azzeccano la seconda: un tentativo costa poco, un
+         agente che non usa mai gli strumenti non costa niente perche' non
+         lo usa nessuno. */
+      messaggi.push({ role: 'assistant', content: testo });
+      messaggi.push({ role: 'user', content:
+        'Quella risposta non e\u2019 utilizzabile: non era JSON. Rispondi ORA con un solo '
+        + 'oggetto JSON e nient\u2019altro. Per usare uno strumento: '
+        + '{"strumento":"nome.esatto","args":{...}}. Per rispondere all\u2019utente: {"testo":"..."}. '
+        + 'Nessuna spiegazione, nessun blocco di codice, solo l\u2019oggetto.' });
+
+      var due = await fetch(backend + '/api/chat', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: cfg.modello, local_id: cfg.localId, language: cfg.lingua || 'it-IT',
+          messages: messaggi.slice(-24), temperature: 0,
+          session_id: cfg.sessionId || null, user_email: cfg.email || null,
+          access_password: cfg.password || ''
+        })
+      });
+      if (due.ok) {
+        var d2 = await due.json();
+        var t2 = d2 && d2.choices && d2.choices[0] && d2.choices[0].message
+          ? d2.choices[0].message.content : '';
+        var l2 = leggiRisposta(t2);
+        if (l2) return l2;
+      }
+      // Si e' rifiutato due volte: si consegna quello che ha detto, ma
+      // segnalando che non ha usato gli strumenti invece di far finta.
+      return { testo: String(testo || '').replace(/\[LANG:[^\]]*\]/gi, '').trim(),
+               senza_strumenti: true };
     };
   }
 
