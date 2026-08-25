@@ -8999,6 +8999,14 @@ if (recognition) {
       sysTitolo:'Scheda di sistema',
       sysApri:'Come funziona AEGIS',
       sysNota:'Il documento che spiega come funziona il sistema, che cosa promette e che cosa non fa. Si apre in una scheda nuova.',
+      bkCodice:'Codice AG-…',
+      bkRiprendi:'Riprendi chat',
+      bkCodiceStorto:'Il codice ha la forma AG-XXXXXX.',
+      bkCodiceIgnoto:'Nessuna conversazione con questo codice su questo dispositivo.',
+      bkCodiceVuoto:'Quella conversazione e\' vuota.',
+      bkRipreso:'{n} messaggi ripresi. Proteggili e salvali.',
+      bkTu:'Io',
+      bkModello:'Assistente',
       opCancella:'Cancella la cronologia locale',
       opNota:'Le conversazioni e la corrispondenza fra codici e dati reali restano solo su questo dispositivo. Cancellandole non si recuperano.',
       opEsci:'Esci dall\u0027account', opChiudi:'Chiudi',
@@ -9268,6 +9276,14 @@ if (recognition) {
       sysTitolo:'Ficha del sistema',
       sysApri:'Como funciona AEGIS',
       sysNota:'El documento que explica como funciona el sistema, que promete y que no hace. Se abre en una pestana nueva.',
+      bkCodice:'Codigo AG-…',
+      bkRiprendi:'Traer chat',
+      bkCodiceStorto:'El codigo tiene la forma AG-XXXXXX.',
+      bkCodiceIgnoto:'No hay ninguna conversacion con este codigo en este dispositivo.',
+      bkCodiceVuoto:'Esa conversacion esta vacia.',
+      bkRipreso:'{n} mensajes traidos. Protegelos y guardalos.',
+      bkTu:'Yo',
+      bkModello:'Asistente',
       opCancella:'Borrar el historial local',
       opNota:'Las conversaciones y la correspondencia entre codigos y datos reales solo estan en este dispositivo. Si las borras no se recuperan.',
       opEsci:'Cerrar sesion', opChiudi:'Cerrar',
@@ -9537,6 +9553,14 @@ if (recognition) {
       sysTitolo:'System card',
       sysApri:'How AEGIS works',
       sysNota:'The document explaining how the system works, what it promises and what it does not do. Opens in a new tab.',
+      bkCodice:'Code AG-…',
+      bkRiprendi:'Bring chat',
+      bkCodiceStorto:'The code looks like AG-XXXXXX.',
+      bkCodiceIgnoto:'No conversation with this code on this device.',
+      bkCodiceVuoto:'That conversation is empty.',
+      bkRipreso:'{n} messages brought in. Protect them and save.',
+      bkTu:'Me',
+      bkModello:'Assistant',
       opCancella:'Delete local history',
       opNota:'Conversations and the mapping between codes and real data live only on this device. Deleting them cannot be undone.',
       opEsci:'Sign out', opChiudi:'Close',
@@ -9805,6 +9829,8 @@ if (recognition) {
       '.ag-ag-appr-b{display:flex;gap:8px;justify-content:flex-end;margin-top:11px}' +
       '.ag-ag-appr-b i{font-style:normal;font-size:11px;color:var(--text-light)}' +
       '.ag-se-lista{flex:1 1 auto;min-height:0;overflow-y:auto;padding:8px}' +
+      '#ag-sk-codice{flex:0 0 118px;width:118px;text-transform:uppercase;letter-spacing:.08em;' +
+        'font-family:\'Space Grotesk\',sans-serif}' +
       '.ag-agov .ag-sk-sx h4{margin:0;padding:12px 14px;font-size:9.5px;letter-spacing:.06em;' +
         'text-transform:uppercase;color:var(--text-light);border-bottom:1px solid var(--hairline)}' +
       '.ag-ag-barra{flex:none;display:flex;gap:9px}' +
@@ -11742,6 +11768,18 @@ if (recognition) {
      voci mostra, e in modalita' sessione compare il pulsante per svuotare.
      Tutto il resto - pennello, evidenzia, specchio, revisione, importazione,
      esportazione - e' identico perche' E' lo stesso codice. */
+  // Il codice della conversazione aperta adesso. Serve a marcare cio' che si
+  // salva nella banca della chat.
+  function codiceSessioneCorrente() {
+    try {
+      if (window.AEGIS_CRONOLOGIA && window.AEGIS_CRONOLOGIA.codiceDi &&
+          typeof currentSessionId !== 'undefined' && currentSessionId) {
+        return window.AEGIS_CRONOLOGIA.codiceDi(currentSessionId);
+      }
+    } catch (e) {}
+    return 'AG-SESSION';
+  }
+
   async function apriSkills(modo) {
     var seSessione = (modo === 'sessione');
     var R;
@@ -11810,6 +11848,12 @@ if (recognition) {
           '</div>' +
           '<div class="ag-sk-barra">' +
             '<div class="ag-sk-msg" id="ag-sk-msg"></div>' +
+            // IL CODICE. Seconda strada per riempire la banca dati: si incolla
+            // il codice di una conversazione preso dalla cronologia e viene
+            // dentro TUTTA quella chat - domande e risposte - gia' mascherata.
+            // Non si ricopia niente a mano e i codici sono gli stessi.
+            '<input type="text" id="ag-sk-codice" placeholder="' + T('bkCodice') + '" maxlength="12">' +
+            '<button type="button" class="ag-ia" id="ag-sk-riprendi">' + T('bkRiprendi') + '</button>' +
             '<input type="text" id="ag-sk-nome" placeholder="' + T('ragNome') + '" maxlength="120">' +
             '<button type="button" class="ag-toggle ag-toggle-sp' + (skOmbra ? ' on' : '') +
               '" id="ag-sk-evid"><span class="ag-dot"></span><span class="ag-lbl">' +
@@ -12033,6 +12077,30 @@ if (recognition) {
         f.click();
         return;
       }
+      if (b.id === 'ag-sk-riprendi') {
+        /* RIPRENDE UNA CHIACCHIERATA INTERA.
+           Prende il codice, trova quella conversazione nella cronologia
+           locale, e ne mette nel riquadro TUTTO il contenuto - le domande e
+           le risposte, in ordine. Poi il pannello lo maschera come farebbe
+           con qualsiasi testo incollato: la banca dati riceve solo codici,
+           e sono gli stessi della chat perche' il vault e' uno solo. */
+        var cod = String(ov.querySelector('#ag-sk-codice').value || '').trim().toUpperCase();
+        if (!/^AG-[A-Z0-9]{6}$/.test(cod)) { dimmi(T('bkCodiceStorto'), true); return; }
+        var chat = (window.AEGIS_CRONOLOGIA && window.AEGIS_CRONOLOGIA.trova)
+          ? window.AEGIS_CRONOLOGIA.trova(cod) : null;
+        if (!chat) { dimmi(T('bkCodiceIgnoto'), true); return; }
+        var pezzi = (chat.messaggi || []).map(function (m) {
+          var chi = (m.role === 'user') ? T('bkTu') : T('bkModello');
+          return chi + ': ' + String(m.content || '').trim();
+        }).filter(function (x) { return x.length > 4; });
+        if (!pezzi.length) { dimmi(T('bkCodiceVuoto'), true); return; }
+        area.value = pezzi.join('\n\n');
+        nome.value = cod + ' \u00b7 ' + (chat.titolo || '').slice(0, 60);
+        skSel = null;
+        rispecchia();
+        dimmi(T('bkRipreso').replace('{n}', pezzi.length));
+        return;
+      }
       if (b.id === 'ag-sk-salva') {
         var t = area.value.trim();
         if (!t) { dimmi(T('skVuotoTesto'), true); return; }
@@ -12040,7 +12108,14 @@ if (recognition) {
         try {
           if (skSel) await R.sostituisci(skSel, t, nome.value.trim());
           else {
-            var d = await R.aggiungi(nome.value.trim() || t.split('\n')[0].slice(0, 60), t);
+            var etichetta = nome.value.trim() || t.split('\n')[0].slice(0, 60);
+            // Nella banca della chat il nome porta davanti il codice della
+            // conversazione: e' cosi' che si riconosce chi va svuotato quando
+            // se ne apre una nuova, e chi invece resta per sempre.
+            if (seSessione && !/^AG-[A-Z0-9]{6}\b/i.test(etichetta)) {
+              etichetta = codiceSessioneCorrente() + ' \u00b7 ' + etichetta;
+            }
+            var d = await R.aggiungi(etichetta, t);
             skSel = d.id;
           }
           dimmi(T('skSalvata'));
@@ -12088,9 +12163,6 @@ if (recognition) {
         '<div class="ag-op-sez"><h4>' + T('arTitolo') + '</h4>' +
           '<p class="ag-op-nota">' + T('arIntro') + '</p>' +
           '<button type="button" class="ag-op-btn" id="ag-op-archivio">' + T('btnArchivio') + '</button></div>' +
-        '<div class="ag-op-sez"><h4>' + T('sesTitolo') + '</h4>' +
-          '<p class="ag-op-nota">' + T('sesAvviso') + '</p>' +
-          '<button type="button" class="ag-op-btn" id="ag-op-sessione">' + T('btnSessione') + '</button></div>' +
         // La scheda di sistema (benchmark.html): come funziona, cosa promette,
         // cosa non fa, con le misure del motore. Si apre in una scheda nuova
         // perche' e' un documento da leggere e da mandare a qualcuno, non un
@@ -14525,7 +14597,17 @@ if (recognition) {
     document.addEventListener('click', function (e) {
       var t = e.target;
       if (!t || !t.closest) return;
-      if (t.closest('#ag-memoria-btn') || t.closest('#ag-op-memoria')) { e.preventDefault(); apriMemoria(); return; }
+      // MEMORIA CHAT = MEMORIA CONVERSAZIONE: sono la stessa banca dati, e
+      // adesso hanno lo stesso identico pannello. Prima erano due voci che
+      // aprivano due cose diverse: era la confusione che ho creato io.
+      if (t.closest('#ag-memoria-btn') || t.closest('#ag-op-memoria') ||
+          t.closest('#ag-op-sessione') || t.closest('#ag-mem-sessione')) {
+        e.preventDefault();
+        var vm = document.getElementById('ag-mem'), vv = document.getElementById('ag-mem-velo');
+        if (vm) vm.remove(); if (vv) vv.remove();
+        if (window.aegisApriBase) window.aegisApriBase('sessione');
+        return;
+      }
       if (t.closest('#ag-agente-btn'))  { e.preventDefault(); apriAgente(); return; }
       if (t.closest('#ag-upgrade-btn')) {
         e.preventDefault();
@@ -14653,19 +14735,21 @@ if (recognition) {
         var i = document.getElementById('arch-file-input'); if (i) i.click();
         return;
       }
-      if (t.closest('#ag-op-archivio')) { e.preventDefault(); apriArchivio(''); return; }
+      // La "memoria generale" e' la banca dati di tutte le chat, e usa LO
+      // STESSO pannello di quella di sessione. L'archivio dei file su disco
+      // resta raggiungibile dal cassetto nella barra di scrittura: e' un'altra
+      // cosa, e mescolarli era l'errore di prima.
+      if (t.closest('#ag-op-archivio')) {
+        e.preventDefault();
+        if (window.aegisApriBase) window.aegisApriBase('generale');
+        return;
+      }
       if (t.closest('#ag-op-sistema')) {
         e.preventDefault();
         // Percorso relativo: funziona sul sito, in locale e dentro il
         // pannello dell'estensione, senza scriverci dentro un dominio.
         try { window.open('benchmark.html', '_blank', 'noopener'); } catch (err) {}
         return;
-      }
-      if (t.closest('#ag-op-sessione') || t.closest('#ag-mem-sessione')) {
-        e.preventDefault();
-        var ap = document.getElementById('ag-mem'), av = document.getElementById('ag-mem-velo');
-        if (ap) ap.remove(); if (av) av.remove();
-        apriSessione(); return;
       }
       if (t.closest('#ag-op-docreset')) {
         e.preventDefault();
@@ -15102,7 +15186,7 @@ if (recognition) {
   // L'agente maschera con la STESSA funzione della chat: un solo motore.
   window.aegisMascheraTesto = mascheraTesto;
 
-  window.AEGIS_CRONOLOGIA = { leggi: leggi, codiceDi: codiceDi, argomentiDi: argomentiDi, svuota: function () {
+  window.AEGIS_CRONOLOGIA = { leggi: leggi, codiceDi: codiceDi, trova: chatDaCodice, argomentiDi: argomentiDi, svuota: function () {
     try { localStorage.removeItem(CHIAVE); } catch (e) {}
   } };
 })();
@@ -15364,6 +15448,6 @@ if (recognition) {
      versione vecchia di billing-ui.js e ogni correzione sembra non fare niente:
      si carica il file nuovo e si continua a eseguire quello vecchio. Ogni volta
      che billing-ui.js cambia, si alza questo numero. -->
-<script src="billing-ui.js?v=32" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
+<script src="billing-ui.js?v=33" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
 </body>
 </html>
