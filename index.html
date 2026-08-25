@@ -682,6 +682,30 @@ body {
 .ag-ag-perm.scrive { color:#8a5a10; background:rgba(200,140,20,.13); }
 .ag-ag-nome { font:600 12px ui-monospace,Menlo,monospace; color:#1d1d1f; }
 .ag-ag-desc { font-size:11px; color:#6e6e73; line-height:1.4; }
+.ag-ag-passi { display:flex; flex-direction:column; gap:6px; max-height:34vh; overflow-y:auto;
+  margin-top:14px; }
+.ag-ag-passi:empty { display:none; }
+.ag-ag-passo { font-size:11.5px; line-height:1.5; padding:8px 11px; border-radius:9px; }
+.ag-ag-passo.io { background:#F2F2F4; color:#1d1d1f; align-self:flex-end; max-width:85%; }
+.ag-ag-passo.str { background:transparent; color:#8b8b90; font:600 10.5px ui-monospace,Menlo,monospace;
+  padding:3px 4px; }
+.ag-ag-passo.att { color:#8b8b90; font-style:italic; padding:3px 4px; }
+.ag-ag-passo.lui { background:#fff; border:1px solid rgba(0,0,0,.1); color:#1d1d1f; }
+.ag-ag-passo.err { background:rgba(176,48,48,.07); color:#b03030; }
+.ag-ag-appr { border:1px solid rgba(200,140,20,.45); background:rgba(200,140,20,.07);
+  border-radius:11px; padding:12px 14px; }
+.ag-ag-appr.ok { border-color:rgba(47,106,82,.45); background:rgba(47,106,82,.07); }
+.ag-ag-appr.no { border-color:rgba(176,48,48,.35); background:rgba(176,48,48,.06); }
+.ag-ag-appr b { font-size:12px; color:#8a5a10; }
+.ag-ag-appr.ok b { color:#2f6a52; }
+.ag-ag-appr p { margin:5px 0 9px; font-size:11.5px; color:#1d1d1f; }
+.ag-ag-camp { display:flex; gap:9px; margin-bottom:5px; font-size:11px; }
+.ag-ag-camp span { flex:none; min-width:74px; color:#8b8b90; }
+.ag-ag-camp code { flex:1 1 auto; min-width:0; background:#fff; border:1px solid rgba(0,0,0,.1);
+  border-radius:6px; padding:4px 7px; font:400 10.5px ui-monospace,Menlo,monospace;
+  color:#1d1d1f; word-break:break-word; max-height:110px; overflow:auto; }
+.ag-ag-appr-b { display:flex; gap:8px; justify-content:flex-end; margin-top:10px; }
+.ag-ag-appr-b i { font-style:normal; font-size:11px; color:#6e6e73; }
 /* dove va il documento */
 .ag-dv-scelte { display:flex; flex-direction:column; gap:9px; margin-top:16px; }
 .ag-dv-b { display:flex; flex-direction:column; gap:4px; text-align:left; padding:13px 15px;
@@ -8922,12 +8946,20 @@ if (recognition) {
       aiutoGraffetta:'Carica un documento: puoi metterlo nel messaggio o tenerlo da parte per questa conversazione',
       aiutoArchivio:'Archivia un documento su questo dispositivo: lo sistema da solo e lo ritrovi chiedendolo a parole',
       agIntro:'L\'assistente puo\' svolgere piccoli compiti da solo, usando gli strumenti qui sotto. Legge in autonomia; tutto cio\' che scrive o esegue lo prepara e te lo mostra, e parte solo se lo confermi tu.',
-      agAvvisoBozza:'In questa fase l\'agente PREPARA le azioni ma non le esegue: e\' lo scheletro, e ogni strumento va collegato al mondo un passo alla volta.',
+      agAvvisoBozza:'Gli strumenti che scrivono su disco o eseguono codice ora agiscono davvero. Non partono mai da soli: ogni azione ti viene mostrata per esteso e parte solo se premi Conferma. Il codice gira in un processo separato senza rete, i file si scrivono solo nella cartella che scegli tu.',
       agStrumenti:'Strumenti disponibili',
       agLegge:'legge',
       agScrive:'scrive · conferma',
       agNessuno:'Nessuno strumento caricato.',
       agNota:'Il modello vede sempre e solo testo protetto, anche qui. I dati reali non entrano mai nel suo ragionamento.',
+      agCompito:'Che cosa devo fare? Per esempio: trova i contratti del 2026',
+      agVia:'Esegui',
+      agPenso:'Sto pensando…',
+      agConfermaTit:'Serve la tua conferma',
+      agConferma:'Conferma ed esegui',
+      agRifiuta:'No, ferma',
+      agConfermato:'Confermato da te',
+      agRifiutato:'Rifiutato: non ho fatto niente',
       opCancella:'Cancella la cronologia locale',
       opNota:'Le conversazioni e la corrispondenza fra codici e dati reali restano solo su questo dispositivo. Cancellandole non si recuperano.',
       opEsci:'Esci dall\u0027account', opChiudi:'Chiudi',
@@ -9168,12 +9200,20 @@ if (recognition) {
       aiutoGraffetta:'Sube un documento: puedes ponerlo en el mensaje o guardarlo para esta conversacion',
       aiutoArchivio:'Archiva un documento en este dispositivo: lo ordena solo y lo recuperas pidiendolo con palabras',
       agIntro:'El asistente puede realizar pequenas tareas solo, usando las herramientas de abajo. Lee por su cuenta; todo lo que escribe o ejecuta lo prepara y te lo muestra, y solo sale si lo confirmas tu.',
-      agAvvisoBozza:'En esta fase el agente PREPARA las acciones pero no las ejecuta: es el esqueleto, y cada herramienta se conecta al mundo paso a paso.',
+      agAvvisoBozza:'Las herramientas que escriben en disco o ejecutan codigo ahora actuan de verdad. Nunca se lanzan solas: cada accion se te muestra entera y solo sale si pulsas Confirmar. El codigo corre en un proceso aparte sin red, y los archivos se escriben solo en la carpeta que elijas tu.',
       agStrumenti:'Herramientas disponibles',
       agLegge:'lee',
       agScrive:'escribe · confirmar',
       agNessuno:'Ninguna herramienta cargada.',
       agNota:'El modelo siempre ve solo texto protegido, tambien aqui. Los datos reales nunca entran en su razonamiento.',
+      agCompito:'¿Que tengo que hacer? Por ejemplo: busca los contratos de 2026',
+      agVia:'Ejecutar',
+      agPenso:'Estoy pensando…',
+      agConfermaTit:'Hace falta tu confirmacion',
+      agConferma:'Confirmar y ejecutar',
+      agRifiuta:'No, para',
+      agConfermato:'Confirmado por ti',
+      agRifiutato:'Rechazado: no he hecho nada',
       opCancella:'Borrar el historial local',
       opNota:'Las conversaciones y la correspondencia entre codigos y datos reales solo estan en este dispositivo. Si las borras no se recuperan.',
       opEsci:'Cerrar sesion', opChiudi:'Cerrar',
@@ -9414,12 +9454,20 @@ if (recognition) {
       aiutoGraffetta:'Upload a document: put it in the message or keep it for this conversation',
       aiutoArchivio:'File a document on this device: it sorts it out itself and you get it back just by asking',
       agIntro:'The assistant can carry out small tasks on its own, using the tools below. It reads by itself; anything it writes or runs it prepares and shows you, and it only goes out if you confirm.',
-      agAvvisoBozza:'At this stage the agent PREPARES actions but does not run them: this is the skeleton, and each tool is connected to the world one step at a time.',
+      agAvvisoBozza:'The tools that write to disk or run code now really act. They never start on their own: every action is shown to you in full and only goes ahead if you press Confirm. Code runs in a separate process with no network, and files are written only into the folder you choose.',
       agStrumenti:'Available tools',
       agLegge:'reads',
       agScrive:'writes · confirm',
       agNessuno:'No tools loaded.',
       agNota:'The model always sees only protected text, here too. Real data never enters its reasoning.',
+      agCompito:'What should I do? For example: find the 2026 contracts',
+      agVia:'Run',
+      agPenso:'Thinking…',
+      agConfermaTit:'Your confirmation is needed',
+      agConferma:'Confirm and run',
+      agRifiuta:'No, stop',
+      agConfermato:'Confirmed by you',
+      agRifiutato:'Refused: I did nothing',
       opCancella:'Delete local history',
       opNota:'Conversations and the mapping between codes and real data live only on this device. Deleting them cannot be undone.',
       opEsci:'Sign out', opChiudi:'Close',
@@ -14059,7 +14107,11 @@ if (recognition) {
     d.innerHTML = '<button type="button" class="ag-vt-x" id="ag-ag-x">&times;</button>' +
       '<h3>' + T('agTitolo') + '</h3>' +
       '<p class="ag-vt-som">' + T('agIntro') + '</p>' +
-      '<div class="ag-ag-avviso">' + T('agAvvisoBozza') + '</div>' +
+      '<div class="ag-mem-riga">' +
+        '<input type="text" id="ag-ag-compito" class="ag-ar-inp" placeholder="' + T('agCompito') + '" autocomplete="off">' +
+        '<button type="button" id="ag-ag-via">' + T('agVia') + '</button>' +
+      '</div>' +
+      '<div class="ag-ag-passi" id="ag-ag-passi"></div>' +
       '<h4 style="margin:18px 0 8px">' + T('agStrumenti') + '</h4>' +
       '<div class="ag-ag-lista">' + (righe || ('<p class="ag-vt-som">' + T('agNessuno') + '</p>')) + '</div>' +
       '<p class="ag-dv-cmd">' + T('agNota') + '</p>';
@@ -14067,6 +14119,110 @@ if (recognition) {
     function chiudi(){ var a=document.getElementById('ag-ag'),b=document.getElementById('ag-ag-velo');
       if(a)a.remove(); if(b)b.remove(); }
     velo.onclick = chiudi; d.querySelector('#ag-ag-x').onclick = chiudi;
+
+    var passi = d.querySelector('#ag-ag-passi');
+    function scrivi(classe, testo) {
+      var r = document.createElement('div');
+      r.className = 'ag-ag-passo ' + classe;
+      r.textContent = testo;
+      passi.appendChild(r);
+      passi.scrollTop = passi.scrollHeight;
+      return r;
+    }
+
+    /* La carta dell'approvazione. Compare quando l'agente vuole fare qualcosa
+       che tocca il mondo: mostra COSA farebbe, per esteso, e resta ferma
+       finche' un umano non decide. Nessun conto alla rovescia, nessun
+       "conferma" preselezionato: chi legge di fretta deve poter leggere. */
+    function chiediApprovazione(anteprima) {
+      return new Promise(function (risolvi) {
+        var c = document.createElement('div');
+        c.className = 'ag-ag-appr';
+        var dettagli = Object.keys(anteprima || {}).filter(function (k) {
+          return k !== 'descrizione' && anteprima[k];
+        }).map(function (k) {
+          return '<div class="ag-ag-camp"><span>' + escapeHtml(k) + '</span><code>' +
+                 escapeHtml(String(anteprima[k]).slice(0, 500)) + '</code></div>';
+        }).join('');
+        c.innerHTML = '<b>' + T('agConfermaTit') + '</b>' +
+          '<p>' + escapeHtml((anteprima && anteprima.descrizione) || '') + '</p>' +
+          dettagli +
+          '<div class="ag-ag-appr-b">' +
+            '<button type="button" class="leggero" data-a="no">' + T('agRifiuta') + '</button>' +
+            '<button type="button" data-a="si">' + T('agConferma') + '</button>' +
+          '</div>';
+        passi.appendChild(c);
+        passi.scrollTop = passi.scrollHeight;
+        c.addEventListener('click', function (e) {
+          var b = e.target.closest ? e.target.closest('[data-a]') : null;
+          if (!b) return;
+          var si = b.getAttribute('data-a') === 'si';
+          c.classList.add(si ? 'ok' : 'no');
+          c.querySelector('.ag-ag-appr-b').innerHTML =
+            '<i>' + T(si ? 'agConfermato' : 'agRifiutato') + '</i>';
+          risolvi(si);
+        });
+      });
+    }
+
+    async function via() {
+      var compito = String(document.getElementById('ag-ag-compito').value || '').trim();
+      if (!compito) return;
+      if (!window.AEGIS_AGENTE) { scrivi('err', 'aegis-agente.js non caricato'); return; }
+      passi.innerHTML = '';
+      window.AEGIS_AGENTE._reset();
+
+      // Il compito passa dal mascheratore come qualsiasi altro testo: se
+      // l'utente ci ha scritto dentro un nome, al modello non arriva.
+      var compitoProtetto = mascheraTesto(compito) || compito;
+      scrivi('io', compitoProtetto);
+
+      var chiedi = window.AEGIS_AGENTE.creaCervello({
+        backend: window.AEGIS_BACKEND || 'https://chatbot-backend-dev.onrender.com',
+        modello: (typeof MODELO_ACTUAL === 'function') ? MODELO_ACTUAL() : null,
+        localId: (typeof LOCAL_ID !== 'undefined') ? LOCAL_ID : 'aegis',
+        sessionId: (typeof currentSessionId !== 'undefined') ? currentSessionId : null,
+        email: safeStorage.getSession('chat_user_email') || null,
+        password: (typeof getAccessPassword === 'function') ? getAccessPassword() : '',
+        lingua: activeLanguageCode
+      });
+
+      // Ogni passo si vede mentre succede: un agente che lavora in silenzio
+      // e' un agente di cui non ci si fida.
+      window.AEGIS_AGENTE_ONLOG = function (v) {
+        if (v.tipo === 'lettura') scrivi('str', '\u2192 ' + v.strumento);
+        if (v.tipo === 'rifiutato') scrivi('err', T('agRifiutato'));
+      };
+
+      var giriMax = 15;
+      var attesa = document.createElement('div');
+      attesa.className = 'ag-ag-passo att'; attesa.textContent = T('agPenso');
+      passi.appendChild(attesa);
+
+      try {
+        var esito = await window.AEGIS_AGENTE.esegui(compitoProtetto, { chiedi: chiedi, giriMax: giriMax });
+        // Il ciclo si sospende ogni volta che serve un umano, e riprende dopo.
+        while (esito && esito.stato === 'attende_approvazione') {
+          attesa.remove();
+          var ok = await chiediApprovazione(esito.anteprima);
+          if (!ok) { window.AEGIS_AGENTE.rifiuta(); break; }
+          await window.AEGIS_AGENTE.approva();
+          passi.appendChild(attesa);
+          esito = await window.AEGIS_AGENTE.esegui(compitoProtetto, { chiedi: chiedi, giriMax: giriMax });
+        }
+        attesa.remove();
+        if (esito && esito.stato === 'finito') scrivi('lui', esito.risposta || '');
+        else if (esito && esito.stato === 'tetto') scrivi('err', esito.messaggio);
+      } catch (e) {
+        attesa.remove();
+        scrivi('err', (e && e.message) || 'errore');
+      }
+      window.AEGIS_AGENTE_ONLOG = null;
+    }
+    d.querySelector('#ag-ag-via').onclick = via;
+    d.querySelector('#ag-ag-compito').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); via(); }
+    });
   }
 
   // I tre pulsanti nuovi. L'ascolto sta sul documento perche' il pannello di
@@ -14853,6 +15009,6 @@ if (recognition) {
      versione vecchia di billing-ui.js e ogni correzione sembra non fare niente:
      si carica il file nuovo e si continua a eseguire quello vecchio. Ogni volta
      che billing-ui.js cambia, si alza questo numero. -->
-<script src="billing-ui.js?v=25" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
+<script src="billing-ui.js?v=27" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
 </body>
 </html>
