@@ -8996,6 +8996,9 @@ if (recognition) {
       sesAvviso:'Sparisce quando apri una chat nuova. I tuoi documenti stanno nella base di conoscenza, e quelli restano.',
       sesProtetto:'Il testo che vedi e\' gia\' protetto: i dati reali sono sostituiti dai codici, come nella chat.',
       btnSessione:'Memoria conversazione',
+      sysTitolo:'Scheda di sistema',
+      sysApri:'Come funziona AEGIS',
+      sysNota:'Il documento che spiega come funziona il sistema, che cosa promette e che cosa non fa. Si apre in una scheda nuova.',
       opCancella:'Cancella la cronologia locale',
       opNota:'Le conversazioni e la corrispondenza fra codici e dati reali restano solo su questo dispositivo. Cancellandole non si recuperano.',
       opEsci:'Esci dall\u0027account', opChiudi:'Chiudi',
@@ -9262,6 +9265,9 @@ if (recognition) {
       sesAvviso:'Desaparece cuando abres un chat nuevo. Tus documentos estan en la base de conocimiento, y esos se quedan.',
       sesProtetto:'El texto que ves ya esta protegido: los datos reales estan sustituidos por codigos, como en el chat.',
       btnSessione:'Memoria conversacion',
+      sysTitolo:'Ficha del sistema',
+      sysApri:'Como funciona AEGIS',
+      sysNota:'El documento que explica como funciona el sistema, que promete y que no hace. Se abre en una pestana nueva.',
       opCancella:'Borrar el historial local',
       opNota:'Las conversaciones y la correspondencia entre codigos y datos reales solo estan en este dispositivo. Si las borras no se recuperan.',
       opEsci:'Cerrar sesion', opChiudi:'Cerrar',
@@ -9528,6 +9534,9 @@ if (recognition) {
       sesAvviso:'It disappears when you open a new chat. Your own documents live in the knowledge base, and those stay.',
       sesProtetto:'The text you see is already protected: real data is replaced by codes, as in the chat.',
       btnSessione:'Conversation memory',
+      sysTitolo:'System card',
+      sysApri:'How AEGIS works',
+      sysNota:'The document explaining how the system works, what it promises and what it does not do. Opens in a new tab.',
       opCancella:'Delete local history',
       opNota:'Conversations and the mapping between codes and real data live only on this device. Deleting them cannot be undone.',
       opEsci:'Sign out', opChiudi:'Close',
@@ -12053,6 +12062,14 @@ if (recognition) {
         '<div class="ag-op-sez"><h4>' + T('sesTitolo') + '</h4>' +
           '<p class="ag-op-nota">' + T('sesAvviso') + '</p>' +
           '<button type="button" class="ag-op-btn" id="ag-op-sessione">' + T('btnSessione') + '</button></div>' +
+        // La scheda di sistema (benchmark.html): come funziona, cosa promette,
+        // cosa non fa, con le misure del motore. Si apre in una scheda nuova
+        // perche' e' un documento da leggere e da mandare a qualcuno, non un
+        // pannello da sfogliare di fretta. Ha un suo cambio lingua interno:
+        // qui non gli si impone la lingua dell'interfaccia.
+        '<div class="ag-op-sez"><h4>' + T('sysTitolo') + '</h4>' +
+          '<p class="ag-op-nota">' + T('sysNota') + '</p>' +
+          '<button type="button" class="ag-op-btn" id="ag-op-sistema">' + T('sysApri') + '</button></div>' +
         '<div class="ag-op-sez"><button type="button" class="ag-op-btn" id="ag-op-docreset">' +
           T('opDocReset') + '</button></div>' +
         '<div class="ag-op-sez"><h4>' + T('opAvvisi') + '</h4>' + righeAvvisi + '</div>' +
@@ -12230,6 +12247,36 @@ if (recognition) {
      duplicarle - due verita' che prima o poi divergono - si espone una porta.
      Chi sta fuori chiede lo stato e chiede di commutare; il valore resta uno
      solo, qui dentro. */
+  /* ============ I DUE AGGANCI CHE CERCA L'ESTENSIONE ====================
+     Il ponte del pannello laterale li cerca in modo difensivo, quindi finora
+     non rompevano niente: semplicemente il pulsante "Manda a ChatGPT" della
+     barra non faceva nulla. Sono due righe e chiudono quel buco.
+     ===================================================================== */
+  window.aegisTestoProtettoCorrente = function () {
+    // Il testo del compositore GIA' mascherato, pronto da consegnare al sito.
+    // Congelato, come l'invio vero: i codici devono essere quelli del vault,
+    // non numeri provvisori dell'anteprima.
+    try {
+      var c = document.getElementById('user-input');
+      var t = c ? String(c.value || '') : '';
+      if (!t.trim()) return '';
+      var r = maschera(t, true);
+      return (r && r.testo) || '';
+    } catch (e) { return ''; }
+  };
+
+  window.aegisMostraRisposta = function (testo) {
+    // Una risposta arrivata dal sito, fuori dal flusso normale: entra in
+    // cronologia come qualunque altra, cosi' ripristino del vault, colori e
+    // pulsanti funzionano senza sapere da dove viene.
+    try {
+      // aegisModello e' il gancio che la cronologia usa gia' per ogni risposta:
+      // non ne serve un secondo, e uno inventato qui divergerebbe.
+      if (window.aegisModello) { window.aegisModello(String(testo || '')); return true; }
+    } catch (e) {}
+    return false;
+  };
+
   window.AEGIS_INTERRUTTORI = {
     stato: function () {
       return { pennello: !!pennelloAcceso, profonda: !!PROFONDA,
@@ -14574,6 +14621,13 @@ if (recognition) {
         return;
       }
       if (t.closest('#ag-op-archivio')) { e.preventDefault(); apriArchivio(''); return; }
+      if (t.closest('#ag-op-sistema')) {
+        e.preventDefault();
+        // Percorso relativo: funziona sul sito, in locale e dentro il
+        // pannello dell'estensione, senza scriverci dentro un dominio.
+        try { window.open('benchmark.html', '_blank', 'noopener'); } catch (err) {}
+        return;
+      }
       if (t.closest('#ag-op-sessione') || t.closest('#ag-mem-sessione')) {
         e.preventDefault();
         var ap = document.getElementById('ag-mem'), av = document.getElementById('ag-mem-velo');
@@ -15398,6 +15452,6 @@ if (recognition) {
      versione vecchia di billing-ui.js e ogni correzione sembra non fare niente:
      si carica il file nuovo e si continua a eseguire quello vecchio. Ogni volta
      che billing-ui.js cambia, si alza questo numero. -->
-<script src="billing-ui.js?v=30" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
+<script src="billing-ui.js?v=31" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
 </body>
 </html>
