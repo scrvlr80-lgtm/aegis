@@ -542,6 +542,23 @@
     cfg = cfg || {};
     var backend = cfg.backend || 'https://chatbot-backend-dev.onrender.com';
 
+    /* ====== DOVE VA A FINIRE QUESTA CHIAMATA ==============================
+       Nella web app parla col nostro backend, e paghiamo noi il modello.
+       Nel pannello dell'estensione NON deve farlo: li' l'utente sta usando
+       il proprio abbonamento a ChatGPT, e una chiamata che sfugge al ponte
+       spenderebbe i nostri soldi mentre lui crede di spendere i suoi. Nessun
+       errore, nessun avviso: te ne accorgi dalla fattura.
+       Per questo la chiamata passa dal ponte quando il ponte c'e'. Una riga,
+       e l'agente si comporta bene in tutti e due i mondi senza un solo
+       "se siamo nell'estensione" sparso nel codice.
+       =================================================================== */
+    function chiamata(percorso, opzioni) {
+      if (root.AEGIS_PONTE && typeof root.AEGIS_PONTE.fetch === 'function') {
+        return root.AEGIS_PONTE.fetch(percorso, opzioni);
+      }
+      return fetch(backend + percorso, opzioni);
+    }
+
     function istruzioni(strumenti) {
       var elenco = strumenti.map(function (s) {
         return '- ' + s.nome + (s.agisce ? ' [richiede conferma umana]' : '') +
@@ -606,7 +623,7 @@
         } else messaggi.push({ role: 'assistant', content: m.testo });
       });
 
-      var risposta = await fetch(backend + '/api/chat', {
+      var risposta = await chiamata('/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: cfg.modello, local_id: cfg.localId, language: cfg.lingua || 'it-IT',
@@ -637,7 +654,7 @@
         + '{"strumento":"nome.esatto","args":{...}}. Per rispondere all\u2019utente: {"testo":"..."}. '
         + 'Nessuna spiegazione, nessun blocco di codice, solo l\u2019oggetto.' });
 
-      var due = await fetch(backend + '/api/chat', {
+      var due = await chiamata('/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: cfg.modello, local_id: cfg.localId, language: cfg.lingua || 'it-IT',
