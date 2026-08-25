@@ -8764,7 +8764,7 @@ if (recognition) {
       skEsportaTutto:'Esporta archivio',
       skImporta:'Importa archivio',
       skImportate:'{n} Skill importate.',
-      skLocale:'Le Skill restano su questo dispositivo. Per portarle su un altro computer esporta l\u0027archivio e importalo la\u0027: il file contiene i documenti in chiaro, trattalo come gli originali.',
+      skLocale:'Le Skill restano su questo dispositivo. Il testo e\u0027 conservato gia\u0027 protetto: i dati veri sono sostituiti dai codici. Per portarle su un altro computer esporta l\u0027archivio e importalo la\u0027.',
       skElenco:'Skills salvate',
       skVuoto:'Nessuna Skill. Quello che salvi qui il modello lo sa a ogni domanda.',
       skChiaro:'Documento in chiaro',
@@ -9007,6 +9007,8 @@ if (recognition) {
       bkRipreso:'{n} messaggi ripresi. Proteggili e salvali.',
       bkTu:'Io',
       bkModello:'Assistente',
+      skNoMaschera:'Non riesco a proteggere questo testo adesso: non lo salvo in chiaro.',
+      skNonTrovata:'Voce non trovata nell\'archivio.',
       opCancella:'Cancella la cronologia locale',
       opNota:'Le conversazioni e la corrispondenza fra codici e dati reali restano solo su questo dispositivo. Cancellandole non si recuperano.',
       opEsci:'Esci dall\u0027account', opChiudi:'Chiudi',
@@ -9041,7 +9043,7 @@ if (recognition) {
       skEsportaTutto:'Exportar archivo',
       skImporta:'Importar archivo',
       skImportate:'{n} Skills importadas.',
-      skLocale:'Las Skills se quedan en este dispositivo. Para llevarlas a otro ordenador exporta el archivo e importalo alli: el fichero contiene los documentos en claro, tratalo como los originales.',
+      skLocale:'Las Skills se quedan en este dispositivo. El texto se guarda ya protegido: los datos reales estan sustituidos por codigos. Para llevarlas a otro ordenador exporta el archivo e importalo alli.',
       skElenco:'Skills guardadas',
       skVuoto:'Ninguna Skill. Lo que guardes aqui el modelo lo sabe en cada pregunta.',
       skChiaro:'Documento en claro',
@@ -9284,6 +9286,8 @@ if (recognition) {
       bkRipreso:'{n} mensajes traidos. Protegelos y guardalos.',
       bkTu:'Yo',
       bkModello:'Asistente',
+      skNoMaschera:'No puedo proteger este texto ahora: no lo guardo en claro.',
+      skNonTrovata:'Entrada no encontrada en el archivo.',
       opCancella:'Borrar el historial local',
       opNota:'Las conversaciones y la correspondencia entre codigos y datos reales solo estan en este dispositivo. Si las borras no se recuperan.',
       opEsci:'Cerrar sesion', opChiudi:'Cerrar',
@@ -9318,7 +9322,7 @@ if (recognition) {
       skEsportaTutto:'Export archive',
       skImporta:'Import archive',
       skImportate:'{n} Skills imported.',
-      skLocale:'Skills stay on this device. To move them to another computer, export the archive and import it there: the file holds the documents in the clear, treat it like the originals.',
+      skLocale:'Skills stay on this device. The text is stored already protected: real data is replaced by codes. To move them to another computer, export the archive and import it there.',
       skElenco:'Saved Skills',
       skVuoto:'No Skills yet. Whatever you save here, the model knows on every question.',
       skChiaro:'Document in the clear',
@@ -9561,6 +9565,8 @@ if (recognition) {
       bkRipreso:'{n} messages brought in. Protect them and save.',
       bkTu:'Me',
       bkModello:'Assistant',
+      skNoMaschera:'I cannot protect this text right now: I will not save it in the clear.',
+      skNonTrovata:'Entry not found in the archive.',
       opCancella:'Delete local history',
       opNota:'Conversations and the mapping between codes and real data live only on this device. Deleting them cannot be undone.',
       opEsci:'Sign out', opChiudi:'Close',
@@ -11741,7 +11747,15 @@ if (recognition) {
           var file = f.files && f.files[0];
           if (!file || !window.AEGIS_DOC) return;
           try {
-            var testo = await window.AEGIS_DOC.estrai(file);
+            var grezzo = await window.AEGIS_DOC.estrai(file);
+            // STESSA FALLA DEL SALVATAGGIO, IN UN ALTRO PUNTO.
+            // Sostituendo il contenuto di una voce con un file, il testo
+            // estratto finiva in banca dati cosi' com'era: nomi veri dentro
+            // l'archivio che il modello consulta da solo. Si maschera qui, e
+            // congelato sul vault come ovunque: un dato, un codice.
+            var testo = '';
+            try { var rr = maschera(String(grezzo || ''), true); testo = (rr && rr.testo) || ''; } catch (e2) { testo = ''; }
+            if (!testo) { dimmi(T('skNoMaschera'), true); return; }
             await R.sostituisci(id, testo);
             await ridisegna();
             apriNelPannello(id);
@@ -11979,12 +11993,21 @@ if (recognition) {
       if (pt) {
         e.stopPropagation();
         var id = pt.getAttribute('data-menu');
-        var dati = await R.leggi(id);
-        if (dati) skMenu(id, dati, pt.getBoundingClientRect(), R, ridisegnaSkill, apriNelPannello);
+        // Se qualcosa qui dentro fallisce, il clic moriva in silenzio e il
+        // menu sembrava semplicemente non esistere. Adesso l'errore si vede.
+        try {
+          var dati = await R.leggi(id);
+          if (!dati) { dimmi(T('skNonTrovata'), true); return; }
+          skMenu(id, dati, pt.getBoundingClientRect(), R, ridisegnaSkill, apriNelPannello);
+        } catch (err) { dimmi('menu: ' + (err && err.message), true); }
         return;
       }
       var doc = e.target.closest('.ag-sk-doc');
-      if (doc) { apriNelPannello(doc.getAttribute('data-id')); return; }
+      if (doc) {
+        try { apriNelPannello(doc.getAttribute('data-id')); }
+        catch (err) { dimmi('apertura: ' + (err && err.message), true); }
+        return;
+      }
 
       var b = e.target.closest('button'); if (!b) return;
       if (b.id === 'ag-sk-chiudi') {
@@ -11999,7 +12022,18 @@ if (recognition) {
         if (!confirm(T('sesConfermaSvuota'))) return;
         (async function () {
           var n = (window.aegisSvuotaSessione) ? await window.aegisSvuotaSessione() : 0;
-          skSel = null; area.value = ''; nome.value = ''; rispecchia();
+          // Si svuota TUTTO cio' che era rimasto a schermo: il riquadro, il
+          // nome, il codice, la colonna dei dati trovati e le evidenziazioni.
+          // Un pannello che dice "vuoto" e continua a mostrare le parole di
+          // prima fa dubitare che abbia cancellato davvero.
+          skSel = null; area.value = ''; nome.value = '';
+          var cc = ov.querySelector('#ag-sk-codice'); if (cc) cc.value = '';
+          valoriPreview.clear();
+          skTesto = '';
+          specchio.innerHTML = '';
+          try { skDisegnaOmbra(); } catch (e) {}
+          try { disegnaColonna(voci); } catch (e) {}
+          rispecchia();
           await ridisegna();
           alert(T('sesSvuotata').replace('{n}', n));
         })();
@@ -12051,7 +12085,26 @@ if (recognition) {
           var file = fi.files && fi.files[0];
           if (!file) return;
           try {
-            var quante = await R.importa(await file.text());
+            /* L'ARCHIVIO IMPORTATO PUO' ESSERE IN CHIARO.
+               I file esportati dalle versioni precedenti contengono i
+               documenti come erano stati incollati. Importandoli si
+               rimetterebbero dati veri nella banca dati, annullando tutto il
+               lavoro fatto. Si maschera voce per voce prima di scriverle. */
+            var crudo = await file.text();
+            try {
+               var pacco = JSON.parse(crudo);
+               var voci = pacco && (pacco.documenti || pacco.docs || pacco.voci);
+               if (Array.isArray(voci)) {
+                 voci.forEach(function (v) {
+                   if (v && typeof v.testo === 'string') {
+                     try { var rm = maschera(v.testo, true); v.testo = (rm && rm.testo) || ''; }
+                     catch (e3) { v.testo = ''; }
+                   }
+                 });
+                 crudo = JSON.stringify(pacco);
+               }
+            } catch (e4) {}
+            var quante = await R.importa(crudo);
             dimmi(T('skImportate', { n: quante }));
             await ridisegnaSkill();
           } catch (err) { dimmi(err && err.message, true); }
@@ -12102,8 +12155,23 @@ if (recognition) {
         return;
       }
       if (b.id === 'ag-sk-salva') {
-        var t = area.value.trim();
-        if (!t) { dimmi(T('skVuotoTesto'), true); return; }
+        /* ====== SI SALVA CIO' CHE STA NEL PANNELLO IN MEZZO ==============
+           Fino a un attimo fa qui finiva `area.value`, cioe' il DOCUMENTO IN
+           CHIARO del riquadro di destra. Significa che la banca dati - quella
+           che il modello consulta a ogni domanda - conteneva nomi, IBAN e
+           telefoni veri. Il pannello di mezzo mostrava i codici e dava
+           l'impressione che fosse tutto a posto.
+           Adesso si salva il testo MASCHERATO, e si maschera CONGELANDO sul
+           vault della sessione: i codici sono gli stessi della chat, non
+           numeri provvisori dell'anteprima. Se il mascheratore non risponde,
+           NON si salva: meglio niente che dati veri in un archivio che il
+           modello legge da solo.
+           ================================================================ */
+        var chiaro = area.value.trim();
+        if (!chiaro) { dimmi(T('skVuotoTesto'), true); return; }
+        var t = '';
+        try { var rp = maschera(chiaro, true); t = (rp && rp.testo) || ''; } catch (e) { t = ''; }
+        if (!t) { dimmi(T('skNoMaschera'), true); return; }
         b.disabled = true;
         try {
           if (skSel) await R.sostituisci(skSel, t, nome.value.trim());
@@ -15448,6 +15516,6 @@ if (recognition) {
      versione vecchia di billing-ui.js e ogni correzione sembra non fare niente:
      si carica il file nuovo e si continua a eseguire quello vecchio. Ogni volta
      che billing-ui.js cambia, si alza questo numero. -->
-<script src="billing-ui.js?v=33" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
+<script src="billing-ui.js?v=35" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
 </body>
 </html>
