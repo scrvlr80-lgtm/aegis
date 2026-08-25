@@ -449,9 +449,15 @@ body.ag-attivo{overflow:hidden;margin:0}
    capisce cosa succede prima di cliccare, senza leggere niente. */
 body.ag-pennello-on .ag-lista,body.ag-pennello-on .ag-anteprima,
 body.ag-pennello-on .chat-messages,
+/* il pennello vale anche dentro il pannello dell'agente e in quello della
+   base di conoscenza: sono testo protetto come tutto il resto, e non c'e'
+   ragione perche' li' si smetta di poterlo correggere a mano. */
+body.ag-pennello-on .ag-ag-passi,
+body.ag-pennello-on .ag-sk-specchio,
 body.ag-pennello-on .ag-voci-corpo{
   cursor:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26'><circle cx='11' cy='11' r='7' fill='none' stroke='%233D3D42' stroke-width='2'/><path d='M11 7v8M7 11h8' stroke='%233D3D42' stroke-width='2' stroke-linecap='round'/></svg>") 11 11, crosshair}
 body.ag-pennello-on .ag-t,
+body.ag-pennello-on .ag-ag-passi .ag-t,
 body.ag-pennello-on .ag-voci-corpo .ag-gr-voce{
   cursor:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26'><circle cx='11' cy='11' r='7' fill='none' stroke='%23E5484D' stroke-width='2'/><path d='M7 11h8' stroke='%23E5484D' stroke-width='2' stroke-linecap='round'/></svg>") 11 11, crosshair}
 .ag-ia svg{width:13px;height:13px;vertical-align:-2px;margin-right:5px;fill:currentColor}
@@ -2330,6 +2336,15 @@ body {
         safeStorage.set('chat_session_id', currentSessionId);
         registerSessionId(currentSessionId);
         conversationHistory = []; if(window.aegisReset) window.aegisReset();
+        // LA BASE DI SESSIONE MUORE CON LA SESSIONE.
+        // Vale sia aprendo una chat nuova sia ripescandone una vecchia: in
+        // tutti e due i casi si cambia conversazione. Memorie e documenti
+        // raccolti prima valevano per QUELLA, e lasciarli in giro vorrebbe
+        // dire che il modello si porta dietro il caso di un altro cliente
+        // senza che nessuno gliel'abbia chiesto. Nel mestiere di chi usa
+        // questo prodotto e' un danno, non una comodita'.
+        // La base GENERALE dell'utente non si tocca: quella e' sua e resta.
+        if (window.aegisSvuotaSessione) window.aegisSvuotaSessione();
         const chatMessagesDiv = document.getElementById('chat-messages');
         if (chatMessagesDiv) chatMessagesDiv.innerHTML = '';
         initChatbot(activeLanguageCode);
@@ -2442,6 +2457,15 @@ body {
         currentSessionId = session.session_id;
         safeStorage.set('chat_session_id', currentSessionId);
         conversationHistory = []; if(window.aegisReset) window.aegisReset();
+        // LA BASE DI SESSIONE MUORE CON LA SESSIONE.
+        // Vale sia aprendo una chat nuova sia ripescandone una vecchia: in
+        // tutti e due i casi si cambia conversazione. Memorie e documenti
+        // raccolti prima valevano per QUELLA, e lasciarli in giro vorrebbe
+        // dire che il modello si porta dietro il caso di un altro cliente
+        // senza che nessuno gliel'abbia chiesto. Nel mestiere di chi usa
+        // questo prodotto e' un danno, non una comodita'.
+        // La base GENERALE dell'utente non si tocca: quella e' sua e resta.
+        if (window.aegisSvuotaSessione) window.aegisSvuotaSessione();
         const chatMessagesDiv = document.getElementById('chat-messages');
         if (chatMessagesDiv) chatMessagesDiv.innerHTML = '';
         const loadingEl = addMessageToChat((UI_STRINGS[activeLanguageCode] || UI_DEFAULT).loadingMsg || 'Cargando...', 'bot-message typing-indicator');
@@ -8961,6 +8985,17 @@ if (recognition) {
       agConfermato:'Confermato da te',
       agRifiutato:'Rifiutato: non ho fatto niente',
       agNiente:'Il modello ha risposto a parole senza usare nessuno strumento: il compito NON e\' stato eseguito. Prova con un modello piu\' capace, o riformula in modo piu\' diretto.',
+      sesTitolo:'Memoria di questa conversazione',
+      sesElenco:'In questa conversazione',
+      sesVuoto:'Niente, per ora.',
+      sesNome:'Nome della voce',
+      sesSvuota:'Svuota',
+      sesConfermaSvuota:'Togliere tutto quello che questa conversazione si e\' messa da parte?',
+      sesSvuotata:'{n} voci tolte.',
+      sesIntro:'Qui sta cio\' che questa conversazione si e\' messa da parte: argomenti ripresi da vecchie chat, documenti tenuti a portata di mano. Scegli una voce a sinistra per leggerla o correggerla.',
+      sesAvviso:'Sparisce quando apri una chat nuova. I tuoi documenti stanno nella base di conoscenza, e quelli restano.',
+      sesProtetto:'Il testo che vedi e\' gia\' protetto: i dati reali sono sostituiti dai codici, come nella chat.',
+      btnSessione:'Memoria conversazione',
       opCancella:'Cancella la cronologia locale',
       opNota:'Le conversazioni e la corrispondenza fra codici e dati reali restano solo su questo dispositivo. Cancellandole non si recuperano.',
       opEsci:'Esci dall\u0027account', opChiudi:'Chiudi',
@@ -9216,6 +9251,17 @@ if (recognition) {
       agConfermato:'Confirmado por ti',
       agRifiutato:'Rechazado: no he hecho nada',
       agNiente:'El modelo ha respondido con palabras sin usar ninguna herramienta: la tarea NO se ha ejecutado. Prueba con un modelo mas capaz o reformula de forma mas directa.',
+      sesTitolo:'Memoria de esta conversacion',
+      sesElenco:'En esta conversacion',
+      sesVuoto:'Nada, por ahora.',
+      sesNome:'Nombre de la entrada',
+      sesSvuota:'Vaciar',
+      sesConfermaSvuota:'¿Quitar todo lo que esta conversacion ha guardado?',
+      sesSvuotata:'{n} entradas quitadas.',
+      sesIntro:'Aqui esta lo que esta conversacion ha guardado: temas retomados de chats antiguos, documentos a mano. Elige una entrada a la izquierda para leerla o corregirla.',
+      sesAvviso:'Desaparece cuando abres un chat nuevo. Tus documentos estan en la base de conocimiento, y esos se quedan.',
+      sesProtetto:'El texto que ves ya esta protegido: los datos reales estan sustituidos por codigos, como en el chat.',
+      btnSessione:'Memoria conversacion',
       opCancella:'Borrar el historial local',
       opNota:'Las conversaciones y la correspondencia entre codigos y datos reales solo estan en este dispositivo. Si las borras no se recuperan.',
       opEsci:'Cerrar sesion', opChiudi:'Cerrar',
@@ -9471,6 +9517,17 @@ if (recognition) {
       agConfermato:'Confirmed by you',
       agRifiutato:'Refused: I did nothing',
       agNiente:'The model answered in words without using any tool: the task was NOT carried out. Try a more capable model, or phrase it more directly.',
+      sesTitolo:'This conversation memory',
+      sesElenco:'In this conversation',
+      sesVuoto:'Nothing yet.',
+      sesNome:'Entry name',
+      sesSvuota:'Empty',
+      sesConfermaSvuota:'Remove everything this conversation has kept?',
+      sesSvuotata:'{n} entries removed.',
+      sesIntro:'This is what this conversation has kept: topics brought over from older chats, documents held close. Pick an entry on the left to read or correct it.',
+      sesAvviso:'It disappears when you open a new chat. Your own documents live in the knowledge base, and those stay.',
+      sesProtetto:'The text you see is already protected: real data is replaced by codes, as in the chat.',
+      btnSessione:'Conversation memory',
       opCancella:'Delete local history',
       opNota:'Conversations and the mapping between codes and real data live only on this device. Deleting them cannot be undone.',
       opEsci:'Sign out', opChiudi:'Close',
@@ -9696,6 +9753,61 @@ if (recognition) {
         'padding:8px 10px;border-radius:7px}' +
       '.ag-sk-menu button:hover{background:var(--console-bg)}' +
       '.ag-sk-menu button.rosso{color:var(--c-per)}' +
+      /* MODO AGENTE. Riusa la scatola del pannello Skills: stessa testa,
+         stessa colonna, stessi colori. Qui sotto solo cio' che e' suo. */
+      '.ag-agov .ag-sk-dx{display:flex;flex-direction:column;gap:12px;min-height:0}' +
+      '.ag-agov .ag-ag-lista{flex:1 1 auto;min-height:0;overflow-y:auto;padding:8px;' +
+        'display:flex;flex-direction:column;gap:7px}' +
+      '.ag-agov .ag-ag-str{display:grid;grid-template-columns:auto 1fr;gap:2px 9px;' +
+        'align-items:center;padding:9px 11px;border:1px solid var(--hairline);border-radius:11px}' +
+      '.ag-agov .ag-ag-perm{grid-row:1/3;align-self:start;font:600 8.5px Inter,sans-serif;' +
+        'letter-spacing:.05em;text-transform:uppercase;padding:3px 6px;border-radius:6px;white-space:nowrap}' +
+      '.ag-agov .ag-ag-perm.legge{color:#2f6a52;background:rgba(47,106,82,.11)}' +
+      '.ag-agov .ag-ag-perm.scrive{color:#8a5a10;background:rgba(200,140,20,.13)}' +
+      '.ag-agov .ag-ag-nome{font:600 11.5px ui-monospace,Menlo,monospace;color:var(--text-main)}' +
+      '.ag-agov .ag-ag-desc{font-size:10.5px;color:var(--text-light);line-height:1.4}' +
+      '.ag-ag-passi{flex:1 1 auto;min-height:0;overflow-y:auto;display:flex;flex-direction:column;' +
+        'gap:8px;border:1px solid var(--hairline);border-radius:14px;background:var(--console-bg);' +
+        'padding:14px}' +
+      '.ag-ag-vuoto{margin:auto;max-width:460px;text-align:center;font-size:12px;' +
+        'color:var(--text-light);line-height:1.6}' +
+      '.ag-ag-passo{font-size:12.5px;line-height:1.55;padding:10px 13px;border-radius:11px;max-width:82%}' +
+      '.ag-ag-passo.io{background:var(--primary);border:1px solid var(--hairline);' +
+        'color:var(--text-main);align-self:flex-end}' +
+      '.ag-ag-passo.lui{background:var(--primary);border:1px solid var(--hairline);' +
+        'color:var(--text-main);align-self:flex-start}' +
+      '.ag-ag-passo.str{background:transparent;color:var(--text-light);max-width:100%;' +
+        'font:600 10.5px ui-monospace,Menlo,monospace;padding:2px 4px}' +
+      '.ag-ag-passo.att{color:var(--text-light);font-style:italic;padding:2px 4px;max-width:100%}' +
+      '.ag-ag-passo.err{background:rgba(176,48,48,.07);color:#b03030;max-width:100%}' +
+      '.ag-ag-appr{align-self:stretch;border:1px solid rgba(200,140,20,.45);' +
+        'background:rgba(200,140,20,.07);border-radius:12px;padding:13px 15px}' +
+      '.ag-ag-appr.ok{border-color:rgba(47,106,82,.45);background:rgba(47,106,82,.07)}' +
+      '.ag-ag-appr.no{border-color:rgba(176,48,48,.35);background:rgba(176,48,48,.06)}' +
+      '.ag-ag-appr b{font-size:12px;color:#8a5a10}' +
+      '.ag-ag-appr.ok b{color:#2f6a52}' +
+      '.ag-ag-appr p{margin:5px 0 10px;font-size:12px;color:var(--text-main)}' +
+      '.ag-ag-camp{display:flex;gap:9px;margin-bottom:5px;font-size:11px}' +
+      '.ag-ag-camp span{flex:none;min-width:78px;color:var(--text-light)}' +
+      '.ag-ag-camp code{flex:1 1 auto;min-width:0;background:var(--primary);' +
+        'border:1px solid var(--hairline);border-radius:7px;padding:5px 8px;' +
+        'font:400 10.5px ui-monospace,Menlo,monospace;color:var(--text-main);' +
+        'word-break:break-word;max-height:120px;overflow:auto}' +
+      '.ag-ag-appr-b{display:flex;gap:8px;justify-content:flex-end;margin-top:11px}' +
+      '.ag-ag-appr-b i{font-style:normal;font-size:11px;color:var(--text-light)}' +
+      '.ag-se-lista{flex:1 1 auto;min-height:0;overflow-y:auto;padding:8px}' +
+      '.ag-agov .ag-sk-sx h4{margin:0;padding:12px 14px;font-size:9.5px;letter-spacing:.06em;' +
+        'text-transform:uppercase;color:var(--text-light);border-bottom:1px solid var(--hairline)}' +
+      '.ag-ag-barra{flex:none;display:flex;gap:9px}' +
+      '.ag-ag-barra input{flex:1 1 auto;min-width:0;height:42px;padding:0 15px;box-sizing:border-box;' +
+        'border:1px solid var(--hairline);border-radius:12px;background:var(--primary);' +
+        'font:400 13px Inter,sans-serif;color:var(--text-main);outline:none}' +
+      '.ag-ag-barra input:focus{border-color:var(--text-light)}' +
+      '.ag-ag-barra button{flex:none;padding:0 20px;height:42px;border:1px solid var(--g-bordo);' +
+        'border-radius:12px;background:var(--primary);cursor:pointer;color:var(--text-main);' +
+        'font:700 10px Inter,sans-serif;letter-spacing:.06em;text-transform:uppercase}' +
+      '.ag-ag-barra button:hover{background:var(--g-fondo-hover)}' +
+      '.ag-ag-piede{flex:none;margin:0;font-size:10.5px;color:var(--text-light);line-height:1.5}' +
       '.ag-rag-ov{position:fixed;inset:0;z-index:3200;background:var(--primary);' +
         'display:flex;flex-direction:column;font-family:Inter,sans-serif}' +
       '.ag-rag-testa{display:flex;align-items:center;gap:12px;padding:14px 20px;flex:none;' +
@@ -11753,9 +11865,20 @@ if (recognition) {
       rispecchia();
     });
 
+    /* Il nome di una voce di sessione comincia col codice della conversazione
+       (AG-XXXXXX). Quel codice lo scrive solo questo programma, in un punto
+       solo, quindi come segno di riconoscimento e' affidabile. */
+    var RX_SESS = /^AG-[A-Z0-9]{6}\b/i;
+
     async function ridisegnaSkill() {
       var el = ov.querySelector('#ag-sk-lista');
-      var lista = await R.elenco();
+      // QUESTA E' LA BASE DELL'UTENTE: i suoi documenti, che restano finche'
+      // non li toglie lui. Le voci di sessione hanno un pannello loro e qui
+      // non compaiono: mescolarle vorrebbe dire vedere sparire meta' elenco
+      // al cambio di chat senza capire perche'.
+      var lista = (await R.elenco()).filter(function (d) {
+        return !RX_SESS.test(String(d.nome || ''));
+      });
       if (!lista.length) { el.innerHTML = '<div class="ag-voci-vuoto">' + T('skVuoto') + '</div>'; return; }
       el.innerHTML = lista.map(function (d) {
         return '<div class="ag-sk-doc' + (skSel === d.id ? ' on' : '') +
@@ -11927,6 +12050,9 @@ if (recognition) {
         '<div class="ag-op-sez"><h4>' + T('arTitolo') + '</h4>' +
           '<p class="ag-op-nota">' + T('arIntro') + '</p>' +
           '<button type="button" class="ag-op-btn" id="ag-op-archivio">' + T('btnArchivio') + '</button></div>' +
+        '<div class="ag-op-sez"><h4>' + T('sesTitolo') + '</h4>' +
+          '<p class="ag-op-nota">' + T('sesAvviso') + '</p>' +
+          '<button type="button" class="ag-op-btn" id="ag-op-sessione">' + T('btnSessione') + '</button></div>' +
         '<div class="ag-op-sez"><button type="button" class="ag-op-btn" id="ag-op-docreset">' +
           T('opDocReset') + '</button></div>' +
         '<div class="ag-op-sez"><h4>' + T('opAvvisi') + '</h4>' + righeAvvisi + '</div>' +
@@ -12098,6 +12224,39 @@ if (recognition) {
      della conversazione: e' il modulo esterno a riconciliarli con questo vault
      prima di consegnarlo. Qui si accoda soltanto, e passa comunque dalla
      mascheratura come tutto il resto: nessuna scorciatoia, nessuna eccezione. */
+  /* GLI INTERRUTTORI, VISTI DA FUORI.
+     Il pannello dell'agente vive in un altro blocco di codice e non puo'
+     leggere queste variabili: sono chiuse dentro questa funzione. Invece di
+     duplicarle - due verita' che prima o poi divergono - si espone una porta.
+     Chi sta fuori chiede lo stato e chiede di commutare; il valore resta uno
+     solo, qui dentro. */
+  window.AEGIS_INTERRUTTORI = {
+    stato: function () {
+      return { pennello: !!pennelloAcceso, profonda: !!PROFONDA,
+               riservato: !!riservato, evidenzia: !!codiciAccesi };
+    },
+    commuta: function (quale) {
+      if (quale === 'pennello') {
+        pennelloAcceso = !pennelloAcceso;
+        // Non basta girare la variabile: il pennello E' la classe sul corpo
+        // della pagina - e' quella che cambia il cursore e rende cliccabili
+        // le parole. Accendendolo da un altro pannello senza questa riga si
+        // otteneva un pulsante che si illuminava e non faceva niente.
+        document.body.classList.toggle('ag-pennello-on', pennelloAcceso);
+        if (!pennelloAcceso) {
+          try { chiudiTendina(); } catch (e) {}
+          try { azzeraSelezione(); } catch (e) {}
+        }
+      }
+      else if (quale === 'riservato') riservato = !riservato;
+      else if (quale === 'evidenzia') codiciAccesi = !codiciAccesi;
+      else return null;
+      try { aggiorna(); } catch (e) {}
+      return this.stato();
+    },
+    logo: function () { try { return AEGIS_LOGO; } catch (e) { return ''; } }
+  };
+
   window.aegisPreparaContesto = async function(domanda){
     try {
       if (!window.AEGIS_RAG) return '';
@@ -13991,6 +14150,8 @@ if (recognition) {
         '<button type="button" id="ag-mem-ok">' + T('memApri') + '</button>' +
       '</div>' +
       '<div class="ag-mem-err" id="ag-mem-err"></div>' +
+      '<button type="button" class="ag-op-btn" id="ag-mem-sessione" style="margin-top:14px">' +
+        T('btnSessione') + '</button>' +
       '<div class="ag-mem-lista" id="ag-mem-lista"></div>';
     document.body.appendChild(d);
 
@@ -14087,17 +14248,22 @@ if (recognition) {
     };
   }
 
+  /* ================== MODO AGENTE — SCHERMO INTERO =======================
+     Stessa ossatura del pannello Skills e dello specchio di AEGIS: una testa
+     con i pulsanti di sempre, una colonna a sinistra, il lavoro a destra.
+     Non e' una finestrella: l'agente PRENDE IL POSTO dell'interfaccia,
+     esattamente come fa la base di conoscenza. Chi passa da una all'altra
+     deve sentire di essere nello stesso programma.
+     ===================================================================== */
   async function apriAgente() {
     var T = window.aegisT || function (k) { return k; };
     try { await caricaAgente(); } catch (e) {}
-    var velo = document.createElement('div');
-    velo.className = 'ag-vt-velo'; velo.id = 'ag-ag-velo';
-    document.body.appendChild(velo);
-    var d = document.createElement('div');
-    d.className = 'ag-vt'; d.style.width = 'min(600px,94vw)'; d.id = 'ag-ag';
+    // La porta sugli interruttori del pannello principale. Se manca, si
+    // continua lo stesso: l'agente funziona, i pulsanti restano spenti.
+    var INT = window.AEGIS_INTERRUTTORI || { stato: function () { return {}; },
+      commuta: function () { return {}; }, logo: function () { return ''; } };
+    var S = INT.stato();
 
-    // Gli strumenti a disposizione, con il loro permesso: e' la cosa che
-    // l'utente deve vedere per primo - cosa puo' fare, e cosa NON fa da solo.
     var strumenti = (window.AEGIS_AGENTE ? window.AEGIS_AGENTE.strumenti() : []);
     var righe = strumenti.map(function (st) {
       return '<div class="ag-ag-str">' +
@@ -14107,24 +14273,72 @@ if (recognition) {
         '<span class="ag-ag-desc">' + escapeHtml(st.descrizione) + '</span></div>';
     }).join('');
 
-    d.innerHTML = '<button type="button" class="ag-vt-x" id="ag-ag-x">&times;</button>' +
-      '<h3>' + T('agTitolo') + '</h3>' +
-      '<p class="ag-vt-som">' + T('agIntro') + '</p>' +
-      '<div class="ag-mem-riga">' +
-        '<input type="text" id="ag-ag-compito" class="ag-ar-inp" placeholder="' + T('agCompito') + '" autocomplete="off">' +
-        '<button type="button" id="ag-ag-via">' + T('agVia') + '</button>' +
+    var ov = document.createElement('div');
+    ov.className = 'ag-sk-ov ag-agov';
+    ov.innerHTML =
+      '<div class="ag-sk-testa">' +
+        '<img class="ag-logo" src="' + (INT.logo && INT.logo() || '') + '" alt="Aegis" ' +
+          'onerror="this.style.display=\'none\'">' +
+        '<h3>' + T('agTitolo') + '</h3>' +
+        '<button type="button" class="ag-ia' + (S.pennello ? ' on' : '') +
+          '" id="ag-ag-pennello">' + (S.pennello ? T('pennelloOn') : T('pennelloOff')) + '</button>' +
+        '<button type="button" class="ag-ia' + (S.profonda ? ' ag-pronto' : '') +
+          '" id="ag-ag-profonda">' + (S.profonda ? T('profondaOn') : T('profondaOff')) + '</button>' +
+        '<button type="button" class="ag-ia' + (S.riservato ? ' on' : '') +
+          '" id="ag-ag-riservato">' + (S.riservato ? T('riservatoOn') : T('riservatoOff')) + '</button>' +
+        '<button type="button" class="ag-toggle ag-toggle-sp' + (S.evidenzia ? ' on' : '') +
+          '" id="ag-ag-hl"><span class="ag-dot"></span><span class="ag-lbl">' +
+          (S.evidenzia ? T('evidOn') : T('evidOff')) + '</span></button>' +
+        '<span class="ag-sk-sp"></span>' +
+        '<button type="button" class="ag-ia" id="ag-ag-chiudi">' + T('ragChiudi') + '</button>' +
       '</div>' +
-      '<div class="ag-ag-passi" id="ag-ag-passi"></div>' +
-      '<h4 style="margin:18px 0 8px">' + T('agStrumenti') + '</h4>' +
-      '<div class="ag-ag-lista">' + (righe || ('<p class="ag-vt-som">' + T('agNessuno') + '</p>')) + '</div>' +
-      '<p class="ag-dv-cmd">' + T('agNota') + '</p>';
-    document.body.appendChild(d);
-    function chiudi(){ var a=document.getElementById('ag-ag'),b=document.getElementById('ag-ag-velo');
-      if(a)a.remove(); if(b)b.remove(); }
-    velo.onclick = chiudi; d.querySelector('#ag-ag-x').onclick = chiudi;
+      '<div class="ag-sk-corpo">' +
+        '<div class="ag-sk-sx">' +
+          '<h4>' + T('agStrumenti') + '</h4>' +
+          '<div class="ag-ag-lista">' +
+            (righe || ('<p class="ag-vt-som" style="padding:12px">' + T('agNessuno') + '</p>')) +
+          '</div>' +
+        '</div>' +
+        '<div class="ag-sk-dx">' +
+          '<div class="ag-ag-passi" id="ag-ag-passi">' +
+            '<div class="ag-ag-vuoto">' + T('agIntro') + '</div>' +
+          '</div>' +
+          '<div class="ag-ag-barra">' +
+            '<input type="text" id="ag-ag-compito" placeholder="' + T('agCompito') + '" autocomplete="off">' +
+            '<button type="button" id="ag-ag-via">' + T('agVia') + '</button>' +
+          '</div>' +
+          '<p class="ag-ag-piede">' + T('agNota') + '</p>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(ov);
 
-    var passi = d.querySelector('#ag-ag-passi');
+    function chiudi() { ov.remove(); }
+    ov.querySelector('#ag-ag-chiudi').onclick = chiudi;
+
+    // I pulsanti della testa comandano le STESSE impostazioni della chat:
+    // non sono copie decorative, sono gli stessi interruttori.
+    function rifletti() {
+      var st = INT.stato();
+      var p = ov.querySelector('#ag-ag-pennello');
+      if (p) { p.classList.toggle('on', !!st.pennello);
+        p.textContent = st.pennello ? T('pennelloOn') : T('pennelloOff'); }
+      var f = ov.querySelector('#ag-ag-profonda');
+      if (f) { f.classList.toggle('ag-pronto', !!st.profonda);
+        f.textContent = st.profonda ? T('profondaOn') : T('profondaOff'); }
+      var r = ov.querySelector('#ag-ag-riservato');
+      if (r) { r.classList.toggle('on', !!st.riservato);
+        r.textContent = st.riservato ? T('riservatoOn') : T('riservatoOff'); }
+      var h = ov.querySelector('#ag-ag-hl');
+      if (h) { h.classList.toggle('on', !!st.evidenzia);
+        var l = h.querySelector('.ag-lbl'); if (l) l.textContent = st.evidenzia ? T('evidOn') : T('evidOff'); }
+    }
+    ov.querySelector('#ag-ag-pennello').onclick = function () { INT.commuta('pennello'); rifletti(); };
+    ov.querySelector('#ag-ag-riservato').onclick = function () { INT.commuta('riservato'); rifletti(); };
+    ov.querySelector('#ag-ag-hl').onclick = function () { INT.commuta('evidenzia'); rifletti(); };
+
+    var passi = ov.querySelector('#ag-ag-passi');
     function scrivi(classe, testo) {
+      var v = passi.querySelector('.ag-ag-vuoto'); if (v) v.remove();
       var r = document.createElement('div');
       r.className = 'ag-ag-passo ' + classe;
       r.textContent = testo;
@@ -14133,12 +14347,9 @@ if (recognition) {
       return r;
     }
 
-    /* La carta dell'approvazione. Compare quando l'agente vuole fare qualcosa
-       che tocca il mondo: mostra COSA farebbe, per esteso, e resta ferma
-       finche' un umano non decide. Nessun conto alla rovescia, nessun
-       "conferma" preselezionato: chi legge di fretta deve poter leggere. */
     function chiediApprovazione(anteprima) {
       return new Promise(function (risolvi) {
+        var v = passi.querySelector('.ag-ag-vuoto'); if (v) v.remove();
         var c = document.createElement('div');
         c.className = 'ag-ag-appr';
         var dettagli = Object.keys(anteprima || {}).filter(function (k) {
@@ -14148,11 +14359,10 @@ if (recognition) {
                  escapeHtml(String(anteprima[k]).slice(0, 500)) + '</code></div>';
         }).join('');
         c.innerHTML = '<b>' + T('agConfermaTit') + '</b>' +
-          '<p>' + escapeHtml((anteprima && anteprima.descrizione) || '') + '</p>' +
-          dettagli +
+          '<p>' + escapeHtml((anteprima && anteprima.descrizione) || '') + '</p>' + dettagli +
           '<div class="ag-ag-appr-b">' +
-            '<button type="button" class="leggero" data-a="no">' + T('agRifiuta') + '</button>' +
-            '<button type="button" data-a="si">' + T('agConferma') + '</button>' +
+            '<button type="button" class="ag-ia" data-a="no">' + T('agRifiuta') + '</button>' +
+            '<button type="button" class="ag-ia ag-pronto" data-a="si">' + T('agConferma') + '</button>' +
           '</div>';
         passi.appendChild(c);
         passi.scrollTop = passi.scrollHeight;
@@ -14169,14 +14379,14 @@ if (recognition) {
     }
 
     async function via() {
-      var compito = String(document.getElementById('ag-ag-compito').value || '').trim();
+      var campo = ov.querySelector('#ag-ag-compito');
+      var compito = String(campo.value || '').trim();
       if (!compito) return;
       if (!window.AEGIS_AGENTE) { scrivi('err', 'aegis-agente.js non caricato'); return; }
+      campo.value = '';
       passi.innerHTML = '';
       window.AEGIS_AGENTE._reset();
 
-      // Il compito passa dal mascheratore come qualsiasi altro testo: se
-      // l'utente ci ha scritto dentro un nome, al modello non arriva.
       var compitoProtetto = mascheraTesto(compito) || compito;
       scrivi('io', compitoProtetto);
 
@@ -14190,47 +14400,43 @@ if (recognition) {
         lingua: activeLanguageCode
       });
 
-      // Ogni passo si vede mentre succede: un agente che lavora in silenzio
-      // e' un agente di cui non ci si fida.
       window.AEGIS_AGENTE_ONLOG = function (v) {
         if (v.tipo === 'lettura') scrivi('str', '\u2192 ' + v.strumento);
-        if (v.tipo === 'rifiutato') scrivi('err', T('agRifiutato'));
       };
 
-      var giriMax = 15;
       var attesa = document.createElement('div');
       attesa.className = 'ag-ag-passo att'; attesa.textContent = T('agPenso');
       passi.appendChild(attesa);
+      passi.scrollTop = passi.scrollHeight;
 
       try {
-        var esito = await window.AEGIS_AGENTE.esegui(compitoProtetto, { chiedi: chiedi, giriMax: giriMax });
-        // Il ciclo si sospende ogni volta che serve un umano, e riprende dopo.
+        var esito = await window.AEGIS_AGENTE.esegui(compitoProtetto, { chiedi: chiedi, giriMax: 15 });
         while (esito && esito.stato === 'attende_approvazione') {
           attesa.remove();
           var ok = await chiediApprovazione(esito.anteprima);
           if (!ok) { window.AEGIS_AGENTE.rifiuta(); break; }
-          await window.AEGIS_AGENTE.approva();
+          var fatto = await window.AEGIS_AGENTE.approva();
+          if (fatto && fatto.risultato && fatto.risultato.errore) scrivi('err', String(fatto.risultato.errore));
+          else if (fatto && fatto.risultato) scrivi('str', '\u2713 ' + JSON.stringify(fatto.risultato).slice(0, 220));
           passi.appendChild(attesa);
-          esito = await window.AEGIS_AGENTE.esegui(compitoProtetto, { chiedi: chiedi, giriMax: giriMax });
+          esito = await window.AEGIS_AGENTE.esegui(compitoProtetto, { chiedi: chiedi, giriMax: 15 });
         }
         attesa.remove();
         if (esito && esito.stato === 'finito') {
           scrivi('lui', esito.risposta || '');
-          // Se il modello ha risposto a parole senza toccare uno strumento,
-          // si dice: e' un compito NON eseguito, non un compito riuscito.
           if (esito.senza_strumenti) scrivi('err', T('agNiente'));
-        }
-        else if (esito && esito.stato === 'tetto') scrivi('err', esito.messaggio);
+        } else if (esito && esito.stato === 'tetto') scrivi('err', esito.messaggio);
       } catch (e) {
         attesa.remove();
         scrivi('err', (e && e.message) || 'errore');
       }
       window.AEGIS_AGENTE_ONLOG = null;
     }
-    d.querySelector('#ag-ag-via').onclick = via;
-    d.querySelector('#ag-ag-compito').addEventListener('keydown', function (e) {
+    ov.querySelector('#ag-ag-via').onclick = via;
+    ov.querySelector('#ag-ag-compito').addEventListener('keydown', function (e) {
       if (e.key === 'Enter') { e.preventDefault(); via(); }
     });
+    setTimeout(function () { try { ov.querySelector('#ag-ag-compito').focus(); } catch (e) {} }, 60);
   }
 
   // I tre pulsanti nuovi. L'ascolto sta sul documento perche' il pannello di
@@ -14368,6 +14574,12 @@ if (recognition) {
         return;
       }
       if (t.closest('#ag-op-archivio')) { e.preventDefault(); apriArchivio(''); return; }
+      if (t.closest('#ag-op-sessione') || t.closest('#ag-mem-sessione')) {
+        e.preventDefault();
+        var ap = document.getElementById('ag-mem'), av = document.getElementById('ag-mem-velo');
+        if (ap) ap.remove(); if (av) av.remove();
+        apriSessione(); return;
+      }
       if (t.closest('#ag-op-docreset')) {
         e.preventDefault();
         if (window.aegisDocResetPreferenza) window.aegisDocResetPreferenza();
@@ -14749,6 +14961,175 @@ if (recognition) {
     setTimeout(function () { clearInterval(_ab); }, 12000);
   } catch (e) {}
 
+  /* ============== LE DUE BASI DI CONOSCENZA ==============================
+     Vivono nello stesso archivio ma NON sono la stessa cosa, e distinguerle
+     conta piu' di quanto sembri.
+
+     GENERALE — i documenti dell'utente. Sono suoi, restano finche' non li
+     toglie lui. E' la sua biblioteca.
+
+     DI SESSIONE — quello che si raccoglie DURANTE una conversazione: gli
+     argomenti presi da una vecchia chat col codice, i documenti messi da
+     parte con il comando. Valgono per quella conversazione e basta, e a
+     conversazione nuova spariscono. Se restassero, aprendo una chat per un
+     altro cliente il modello si porterebbe dietro il caso del precedente.
+
+     Come si riconoscono: il nome di quelle di sessione comincia col codice
+     della conversazione (AG-XXXXXX). Non e' una convenzione fragile: quel
+     codice lo scrive solo questo programma, in un punto solo.
+     ===================================================================== */
+  var RX_SESSIONE = /^AG-[A-Z0-9]{6}\b/i;
+  function eDiSessione(nome) { return RX_SESSIONE.test(String(nome || '')); }
+
+  /* ============ PANNELLO DELLA BASE DI SESSIONE ==========================
+     Stessa scatola del pannello generale - stessa testa, stessa colonna,
+     stessi colori - ma con dentro solo cio' che appartiene a QUESTA
+     conversazione, e con scritto a chiare lettere che sparira'.
+     Non e' una copia del codice del pannello generale: quello e' grande e
+     duplicarlo vorrebbe dire mantenerne due. Qui c'e' l'essenziale: vedere
+     cosa c'e' dentro, aprirlo, correggerlo, toglierlo.
+     ===================================================================== */
+  async function apriSessione() {
+    var T = window.aegisT || function (k) { return k; };
+    try { await caricaRag(); } catch (e) { alert('aegis-rag.js: ' + (e && e.message)); return; }
+    var INT = window.AEGIS_INTERRUTTORI || { stato: function () { return {}; },
+      commuta: function () { return {}; }, logo: function () { return ''; } };
+    var S = INT.stato();
+
+    var ov = document.createElement('div');
+    ov.className = 'ag-sk-ov ag-agov';
+    ov.innerHTML =
+      '<div class="ag-sk-testa">' +
+        '<img class="ag-logo" src="' + (INT.logo && INT.logo() || '') + '" alt="Aegis" ' +
+          'onerror="this.style.display=\'none\'">' +
+        '<h3>' + T('sesTitolo') + '</h3>' +
+        '<button type="button" class="ag-ia' + (S.pennello ? ' on' : '') +
+          '" id="ag-se-pennello">' + (S.pennello ? T('pennelloOn') : T('pennelloOff')) + '</button>' +
+        '<button type="button" class="ag-toggle ag-toggle-sp' + (S.evidenzia ? ' on' : '') +
+          '" id="ag-se-hl"><span class="ag-dot"></span><span class="ag-lbl">' +
+          (S.evidenzia ? T('evidOn') : T('evidOff')) + '</span></button>' +
+        '<span class="ag-sk-sp"></span>' +
+        '<button type="button" class="ag-ia" id="ag-se-svuota">' + T('sesSvuota') + '</button>' +
+        '<button type="button" class="ag-ia" id="ag-se-chiudi">' + T('ragChiudi') + '</button>' +
+      '</div>' +
+      '<div class="ag-sk-corpo">' +
+        '<div class="ag-sk-sx">' +
+          '<h4>' + T('sesElenco') + '</h4>' +
+          '<div class="ag-se-lista" id="ag-se-lista"></div>' +
+          '<p class="ag-op-nota" style="margin:0;padding:0 12px 11px">' + T('sesAvviso') + '</p>' +
+        '</div>' +
+        '<div class="ag-sk-dx">' +
+          '<div class="ag-ag-passi" id="ag-se-corpo" style="display:block">' +
+            '<div class="ag-ag-vuoto">' + T('sesIntro') + '</div>' +
+          '</div>' +
+          '<div class="ag-ag-barra">' +
+            '<input type="text" id="ag-se-nome" placeholder="' + T('sesNome') + '" autocomplete="off" readonly>' +
+            '<button type="button" id="ag-se-salva" disabled>' + T('memSalva') + '</button>' +
+          '</div>' +
+          '<p class="ag-ag-piede">' + T('sesProtetto') + '</p>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(ov);
+
+    ov.querySelector('#ag-se-chiudi').onclick = function () { ov.remove(); };
+    ov.querySelector('#ag-se-pennello').onclick = function () {
+      var st = INT.commuta('pennello');
+      var b = ov.querySelector('#ag-se-pennello');
+      b.classList.toggle('on', !!st.pennello);
+      b.textContent = st.pennello ? T('pennelloOn') : T('pennelloOff');
+    };
+    ov.querySelector('#ag-se-hl').onclick = function () {
+      var st = INT.commuta('evidenzia');
+      var b = ov.querySelector('#ag-se-hl');
+      b.classList.toggle('on', !!st.evidenzia);
+      var l = b.querySelector('.ag-lbl');
+      if (l) l.textContent = st.evidenzia ? T('evidOn') : T('evidOff');
+    };
+    ov.querySelector('#ag-se-svuota').onclick = async function () {
+      if (!confirm(T('sesConfermaSvuota'))) return;
+      var n = await window.aegisSvuotaSessione();
+      await disegna();
+      alert(T('sesSvuotata').replace('{n}', n));
+    };
+
+    var lista = ov.querySelector('#ag-se-lista');
+    var corpo = ov.querySelector('#ag-se-corpo');
+    var campoNome = ov.querySelector('#ag-se-nome');
+    var salva = ov.querySelector('#ag-se-salva');
+    var apertoId = null;
+
+    async function disegna() {
+      var tutte = (await window.AEGIS_RAG.elenco()).filter(function (d) {
+        return eDiSessione(d.nome);
+      });
+      if (!tutte.length) {
+        lista.innerHTML = '<div class="ag-voci-vuoto">' + T('sesVuoto') + '</div>';
+        corpo.innerHTML = '<div class="ag-ag-vuoto">' + T('sesIntro') + '</div>';
+        campoNome.value = ''; salva.disabled = true; apertoId = null;
+        return;
+      }
+      lista.innerHTML = tutte.map(function (d) {
+        return '<div class="ag-sk-doc' + (apertoId === d.id ? ' on' : '') + '" data-id="' + d.id + '">' +
+          '<span class="pal"></span>' +
+          '<span class="nm">' + escapeHtml(d.nome) +
+            '<span class="dt">' + (d.pezzi || 0) + '</span></span>' +
+          '<button type="button" class="pt" data-x="' + d.id + '">\u00d7</button></div>';
+      }).join('');
+    }
+
+    lista.addEventListener('click', async function (e) {
+      var x = e.target.getAttribute && e.target.getAttribute('data-x');
+      if (x) {
+        if (!confirm(T('memConferma'))) return;
+        await window.AEGIS_RAG.elimina(x);
+        if (apertoId === x) apertoId = null;
+        await disegna();
+        return;
+      }
+      var riga = e.target.closest ? e.target.closest('.ag-sk-doc') : null;
+      if (!riga) return;
+      var id = riga.getAttribute('data-id');
+      var d = await window.AEGIS_RAG.leggi(id);
+      if (!d) return;
+      apertoId = id;
+      campoNome.value = d.nome || '';
+      salva.disabled = false;
+      // Il testo mostrato e' quello archiviato, cioe' GIA' mascherato: qui
+      // dentro non compare nessun dato reale, nemmeno per un istante.
+      corpo.innerHTML = '';
+      var ta = document.createElement('textarea');
+      ta.className = 'ag-mv-t'; ta.id = 'ag-se-testo';
+      ta.style.minHeight = '100%'; ta.spellcheck = false;
+      ta.value = d.testo || '';
+      corpo.appendChild(ta);
+      await disegna();
+    });
+
+    salva.onclick = async function () {
+      if (!apertoId) return;
+      var ta = ov.querySelector('#ag-se-testo');
+      if (!ta) return;
+      try { await window.AEGIS_RAG.sostituisci(apertoId, ta.value); }
+      catch (e) { alert('Skills: ' + (e && e.message)); return; }
+      await disegna();
+    };
+
+    await disegna();
+  }
+  window.AEGIS_SESSIONE = { apri: apriSessione };
+
+  window.aegisSvuotaSessione = async function () {
+    try {
+      if (!window.AEGIS_RAG) return 0;      // non caricato: niente da togliere
+      var tutte = await window.AEGIS_RAG.elenco();
+      var n = 0;
+      for (var i = 0; i < tutte.length; i++) {
+        if (eDiSessione(tutte[i].nome)) { await window.AEGIS_RAG.elimina(tutte[i].id); n++; }
+      }
+      return n;
+    } catch (e) { return 0; }
+  };
+
   window.AEGIS_ARCHIVIO = { apri: apriArchivio };
 
   window.AEGIS_MEMORIA = { apri: apriMemoria };
@@ -15017,6 +15398,6 @@ if (recognition) {
      versione vecchia di billing-ui.js e ogni correzione sembra non fare niente:
      si carica il file nuovo e si continua a eseguire quello vecchio. Ogni volta
      che billing-ui.js cambia, si alza questo numero. -->
-<script src="billing-ui.js?v=28" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
+<script src="billing-ui.js?v=30" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
 </body>
 </html>
