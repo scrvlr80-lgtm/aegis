@@ -11733,7 +11733,17 @@ if (recognition) {
     }, 0);
   }
 
-  async function apriSkills() {
+  /* UN PANNELLO SOLO PER TUTTE E DUE LE BASI.
+     Avevo scritto un secondo pannello a mano per la memoria di sessione, e
+     gli mancava tutto: i colori, lo specchio, il campo dove si incolla. Era
+     l'errore che questo progetto ha gia' pagato due volte - due copie della
+     stessa cosa che divergono.
+     Adesso il pannello e' questo, e basta. Cambia il titolo, cambia quali
+     voci mostra, e in modalita' sessione compare il pulsante per svuotare.
+     Tutto il resto - pennello, evidenzia, specchio, revisione, importazione,
+     esportazione - e' identico perche' E' lo stesso codice. */
+  async function apriSkills(modo) {
+    var seSessione = (modo === 'sessione');
     var R;
     try { R = await skCarica(); }
     catch (e) { alert('aegis-rag.js: ' + (e && e.message)); return; }
@@ -11744,7 +11754,7 @@ if (recognition) {
       '<div class="ag-sk-testa">' +
         '<img class="ag-logo" src="' + AEGIS_LOGO + '" alt="Aegis" ' +
           'onerror="this.style.display=\'none\'">' +
-        '<h3>' + T('ragTitolo') + '</h3>' +
+        '<h3>' + T(seSessione ? 'sesTitolo' : 'ragTitolo') + '</h3>' +
         '<button type="button" class="ag-ia' + (pennelloAcceso ? ' on' : '') +
           '" id="ag-sk-pennello">' + (pennelloAcceso ? T('pennelloOn') : T('pennelloOff')) + '</button>' +
         '<button type="button" class="ag-ia' + (PROFONDA ? ' ag-pronto' : '') +
@@ -11755,6 +11765,8 @@ if (recognition) {
           '" id="ag-sk-hl"><span class="ag-dot"></span><span class="ag-lbl">' +
           (codiciAccesi ? T('evidOn') : T('evidOff')) + '</span></button>' +
         '<span class="ag-sk-sp"></span>' +
+        (seSessione ? '<button type="button" class="ag-ia" id="ag-sk-svuota">' +
+          T('sesSvuota') + '</button>' : '') +
         '<button type="button" class="ag-ia" id="ag-sk-chiudi">' + T('ragChiudi') + '</button>' +
       '</div>' +
       '<div class="ag-sk-corpo">' +
@@ -11885,8 +11897,13 @@ if (recognition) {
       // non li toglie lui. Le voci di sessione hanno un pannello loro e qui
       // non compaiono: mescolarle vorrebbe dire vedere sparire meta' elenco
       // al cambio di chat senza capire perche'.
+      // In modalita' sessione si mostrano SOLO le voci di questa
+       // conversazione; nella base dell'utente solo le sue. Le due non si
+       // mescolano mai: mescolarle vorrebbe dire vedere sparire meta' elenco
+       // al cambio di chat senza capire perche'.
       var lista = (await R.elenco()).filter(function (d) {
-        return !RX_SESS.test(String(d.nome || ''));
+        var eSess = RX_SESS.test(String(d.nome || ''));
+        return seSessione ? eSess : !eSess;
       });
       if (!lista.length) { el.innerHTML = '<div class="ag-voci-vuoto">' + T('skVuoto') + '</div>'; return; }
       el.innerHTML = lista.map(function (d) {
@@ -11930,6 +11947,18 @@ if (recognition) {
         ov.remove();
         valoriPreview.clear();
         aggiorna();
+        return;
+      }
+      if (b.id === 'ag-sk-svuota') {
+        // Svuota SOLO la memoria di questa conversazione. La base dei
+        // documenti dell'utente non si tocca: e' sua e resta.
+        if (!confirm(T('sesConfermaSvuota'))) return;
+        (async function () {
+          var n = (window.aegisSvuotaSessione) ? await window.aegisSvuotaSessione() : 0;
+          skSel = null; area.value = ''; nome.value = ''; rispecchia();
+          await ridisegna();
+          alert(T('sesSvuotata').replace('{n}', n));
+        })();
         return;
       }
       if (b.id === 'ag-sk-pennello') { accendiPennello(b); return; }
@@ -12276,6 +12305,10 @@ if (recognition) {
     } catch (e) {}
     return false;
   };
+
+  // Il pannello della base di conoscenza, raggiungibile anche da fuori.
+  // 'generale' = i documenti dell'utente, 'sessione' = questa conversazione.
+  window.aegisApriBase = function (modo) { return apriSkills(modo); };
 
   window.AEGIS_INTERRUTTORI = {
     stato: function () {
@@ -15043,132 +15076,11 @@ if (recognition) {
      duplicarlo vorrebbe dire mantenerne due. Qui c'e' l'essenziale: vedere
      cosa c'e' dentro, aprirlo, correggerlo, toglierlo.
      ===================================================================== */
-  async function apriSessione() {
-    var T = window.aegisT || function (k) { return k; };
-    try { await caricaRag(); } catch (e) { alert('aegis-rag.js: ' + (e && e.message)); return; }
-    var INT = window.AEGIS_INTERRUTTORI || { stato: function () { return {}; },
-      commuta: function () { return {}; }, logo: function () { return ''; } };
-    var S = INT.stato();
-
-    var ov = document.createElement('div');
-    ov.className = 'ag-sk-ov ag-agov';
-    ov.innerHTML =
-      '<div class="ag-sk-testa">' +
-        '<img class="ag-logo" src="' + (INT.logo && INT.logo() || '') + '" alt="Aegis" ' +
-          'onerror="this.style.display=\'none\'">' +
-        '<h3>' + T('sesTitolo') + '</h3>' +
-        '<button type="button" class="ag-ia' + (S.pennello ? ' on' : '') +
-          '" id="ag-se-pennello">' + (S.pennello ? T('pennelloOn') : T('pennelloOff')) + '</button>' +
-        '<button type="button" class="ag-toggle ag-toggle-sp' + (S.evidenzia ? ' on' : '') +
-          '" id="ag-se-hl"><span class="ag-dot"></span><span class="ag-lbl">' +
-          (S.evidenzia ? T('evidOn') : T('evidOff')) + '</span></button>' +
-        '<span class="ag-sk-sp"></span>' +
-        '<button type="button" class="ag-ia" id="ag-se-svuota">' + T('sesSvuota') + '</button>' +
-        '<button type="button" class="ag-ia" id="ag-se-chiudi">' + T('ragChiudi') + '</button>' +
-      '</div>' +
-      '<div class="ag-sk-corpo">' +
-        '<div class="ag-sk-sx">' +
-          '<h4>' + T('sesElenco') + '</h4>' +
-          '<div class="ag-se-lista" id="ag-se-lista"></div>' +
-          '<p class="ag-op-nota" style="margin:0;padding:0 12px 11px">' + T('sesAvviso') + '</p>' +
-        '</div>' +
-        '<div class="ag-sk-dx">' +
-          '<div class="ag-ag-passi" id="ag-se-corpo" style="display:block">' +
-            '<div class="ag-ag-vuoto">' + T('sesIntro') + '</div>' +
-          '</div>' +
-          '<div class="ag-ag-barra">' +
-            '<input type="text" id="ag-se-nome" placeholder="' + T('sesNome') + '" autocomplete="off" readonly>' +
-            '<button type="button" id="ag-se-salva" disabled>' + T('memSalva') + '</button>' +
-          '</div>' +
-          '<p class="ag-ag-piede">' + T('sesProtetto') + '</p>' +
-        '</div>' +
-      '</div>';
-    document.body.appendChild(ov);
-
-    ov.querySelector('#ag-se-chiudi').onclick = function () { ov.remove(); };
-    ov.querySelector('#ag-se-pennello').onclick = function () {
-      var st = INT.commuta('pennello');
-      var b = ov.querySelector('#ag-se-pennello');
-      b.classList.toggle('on', !!st.pennello);
-      b.textContent = st.pennello ? T('pennelloOn') : T('pennelloOff');
-    };
-    ov.querySelector('#ag-se-hl').onclick = function () {
-      var st = INT.commuta('evidenzia');
-      var b = ov.querySelector('#ag-se-hl');
-      b.classList.toggle('on', !!st.evidenzia);
-      var l = b.querySelector('.ag-lbl');
-      if (l) l.textContent = st.evidenzia ? T('evidOn') : T('evidOff');
-    };
-    ov.querySelector('#ag-se-svuota').onclick = async function () {
-      if (!confirm(T('sesConfermaSvuota'))) return;
-      var n = await window.aegisSvuotaSessione();
-      await disegna();
-      alert(T('sesSvuotata').replace('{n}', n));
-    };
-
-    var lista = ov.querySelector('#ag-se-lista');
-    var corpo = ov.querySelector('#ag-se-corpo');
-    var campoNome = ov.querySelector('#ag-se-nome');
-    var salva = ov.querySelector('#ag-se-salva');
-    var apertoId = null;
-
-    async function disegna() {
-      var tutte = (await window.AEGIS_RAG.elenco()).filter(function (d) {
-        return eDiSessione(d.nome);
-      });
-      if (!tutte.length) {
-        lista.innerHTML = '<div class="ag-voci-vuoto">' + T('sesVuoto') + '</div>';
-        corpo.innerHTML = '<div class="ag-ag-vuoto">' + T('sesIntro') + '</div>';
-        campoNome.value = ''; salva.disabled = true; apertoId = null;
-        return;
-      }
-      lista.innerHTML = tutte.map(function (d) {
-        return '<div class="ag-sk-doc' + (apertoId === d.id ? ' on' : '') + '" data-id="' + d.id + '">' +
-          '<span class="pal"></span>' +
-          '<span class="nm">' + escapeHtml(d.nome) +
-            '<span class="dt">' + (d.pezzi || 0) + '</span></span>' +
-          '<button type="button" class="pt" data-x="' + d.id + '">\u00d7</button></div>';
-      }).join('');
-    }
-
-    lista.addEventListener('click', async function (e) {
-      var x = e.target.getAttribute && e.target.getAttribute('data-x');
-      if (x) {
-        if (!confirm(T('memConferma'))) return;
-        await window.AEGIS_RAG.elimina(x);
-        if (apertoId === x) apertoId = null;
-        await disegna();
-        return;
-      }
-      var riga = e.target.closest ? e.target.closest('.ag-sk-doc') : null;
-      if (!riga) return;
-      var id = riga.getAttribute('data-id');
-      var d = await window.AEGIS_RAG.leggi(id);
-      if (!d) return;
-      apertoId = id;
-      campoNome.value = d.nome || '';
-      salva.disabled = false;
-      // Il testo mostrato e' quello archiviato, cioe' GIA' mascherato: qui
-      // dentro non compare nessun dato reale, nemmeno per un istante.
-      corpo.innerHTML = '';
-      var ta = document.createElement('textarea');
-      ta.className = 'ag-mv-t'; ta.id = 'ag-se-testo';
-      ta.style.minHeight = '100%'; ta.spellcheck = false;
-      ta.value = d.testo || '';
-      corpo.appendChild(ta);
-      await disegna();
-    });
-
-    salva.onclick = async function () {
-      if (!apertoId) return;
-      var ta = ov.querySelector('#ag-se-testo');
-      if (!ta) return;
-      try { await window.AEGIS_RAG.sostituisci(apertoId, ta.value); }
-      catch (e) { alert('Skills: ' + (e && e.message)); return; }
-      await disegna();
-    };
-
-    await disegna();
+  /* La memoria di sessione usa LO STESSO pannello della base di conoscenza,
+     in modalita' 'sessione'. Non esiste un secondo pannello da mantenere. */
+  function apriSessione() {
+    if (typeof window.aegisApriBase === 'function') return window.aegisApriBase('sessione');
+    return null;
   }
   window.AEGIS_SESSIONE = { apri: apriSessione };
 
@@ -15452,6 +15364,6 @@ if (recognition) {
      versione vecchia di billing-ui.js e ogni correzione sembra non fare niente:
      si carica il file nuovo e si continua a eseguire quello vecchio. Ogni volta
      che billing-ui.js cambia, si alza questo numero. -->
-<script src="billing-ui.js?v=31" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
+<script src="billing-ui.js?v=32" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
 </body>
 </html>
