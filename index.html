@@ -8960,6 +8960,7 @@ if (recognition) {
       agRifiuta:'No, ferma',
       agConfermato:'Confermato da te',
       agRifiutato:'Rifiutato: non ho fatto niente',
+      agNiente:'Il modello ha risposto a parole senza usare nessuno strumento: il compito NON e\' stato eseguito. Prova con un modello piu\' capace, o riformula in modo piu\' diretto.',
       opCancella:'Cancella la cronologia locale',
       opNota:'Le conversazioni e la corrispondenza fra codici e dati reali restano solo su questo dispositivo. Cancellandole non si recuperano.',
       opEsci:'Esci dall\u0027account', opChiudi:'Chiudi',
@@ -9214,6 +9215,7 @@ if (recognition) {
       agRifiuta:'No, para',
       agConfermato:'Confirmado por ti',
       agRifiutato:'Rechazado: no he hecho nada',
+      agNiente:'El modelo ha respondido con palabras sin usar ninguna herramienta: la tarea NO se ha ejecutado. Prueba con un modelo mas capaz o reformula de forma mas directa.',
       opCancella:'Borrar el historial local',
       opNota:'Las conversaciones y la correspondencia entre codigos y datos reales solo estan en este dispositivo. Si las borras no se recuperan.',
       opEsci:'Cerrar sesion', opChiudi:'Cerrar',
@@ -9468,6 +9470,7 @@ if (recognition) {
       agRifiuta:'No, stop',
       agConfermato:'Confirmed by you',
       agRifiutato:'Refused: I did nothing',
+      agNiente:'The model answered in words without using any tool: the task was NOT carried out. Try a more capable model, or phrase it more directly.',
       opCancella:'Delete local history',
       opNota:'Conversations and the mapping between codes and real data live only on this device. Deleting them cannot be undone.',
       opEsci:'Sign out', opChiudi:'Close',
@@ -14211,7 +14214,12 @@ if (recognition) {
           esito = await window.AEGIS_AGENTE.esegui(compitoProtetto, { chiedi: chiedi, giriMax: giriMax });
         }
         attesa.remove();
-        if (esito && esito.stato === 'finito') scrivi('lui', esito.risposta || '');
+        if (esito && esito.stato === 'finito') {
+          scrivi('lui', esito.risposta || '');
+          // Se il modello ha risposto a parole senza toccare uno strumento,
+          // si dice: e' un compito NON eseguito, non un compito riuscito.
+          if (esito.senza_strumenti) scrivi('err', T('agNiente'));
+        }
         else if (esito && esito.stato === 'tetto') scrivi('err', esito.messaggio);
       } catch (e) {
         attesa.remove();
@@ -15009,6 +15017,6 @@ if (recognition) {
      versione vecchia di billing-ui.js e ogni correzione sembra non fare niente:
      si carica il file nuovo e si continua a eseguire quello vecchio. Ogni volta
      che billing-ui.js cambia, si alza questo numero. -->
-<script src="billing-ui.js?v=27" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
+<script src="billing-ui.js?v=28" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
 </body>
 </html>
