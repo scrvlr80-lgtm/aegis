@@ -1309,6 +1309,13 @@ body {
         </div>
     </div>
     <div class="chat-messages" id="chat-messages"></div>
+    <!-- MODALITA' AGENTE: prende il posto dei messaggi, non della pagina.
+         Colonna sinistra e riquadro centrale di AEGIS restano dove sono e
+         continuano a funzionare: si incolla un documento di la', si vede
+         coperto nello specchio, e l'agente lavora su quello. E' il motivo per
+         cui la modalita' agente sta DENTRO Aegis e non in una finestra a
+         parte. -->
+    <div class="chat-messages ag-agente-diario" id="ag-agente-diario" style="display:none"></div>
     <button class="scroll-to-bottom-btn" id="scroll-bottom-btn" onclick="scrollToBottomChat()">
         <svg viewBox="0 0 24 24"><path d="M16.59 8.59L12 13.17 7.41 8.59 6 10l6 6 6-6z"/></svg>
     </button>
@@ -1323,6 +1330,13 @@ body {
         <button class="img-preview-remove" id="img-preview-remove" title="Quitar" onclick="removeSelectedImage()">
             <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
         </button>
+    </div>
+    <div class="chat-input-wrapper ag-agente-barra" id="ag-agente-barra" style="display:none">
+        <div class="chat-input-container">
+            <textarea id="ag-agente-compito" class="chat-input" rows="1"
+                placeholder="Che cosa devo fare?"></textarea>
+            <button class="send-btn-icon" id="ag-agente-via" type="button">&#9654;</button>
+        </div>
     </div>
     <div class="chat-input-wrapper" id="chat-input-wrapper">
         <div class="input-inner">
@@ -2345,6 +2359,10 @@ body {
         // questo prodotto e' un danno, non una comodita'.
         // La base GENERALE dell'utente non si tocca: quella e' sua e resta.
         if (window.aegisSvuotaSessione) window.aegisSvuotaSessione();
+        // Il diario dell'agente vive nella stessa colonna della chat: si
+        // azzera insieme, altrimenti resta il lavoro della conversazione
+        // di prima sotto una chat nuova.
+        if (window.aegisAgenteAzzera) window.aegisAgenteAzzera();
         const chatMessagesDiv = document.getElementById('chat-messages');
         if (chatMessagesDiv) chatMessagesDiv.innerHTML = '';
         initChatbot(activeLanguageCode);
@@ -2466,6 +2484,10 @@ body {
         // questo prodotto e' un danno, non una comodita'.
         // La base GENERALE dell'utente non si tocca: quella e' sua e resta.
         if (window.aegisSvuotaSessione) window.aegisSvuotaSessione();
+        // Il diario dell'agente vive nella stessa colonna della chat: si
+        // azzera insieme, altrimenti resta il lavoro della conversazione
+        // di prima sotto una chat nuova.
+        if (window.aegisAgenteAzzera) window.aegisAgenteAzzera();
         const chatMessagesDiv = document.getElementById('chat-messages');
         if (chatMessagesDiv) chatMessagesDiv.innerHTML = '';
         const loadingEl = addMessageToChat((UI_STRINGS[activeLanguageCode] || UI_DEFAULT).loadingMsg || 'Cargando...', 'bot-message typing-indicator');
@@ -8437,13 +8459,32 @@ if (recognition) {
       var ai=[]; vociAI.forEach(function(tok,k){ ai.push([k,tok]); });
       var pv=[]; provenienza.forEach(function(chi,k){ pv.push([k,chi]); });
       var cu=[]; categoriePersonali.forEach(function(c,id){ cu.push([id,c]); });
-      sessionStorage.setItem(CHIAVE, JSON.stringify({v:v,c:c,n:contatore,r:righe,
-        b:b, e:Array.from(esclusi), cu:cu, ai:ai, pv:pv}));
+      var pacco = JSON.stringify({v:v,c:c,n:contatore,r:righe,
+        b:b, e:Array.from(esclusi), cu:cu, ai:ai, pv:pv});
+      sessionStorage.setItem(CHIAVE, pacco);
+
+      /* ====== IL VAULT SOPRAVVIVE ALLA SCHEDA ==========================
+         Finora la corrispondenza codice/dato moriva chiudendo il browser: la
+         stessa persona riceveva [[PER_01]] oggi e [[PER_04]] domani, e due
+         memorie salvate in giorni diversi non parlavano piu' la stessa
+         lingua. Adesso resta.
+
+         DA SAPERE, e va detto all'utente nell'informativa: questo e' il file
+         piu' delicato di tutto il prodotto. Non contiene i documenti, ma
+         contiene la CHIAVE per rileggerli. Resta su questo dispositivo e non
+         viene mai spedito da nessuna parte - ma chi ha accesso al browser ha
+         accesso a lui. Si svuota dalle impostazioni.
+         ================================================================ */
+      try { localStorage.setItem(CHIAVE + '_persistente', pacco); } catch (e2) {}
     }catch(e){}
   }
   function ripristina(){
     try{
+      // Prima la sessione corrente; se non c'e' (scheda nuova, browser
+      // riaperto) si riprende il vault persistente, cosi' i codici di ieri
+      // valgono ancora oggi.
       var d=JSON.parse(sessionStorage.getItem(CHIAVE)||'null');
+      if(!d){ try{ d=JSON.parse(localStorage.getItem(CHIAVE+'_persistente')||'null'); }catch(e2){} }
       if(!d) return;
       (d.v||[]).forEach(function(p){ vault.set(p[0],p[1]); });
       // riassegno i codici stretti nello stesso ordine in cui erano nati,
@@ -9009,6 +9050,19 @@ if (recognition) {
       bkModello:'Assistente',
       skNoMaschera:'Non riesco a proteggere questo testo adesso: non lo salvo in chiaro.',
       skNonTrovata:'Voce non trovata nell\'archivio.',
+      agEsci:'Esci da agente',
+      agDocumento:'Documento',
+      agConDocumento:'Con il documento del riquadro ({n} caratteri), gia\' coperto.',
+      bkScegli:'Che cosa vuoi portarti?',
+      bkMessaggi:'messaggi',
+      veTitolo:'Ricerca per significato',
+      veNota:'Oggi la banca dati si cerca per parole. Accendendo questa, trova anche i pezzi che dicono la stessa cosa con parole diverse: cerchi "contratto affitto" e trova "accordo di locazione". Gira tutta su questo dispositivo.',
+      veAccendi:'Accendi / spegni',
+      veConferma:'La prima accensione scarica un modello di circa 100 MB. Resta poi nella memoria del browser e non si riscarica. Procedo?',
+      veScarico:'Scarico il modello…',
+      veIndicizzo:'Preparo i documenti…',
+      veAccesa:'Accesa. {n} pezzi pronti.',
+      veSpenta:'Spenta. Torna la ricerca per parole.',
       opCancella:'Cancella la cronologia locale',
       opNota:'Le conversazioni e la corrispondenza fra codici e dati reali restano solo su questo dispositivo. Cancellandole non si recuperano.',
       opEsci:'Esci dall\u0027account', opChiudi:'Chiudi',
@@ -9288,6 +9342,19 @@ if (recognition) {
       bkModello:'Asistente',
       skNoMaschera:'No puedo proteger este texto ahora: no lo guardo en claro.',
       skNonTrovata:'Entrada no encontrada en el archivo.',
+      agEsci:'Salir de agente',
+      agDocumento:'Documento',
+      agConDocumento:'Con el documento del recuadro ({n} caracteres), ya cubierto.',
+      bkScegli:'¿Que quieres llevarte?',
+      bkMessaggi:'mensajes',
+      veTitolo:'Busqueda por significado',
+      veNota:'Hoy la base de datos se busca por palabras. Encendiendo esto, encuentra tambien lo que dice lo mismo con otras palabras: buscas "contrato alquiler" y encuentra "acuerdo de arrendamiento". Funciona entero en este dispositivo.',
+      veAccendi:'Encender / apagar',
+      veConferma:'El primer encendido descarga un modelo de unos 100 MB. Luego se queda en la memoria del navegador y no se vuelve a descargar. ¿Sigo?',
+      veScarico:'Descargando el modelo…',
+      veIndicizzo:'Preparando los documentos…',
+      veAccesa:'Encendida. {n} fragmentos listos.',
+      veSpenta:'Apagada. Vuelve la busqueda por palabras.',
       opCancella:'Borrar el historial local',
       opNota:'Las conversaciones y la correspondencia entre codigos y datos reales solo estan en este dispositivo. Si las borras no se recuperan.',
       opEsci:'Cerrar sesion', opChiudi:'Cerrar',
@@ -9567,6 +9634,19 @@ if (recognition) {
       bkModello:'Assistant',
       skNoMaschera:'I cannot protect this text right now: I will not save it in the clear.',
       skNonTrovata:'Entry not found in the archive.',
+      agEsci:'Exit agent',
+      agDocumento:'Document',
+      agConDocumento:'With the document in the box ({n} characters), already covered.',
+      bkScegli:'What do you want to bring?',
+      bkMessaggi:'messages',
+      veTitolo:'Search by meaning',
+      veNota:'Today the knowledge base is searched by words. Turn this on and it also finds passages that say the same thing in other words: search "rental contract" and find "lease agreement". It all runs on this device.',
+      veAccendi:'Turn on / off',
+      veConferma:'The first time this downloads a model of about 100 MB. It then stays in the browser cache and is not downloaded again. Proceed?',
+      veScarico:'Downloading the model…',
+      veIndicizzo:'Preparing the documents…',
+      veAccesa:'On. {n} passages ready.',
+      veSpenta:'Off. Word search is back.',
       opCancella:'Delete local history',
       opNota:'Conversations and the mapping between codes and real data live only on this device. Deleting them cannot be undone.',
       opEsci:'Sign out', opChiudi:'Close',
@@ -9839,6 +9919,10 @@ if (recognition) {
         'font-family:\'Space Grotesk\',sans-serif}' +
       '.ag-agov .ag-sk-sx h4{margin:0;padding:12px 14px;font-size:9.5px;letter-spacing:.06em;' +
         'text-transform:uppercase;color:var(--text-light);border-bottom:1px solid var(--hairline)}' +
+      '.ag-agente-diario{display:flex;flex-direction:column;gap:9px;padding:20px}' +
+      '.ag-agente-diario .ag-ag-vuoto{margin:auto;max-width:420px;text-align:center;' +
+        'font-size:12.5px;color:var(--text-light);line-height:1.6}' +
+      '.ag-agente-barra .chat-input-container{width:100%}' +
       '.ag-ag-barra{flex:none;display:flex;gap:9px}' +
       '.ag-ag-barra input{flex:1 1 auto;min-width:0;height:42px;padding:0 15px;box-sizing:border-box;' +
         'border:1px solid var(--hairline);border-radius:12px;background:var(--primary);' +
@@ -11794,8 +11878,59 @@ if (recognition) {
     return 'AG-SESSION';
   }
 
+  /* Il pannello di scelta: tutta la conversazione, un messaggio per riga,
+     tutte spuntate. Si tolgono quelle che non servono. */
+  function scegliMessaggi(tutti, codice) {
+    var T = window.aegisT || function (k) { return k; };
+    return new Promise(function (risolvi) {
+      var velo = document.createElement('div');
+      velo.className = 'ag-vt-velo'; velo.id = 'ag-sm-velo';
+      document.body.appendChild(velo);
+      var d = document.createElement('div');
+      d.className = 'ag-vt'; d.id = 'ag-sm'; d.style.width = 'min(760px,95vw)';
+      d.innerHTML =
+        '<h3>' + T('bkScegli') + '</h3>' +
+        '<p class="ag-vt-sub">' + codice + ' \u00b7 ' + tutti.length + ' ' + T('bkMessaggi') + '</p>' +
+        '<div class="ag-arg-lista">' + tutti.map(function (m, i) {
+          return '<label class="ag-arg-riga"><input type="checkbox" checked data-i="' + i + '">' +
+            '<span class="ag-arg-l">' + escapeHtml(m.chi) + '</span>' +
+            '<span class="ag-arg-c"><i>' + escapeHtml(m.anteprima) + '</i></span></label>';
+        }).join('') + '</div>' +
+        '<div class="ag-arg-piede">' +
+          '<button type="button" class="leggero" data-a="niente">' + T('argTutti') + '</button>' +
+          '<button type="button" class="leggero" data-a="no">' + T('webAnnulla') + '</button>' +
+          '<button type="button" data-a="si">' + T('argIntegra') + '</button>' +
+        '</div>';
+      document.body.appendChild(d);
+      function chiudi(v) {
+        var a = document.getElementById('ag-sm'), b = document.getElementById('ag-sm-velo');
+        if (a) a.remove(); if (b) b.remove();
+        risolvi(v);
+      }
+      velo.onclick = function () { chiudi(null); };
+      d.addEventListener('click', function (e) {
+        var b = e.target.closest ? e.target.closest('[data-a]') : null;
+        if (!b) return;
+        var a = b.getAttribute('data-a');
+        if (a === 'niente') {
+          var c = d.querySelectorAll('input[type=checkbox]');
+          var tutte = Array.prototype.every.call(c, function (x) { return x.checked; });
+          Array.prototype.forEach.call(c, function (x) { x.checked = !tutte; });
+          return;
+        }
+        if (a === 'no') { chiudi(null); return; }
+        var out = [];
+        Array.prototype.forEach.call(d.querySelectorAll('input[type=checkbox]'), function (x) {
+          if (x.checked) out.push(tutti[+x.getAttribute('data-i')]);
+        });
+        chiudi(out);
+      });
+    });
+  }
+
   async function apriSkills(modo) {
     var seSessione = (modo === 'sessione');
+    var skOrigine = null;   // da quale conversazione e quali messaggi
     var R;
     try { R = await skCarica(); }
     catch (e) { alert('aegis-rag.js: ' + (e && e.message)); return; }
@@ -12142,16 +12277,23 @@ if (recognition) {
         var chat = (window.AEGIS_CRONOLOGIA && window.AEGIS_CRONOLOGIA.trova)
           ? window.AEGIS_CRONOLOGIA.trova(cod) : null;
         if (!chat) { dimmi(T('bkCodiceIgnoto'), true); return; }
-        var pezzi = (chat.messaggi || []).map(function (m) {
-          var chi = (m.role === 'user') ? T('bkTu') : T('bkModello');
-          return chi + ': ' + String(m.content || '').trim();
-        }).filter(function (x) { return x.length > 4; });
-        if (!pezzi.length) { dimmi(T('bkCodiceVuoto'), true); return; }
-        area.value = pezzi.join('\n\n');
+        var tutti = window.AEGIS_CRONOLOGIA.messaggi(chat);
+        if (!tutti.length) { dimmi(T('bkCodiceVuoto'), true); return; }
+        /* SI SCEGLIE COSA PORTARSI. Tutta la conversazione, un messaggio per
+           riga, con la spunta. Si legge dal testo IN CHIARO della cronologia:
+           serve poterlo rileggere e correggere. La copertura arriva dopo, nel
+           riquadro, e in banca dati ci va solo il coperto. */
+        var scelta = await scegliMessaggi(tutti, cod);
+        if (!scelta || !scelta.length) return;
+        area.value = scelta.map(function (m) {
+          return m.chi + ': ' + m.testo;
+        }).join('\n\n');
         nome.value = cod + ' \u00b7 ' + (chat.titolo || '').slice(0, 60);
+        // Da dove viene ogni pezzo: serve per riaprire l'originale, non la copia.
+        skOrigine = { codice: cod, indici: scelta.map(function (m) { return m.indice; }) };
         skSel = null;
         rispecchia();
-        dimmi(T('bkRipreso').replace('{n}', pezzi.length));
+        dimmi(T('bkRipreso').replace('{n}', scelta.length));
         return;
       }
       if (b.id === 'ag-sk-salva') {
@@ -12184,6 +12326,31 @@ if (recognition) {
               etichetta = codiceSessioneCorrente() + ' \u00b7 ' + etichetta;
             }
             var d = await R.aggiungi(etichetta, t);
+            /* DA DOVE VIENE. Si annota la conversazione e quali messaggi:
+               riaprendo un pezzo per correggerlo si riapre il testo ORIGINALE
+               in chiaro, non la copia mascherata. E' cio' che rende possibile
+               correggere e risalvare all'infinito senza degradare.
+               Si annota anche CHI l'ha prodotto - tu, il modello, l'agente -
+               cosi' un domani si puo' filtrare senza rifare l'archivio. */
+            try {
+              var meta = { origine: seSessione ? 'sessione' : 'utente' };
+              if (skOrigine) { meta.conversazione = skOrigine.codice; meta.messaggi = skOrigine.indici; }
+              localStorage.setItem('aegis_meta_' + d.id, JSON.stringify(meta));
+            } catch (em) {}
+            /* I VETTORI VECCHI MENTONO. Cambiando il testo di una voce, i suoi
+               vettori descrivono qualcosa che non c'e' piu': si rifanno subito,
+               sostituendo i precedenti. Solo se la ricerca per significato e'
+               accesa, altrimenti non c'e' niente da rifare. */
+            try {
+              if (window.AEGIS_VETTORI && window.AEGIS_VETTORI.attivo()) {
+                var pz = t.split(/\n\s*\n/).filter(function (x) { return x.trim().length > 30; })
+                          .map(function (x, k) {
+                            return { testo: x, rif: skOrigine ? { codice: skOrigine.codice,
+                                     messaggio: skOrigine.indici[k] } : null };
+                          });
+                window.AEGIS_VETTORI.reindicizza(d.id, pz);
+              }
+            } catch (ev) {}
             skSel = d.id;
           }
           dimmi(T('skSalvata'));
@@ -12239,6 +12406,12 @@ if (recognition) {
         '<div class="ag-op-sez"><h4>' + T('sysTitolo') + '</h4>' +
           '<p class="ag-op-nota">' + T('sysNota') + '</p>' +
           '<button type="button" class="ag-op-btn" id="ag-op-sistema">' + T('sysApri') + '</button></div>' +
+        // Ricerca per significato: spenta finche' non la si accende, perche'
+        // la prima accensione scarica un modello di un centinaio di megabyte.
+        '<div class="ag-op-sez"><h4>' + T('veTitolo') + '</h4>' +
+          '<p class="ag-op-nota">' + T('veNota') + '</p>' +
+          '<button type="button" class="ag-op-btn" id="ag-op-vettori">' + T('veAccendi') + '</button>' +
+          '<div class="ag-op-nota" id="ag-op-vestato" style="margin-top:8px"></div></div>' +
         '<div class="ag-op-sez"><button type="button" class="ag-op-btn" id="ag-op-docreset">' +
           T('opDocReset') + '</button></div>' +
         '<div class="ag-op-sez"><h4>' + T('opAvvisi') + '</h4>' + righeAvvisi + '</div>' +
@@ -12492,6 +12665,26 @@ if (recognition) {
         if (q && q.testo && q.testo !== domanda) interrogazione = domanda + ' ' + q.testo;
       } catch (e) {}
       var chiaro = await window.AEGIS_RAG.contesto(interrogazione);
+
+      /* SE LA RICERCA PER SIGNIFICATO E' ACCESA, si aggiunge alla ricerca per
+         parole invece di sostituirla. Le parole trovano i codici esatti
+         ([[PER_07]]) e i numeri; i vettori trovano il senso della frase
+         intorno. Da soli sbagliano tutti e due. */
+      try {
+        if (window.AEGIS_VETTORI && window.AEGIS_VETTORI.attivo()) {
+          var vicini = await window.AEGIS_VETTORI.cerca(interrogazione, 5);
+          if (vicini && vicini.length) {
+            var extra = [];
+            for (var vi = 0; vi < vicini.length; vi++) {
+              try {
+                var dv = await window.AEGIS_RAG.leggi(vicini[vi].doc);
+                if (dv && dv.testo) extra.push(dv.testo.slice(0, 1200));
+              } catch (ev) {}
+            }
+            if (extra.length) chiaro = (chiaro ? chiaro + '\n\n' : '') + extra.join('\n\n');
+          }
+        }
+      } catch (e) {}
       if (!chiaro) return '';
       // STESSA FUNZIONE, STESSO VAULT. Non e' una mascheratura "per il RAG":
       // e' la mascheratura, quella che tratta cio' che l'utente scrive. Per
@@ -13824,6 +14017,27 @@ if (recognition) {
      Si taglia dove l'utente ha cambiato discorso - una domanda nuova dopo una
      risposta - e ogni pezzo prende come titolo la domanda che l'ha aperto.
      E' esatto per costruzione: il titolo sono le parole dell'utente. */
+  /* TUTTO, NON UN RIASSUNTO.
+     Prima raggruppavo per argomento e tagliavo a dodici: il resto della
+     conversazione spariva senza dirlo. Adesso ogni messaggio - domanda e
+     risposta - e' una riga con la sua spunta, in ordine, e si sceglie.
+     Ogni riga porta con se' da dove viene (quale conversazione, quale
+     messaggio): serve a riaprire il testo ORIGINALE quando si corregge un
+     pezzo, invece di riaprire la copia salvata. */
+  function messaggiDi(chat) {
+    var T = window.aegisT || function (k) { return k; };
+    return ((chat && chat.messaggi) || []).map(function (m, i) {
+      var t = String(m.content || '').trim();
+      return {
+        indice: i,
+        chi: (m.role === 'user') ? T('bkTu') : T('bkModello'),
+        utente: m.role === 'user',
+        testo: t,
+        anteprima: t.replace(/\s+/g, ' ').slice(0, 160) + (t.length > 160 ? '\u2026' : '')
+      };
+    }).filter(function (x) { return x.testo.length > 0; });
+  }
+
   function argomentiDi(chat) {
     var msg = (chat && chat.messaggi) || [], out = [], corr = null;
     msg.forEach(function (m) {
@@ -14235,6 +14449,17 @@ if (recognition) {
   }
 
   // aegis-rag.js si carica solo quando serve: e' lo stesso archivio delle Skill.
+  function caricaVettori() {
+    if (window.AEGIS_VETTORI) return Promise.resolve();
+    return new Promise(function (ok, ko) {
+      var t = document.createElement('script');
+      t.src = 'aegis-vettori.js';
+      t.onload = function () { ok(); };
+      t.onerror = function () { ko(new Error('aegis-vettori.js')); };
+      document.head.appendChild(t);
+    });
+  }
+
   function caricaAgente() {
     if (window.AEGIS_AGENTE) return Promise.resolve();
     return new Promise(function (ok, ko) {
@@ -14463,7 +14688,13 @@ if (recognition) {
     d.querySelector('#ag-mv-ann').onclick = chiudi;
     d.querySelector('#ag-mv-ok').onclick = async function () {
       var t = document.getElementById('ag-mv-t').value;
-      try { await window.AEGIS_RAG.sostituisci(id, t); } catch (e) { alert('Skills: ' + (e && e.message)); }
+      /* Il testo qui dentro e' gia' coperto, ma NIENTE impedisce di incollarci
+         sopra un pezzo in chiaro mentre lo si corregge. Si ripassa dal
+         mascheratore prima di salvare: costa nulla e chiude l'unica strada
+         rimasta per far entrare un dato vero in banca dati. */
+      var protetto = mascheraTesto(t);
+      if (t.trim() && !protetto) { alert((window.aegisT || function (k) { return k; })('skNoMaschera')); return; }
+      try { await window.AEGIS_RAG.sostituisci(id, protetto); } catch (e) { alert('Skills: ' + (e && e.message)); }
       chiudi();
     };
   }
@@ -14475,189 +14706,191 @@ if (recognition) {
      esattamente come fa la base di conoscenza. Chi passa da una all'altra
      deve sentire di essere nello stesso programma.
      ===================================================================== */
+  /* ================== MODALITA' AGENTE ===================================
+     Non e' una finestra sopra Aegis: e' Aegis con la colonna di destra
+     cambiata. A sinistra restano i dati coperti, in mezzo lo specchio e il
+     riquadro dove si incolla. A destra, al posto della chat, il diario
+     dell'agente e la barra del compito.
+     Cosi' il documento che incolli nel riquadro di mezzo lo vedi coperto e
+     l'agente ci lavora sopra: e' il motivo per cui la modalita' sta qui
+     dentro invece che in una finestra a parte.
+     ===================================================================== */
+  var _agenteAcceso = false;
+  var _agenteOnLog = null;
+
+  function elementiChat() {
+    return {
+      msg: document.getElementById('chat-messages'),
+      barra: document.getElementById('chat-input-wrapper'),
+      diario: document.getElementById('ag-agente-diario'),
+      barraAg: document.getElementById('ag-agente-barra'),
+      nuova: document.getElementById('new-chat-btn'),
+      storia: document.getElementById('history-btn')
+    };
+  }
+
+  function agenteMostra(acceso) {
+    var e = elementiChat();
+    _agenteAcceso = !!acceso;
+    if (e.msg) e.msg.style.display = acceso ? 'none' : 'flex';
+    if (e.barra) e.barra.style.display = acceso ? 'none' : 'flex';
+    if (e.diario) e.diario.style.display = acceso ? 'flex' : 'none';
+    if (e.barraAg) e.barraAg.style.display = acceso ? 'flex' : 'none';
+    // Nuova chat e Cronologia non hanno senso mentre l'agente lavora: al loro
+    // posto compare il modo di uscire.
+    if (e.nuova) e.nuova.style.display = acceso ? 'none' : '';
+    if (e.storia) e.storia.style.display = acceso ? 'none' : '';
+    var esci = document.getElementById('ag-agente-esci');
+    if (esci) esci.style.display = acceso ? '' : 'none';
+    var btn = document.getElementById('ag-agente-btn');
+    if (btn) btn.classList.toggle('on', acceso);
+  }
+
   async function apriAgente() {
     var T = window.aegisT || function (k) { return k; };
     try { await caricaAgente(); } catch (e) {}
-    // La porta sugli interruttori del pannello principale. Se manca, si
-    // continua lo stesso: l'agente funziona, i pulsanti restano spenti.
-    var INT = window.AEGIS_INTERRUTTORI || { stato: function () { return {}; },
-      commuta: function () { return {}; }, logo: function () { return ''; } };
-    var S = INT.stato();
 
-    var strumenti = (window.AEGIS_AGENTE ? window.AEGIS_AGENTE.strumenti() : []);
-    var righe = strumenti.map(function (st) {
-      return '<div class="ag-ag-str">' +
-        '<span class="ag-ag-perm ' + (st.agisce ? 'scrive' : 'legge') + '">' +
-          T(st.agisce ? 'agScrive' : 'agLegge') + '</span>' +
-        '<span class="ag-ag-nome">' + escapeHtml(st.nome) + '</span>' +
-        '<span class="ag-ag-desc">' + escapeHtml(st.descrizione) + '</span></div>';
-    }).join('');
-
-    var ov = document.createElement('div');
-    ov.className = 'ag-sk-ov ag-agov';
-    ov.innerHTML =
-      '<div class="ag-sk-testa">' +
-        '<img class="ag-logo" src="' + (INT.logo && INT.logo() || '') + '" alt="Aegis" ' +
-          'onerror="this.style.display=\'none\'">' +
-        '<h3>' + T('agTitolo') + '</h3>' +
-        '<button type="button" class="ag-ia' + (S.pennello ? ' on' : '') +
-          '" id="ag-ag-pennello">' + (S.pennello ? T('pennelloOn') : T('pennelloOff')) + '</button>' +
-        '<button type="button" class="ag-ia' + (S.profonda ? ' ag-pronto' : '') +
-          '" id="ag-ag-profonda">' + (S.profonda ? T('profondaOn') : T('profondaOff')) + '</button>' +
-        '<button type="button" class="ag-ia' + (S.riservato ? ' on' : '') +
-          '" id="ag-ag-riservato">' + (S.riservato ? T('riservatoOn') : T('riservatoOff')) + '</button>' +
-        '<button type="button" class="ag-toggle ag-toggle-sp' + (S.evidenzia ? ' on' : '') +
-          '" id="ag-ag-hl"><span class="ag-dot"></span><span class="ag-lbl">' +
-          (S.evidenzia ? T('evidOn') : T('evidOff')) + '</span></button>' +
-        '<span class="ag-sk-sp"></span>' +
-        '<button type="button" class="ag-ia" id="ag-ag-chiudi">' + T('ragChiudi') + '</button>' +
-      '</div>' +
-      '<div class="ag-sk-corpo">' +
-        '<div class="ag-sk-sx">' +
-          '<h4>' + T('agStrumenti') + '</h4>' +
-          '<div class="ag-ag-lista">' +
-            (righe || ('<p class="ag-vt-som" style="padding:12px">' + T('agNessuno') + '</p>')) +
-          '</div>' +
-        '</div>' +
-        '<div class="ag-sk-dx">' +
-          '<div class="ag-ag-passi" id="ag-ag-passi">' +
-            '<div class="ag-ag-vuoto">' + T('agIntro') + '</div>' +
-          '</div>' +
-          '<div class="ag-ag-barra">' +
-            '<input type="text" id="ag-ag-compito" placeholder="' + T('agCompito') + '" autocomplete="off">' +
-            '<button type="button" id="ag-ag-via">' + T('agVia') + '</button>' +
-          '</div>' +
-          '<p class="ag-ag-piede">' + T('agNota') + '</p>' +
-        '</div>' +
-      '</div>';
-    document.body.appendChild(ov);
-
-    function chiudi() { ov.remove(); }
-    ov.querySelector('#ag-ag-chiudi').onclick = chiudi;
-
-    // I pulsanti della testa comandano le STESSE impostazioni della chat:
-    // non sono copie decorative, sono gli stessi interruttori.
-    function rifletti() {
-      var st = INT.stato();
-      var p = ov.querySelector('#ag-ag-pennello');
-      if (p) { p.classList.toggle('on', !!st.pennello);
-        p.textContent = st.pennello ? T('pennelloOn') : T('pennelloOff'); }
-      var f = ov.querySelector('#ag-ag-profonda');
-      if (f) { f.classList.toggle('ag-pronto', !!st.profonda);
-        f.textContent = st.profonda ? T('profondaOn') : T('profondaOff'); }
-      var r = ov.querySelector('#ag-ag-riservato');
-      if (r) { r.classList.toggle('on', !!st.riservato);
-        r.textContent = st.riservato ? T('riservatoOn') : T('riservatoOff'); }
-      var h = ov.querySelector('#ag-ag-hl');
-      if (h) { h.classList.toggle('on', !!st.evidenzia);
-        var l = h.querySelector('.ag-lbl'); if (l) l.textContent = st.evidenzia ? T('evidOn') : T('evidOff'); }
+    // il pulsante per uscire, accanto al selettore del modello
+    if (!document.getElementById('ag-agente-esci')) {
+      var testa = document.querySelector('.chat-header');
+      var b = document.createElement('button');
+      b.className = 'lang-change-btn'; b.id = 'ag-agente-esci'; b.type = 'button';
+      b.textContent = T('agEsci'); b.style.display = 'none';
+      b.onclick = function () { agenteMostra(false); };
+      var rif = document.getElementById('new-chat-btn');
+      if (testa && rif) testa.insertBefore(b, rif); else if (testa) testa.appendChild(b);
     }
-    ov.querySelector('#ag-ag-pennello').onclick = function () { INT.commuta('pennello'); rifletti(); };
-    ov.querySelector('#ag-ag-riservato').onclick = function () { INT.commuta('riservato'); rifletti(); };
-    ov.querySelector('#ag-ag-hl').onclick = function () { INT.commuta('evidenzia'); rifletti(); };
+    agenteMostra(true);
 
-    var passi = ov.querySelector('#ag-ag-passi');
-    function scrivi(classe, testo) {
-      var v = passi.querySelector('.ag-ag-vuoto'); if (v) v.remove();
-      var r = document.createElement('div');
-      r.className = 'ag-ag-passo ' + classe;
-      r.textContent = testo;
-      passi.appendChild(r);
-      passi.scrollTop = passi.scrollHeight;
-      return r;
-    }
-
-    function chiediApprovazione(anteprima) {
-      return new Promise(function (risolvi) {
-        var v = passi.querySelector('.ag-ag-vuoto'); if (v) v.remove();
-        var c = document.createElement('div');
-        c.className = 'ag-ag-appr';
-        var dettagli = Object.keys(anteprima || {}).filter(function (k) {
-          return k !== 'descrizione' && anteprima[k];
-        }).map(function (k) {
-          return '<div class="ag-ag-camp"><span>' + escapeHtml(k) + '</span><code>' +
-                 escapeHtml(String(anteprima[k]).slice(0, 500)) + '</code></div>';
-        }).join('');
-        c.innerHTML = '<b>' + T('agConfermaTit') + '</b>' +
-          '<p>' + escapeHtml((anteprima && anteprima.descrizione) || '') + '</p>' + dettagli +
-          '<div class="ag-ag-appr-b">' +
-            '<button type="button" class="ag-ia" data-a="no">' + T('agRifiuta') + '</button>' +
-            '<button type="button" class="ag-ia ag-pronto" data-a="si">' + T('agConferma') + '</button>' +
-          '</div>';
-        passi.appendChild(c);
-        passi.scrollTop = passi.scrollHeight;
-        c.addEventListener('click', function (e) {
-          var b = e.target.closest ? e.target.closest('[data-a]') : null;
-          if (!b) return;
-          var si = b.getAttribute('data-a') === 'si';
-          c.classList.add(si ? 'ok' : 'no');
-          c.querySelector('.ag-ag-appr-b').innerHTML =
-            '<i>' + T(si ? 'agConfermato' : 'agRifiutato') + '</i>';
-          risolvi(si);
-        });
+    var diario = document.getElementById('ag-agente-diario');
+    if (diario && !diario.getAttribute('data-pronto')) {
+      diario.setAttribute('data-pronto', '1');
+      diario.innerHTML = '<div class="ag-ag-vuoto">' + T('agIntro') + '</div>';
+      var campo = document.getElementById('ag-agente-compito');
+      var via = document.getElementById('ag-agente-via');
+      if (via) via.onclick = function () { agenteEsegui(); };
+      if (campo) campo.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); agenteEsegui(); }
       });
     }
-
-    async function via() {
-      var campo = ov.querySelector('#ag-ag-compito');
-      var compito = String(campo.value || '').trim();
-      if (!compito) return;
-      if (!window.AEGIS_AGENTE) { scrivi('err', 'aegis-agente.js non caricato'); return; }
-      campo.value = '';
-      passi.innerHTML = '';
-      window.AEGIS_AGENTE._reset();
-
-      var compitoProtetto = mascheraTesto(compito) || compito;
-      scrivi('io', compitoProtetto);
-
-      var chiedi = window.AEGIS_AGENTE.creaCervello({
-        backend: window.AEGIS_BACKEND || 'https://chatbot-backend-dev.onrender.com',
-        modello: (typeof MODELO_ACTUAL === 'function') ? MODELO_ACTUAL() : null,
-        localId: (typeof LOCAL_ID !== 'undefined') ? LOCAL_ID : 'aegis',
-        sessionId: (typeof currentSessionId !== 'undefined') ? currentSessionId : null,
-        email: safeStorage.getSession('chat_user_email') || null,
-        password: (typeof getAccessPassword === 'function') ? getAccessPassword() : '',
-        lingua: activeLanguageCode
-      });
-
-      window.AEGIS_AGENTE_ONLOG = function (v) {
-        if (v.tipo === 'lettura') scrivi('str', '\u2192 ' + v.strumento);
-      };
-
-      var attesa = document.createElement('div');
-      attesa.className = 'ag-ag-passo att'; attesa.textContent = T('agPenso');
-      passi.appendChild(attesa);
-      passi.scrollTop = passi.scrollHeight;
-
-      try {
-        var esito = await window.AEGIS_AGENTE.esegui(compitoProtetto, { chiedi: chiedi, giriMax: 15 });
-        while (esito && esito.stato === 'attende_approvazione') {
-          attesa.remove();
-          var ok = await chiediApprovazione(esito.anteprima);
-          if (!ok) { window.AEGIS_AGENTE.rifiuta(); break; }
-          var fatto = await window.AEGIS_AGENTE.approva();
-          if (fatto && fatto.risultato && fatto.risultato.errore) scrivi('err', String(fatto.risultato.errore));
-          else if (fatto && fatto.risultato) scrivi('str', '\u2713 ' + JSON.stringify(fatto.risultato).slice(0, 220));
-          passi.appendChild(attesa);
-          esito = await window.AEGIS_AGENTE.esegui(compitoProtetto, { chiedi: chiedi, giriMax: 15 });
-        }
-        attesa.remove();
-        if (esito && esito.stato === 'finito') {
-          scrivi('lui', esito.risposta || '');
-          if (esito.senza_strumenti) scrivi('err', T('agNiente'));
-        } else if (esito && esito.stato === 'tetto') scrivi('err', esito.messaggio);
-      } catch (e) {
-        attesa.remove();
-        scrivi('err', (e && e.message) || 'errore');
-      }
-      window.AEGIS_AGENTE_ONLOG = null;
-    }
-    ov.querySelector('#ag-ag-via').onclick = via;
-    ov.querySelector('#ag-ag-compito').addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') { e.preventDefault(); via(); }
-    });
-    setTimeout(function () { try { ov.querySelector('#ag-ag-compito').focus(); } catch (e) {} }, 60);
+    if (diario) diario.scrollTop = diario.scrollHeight;
   }
+
+  function agenteScrivi(classe, testo) {
+    var d = document.getElementById('ag-agente-diario');
+    if (!d) return null;
+    var v = d.querySelector('.ag-ag-vuoto'); if (v) v.remove();
+    var r = document.createElement('div');
+    r.className = 'ag-ag-passo ' + classe;
+    r.textContent = testo;
+    d.appendChild(r); d.scrollTop = d.scrollHeight;
+    return r;
+  }
+
+  function agenteApprovazione(anteprima) {
+    var T = window.aegisT || function (k) { return k; };
+    var d = document.getElementById('ag-agente-diario');
+    return new Promise(function (risolvi) {
+      var v = d.querySelector('.ag-ag-vuoto'); if (v) v.remove();
+      var c = document.createElement('div');
+      c.className = 'ag-ag-appr';
+      var campi = Object.keys(anteprima || {}).filter(function (k) {
+        return k !== 'descrizione' && anteprima[k];
+      }).map(function (k) {
+        return '<div class="ag-ag-camp"><span>' + escapeHtml(k) + '</span><code>' +
+               escapeHtml(String(anteprima[k]).slice(0, 500)) + '</code></div>';
+      }).join('');
+      c.innerHTML = '<b>' + T('agConfermaTit') + '</b>' +
+        '<p>' + escapeHtml((anteprima && anteprima.descrizione) || '') + '</p>' + campi +
+        '<div class="ag-ag-appr-b">' +
+          '<button type="button" class="ag-ia" data-a="no">' + T('agRifiuta') + '</button>' +
+          '<button type="button" class="ag-ia ag-pronto" data-a="si">' + T('agConferma') + '</button>' +
+        '</div>';
+      d.appendChild(c); d.scrollTop = d.scrollHeight;
+      c.addEventListener('click', function (e) {
+        var b = e.target.closest ? e.target.closest('[data-a]') : null;
+        if (!b) return;
+        var si = b.getAttribute('data-a') === 'si';
+        c.classList.add(si ? 'ok' : 'no');
+        c.querySelector('.ag-ag-appr-b').innerHTML =
+          '<i>' + T(si ? 'agConfermato' : 'agRifiutato') + '</i>';
+        risolvi(si);
+      });
+    });
+  }
+
+  async function agenteEsegui() {
+    var T = window.aegisT || function (k) { return k; };
+    var campo = document.getElementById('ag-agente-compito');
+    var compito = String(campo && campo.value || '').trim();
+
+    /* IL COMPITO E IL DOCUMENTO VIAGGIANO INSIEME.
+       Se nel riquadro centrale di Aegis c'e' del testo, fa parte del lavoro:
+       l'agente lo riceve gia' coperto, come lo vedi nello specchio. E' la
+       differenza fra un agente che sta dentro Aegis e uno qualsiasi. */
+    var docChiaro = '';
+    try { var ui = document.getElementById('user-input'); docChiaro = ui ? String(ui.value || '') : ''; } catch (e) {}
+
+    if (!compito && !docChiaro.trim()) return;
+    if (!window.AEGIS_AGENTE) { agenteScrivi('err', 'aegis-agente.js non caricato'); return; }
+    if (campo) campo.value = '';
+    window.AEGIS_AGENTE._reset();
+
+    var compitoProtetto = mascheraTesto(compito) || compito;
+    var testoIntero = compitoProtetto;
+    if (docChiaro.trim()) {
+      var docProtetto = mascheraTesto(docChiaro);
+      if (!docProtetto) { agenteScrivi('err', T('skNoMaschera')); return; }
+      testoIntero = compitoProtetto + '\n\n' + T('agDocumento') + ':\n' + docProtetto;
+      agenteScrivi('str', T('agConDocumento').replace('{n}', docChiaro.trim().length));
+    }
+    agenteScrivi('io', compitoProtetto || T('agDocumento'));
+
+    var chiedi = window.AEGIS_AGENTE.creaCervello({
+      backend: window.AEGIS_BACKEND || 'https://chatbot-backend-dev.onrender.com',
+      modello: (typeof MODELO_ACTUAL === 'function') ? MODELO_ACTUAL() : null,
+      localId: (typeof LOCAL_ID !== 'undefined') ? LOCAL_ID : 'aegis',
+      sessionId: (typeof currentSessionId !== 'undefined') ? currentSessionId : null,
+      email: safeStorage.getSession('chat_user_email') || null,
+      password: (typeof getAccessPassword === 'function') ? getAccessPassword() : '',
+      lingua: activeLanguageCode
+    });
+
+    window.AEGIS_AGENTE_ONLOG = function (v) {
+      if (v.tipo === 'lettura') agenteScrivi('str', '\u2192 ' + v.strumento);
+    };
+    var attesa = agenteScrivi('att', T('agPenso'));
+
+    try {
+      var esito = await window.AEGIS_AGENTE.esegui(testoIntero, { chiedi: chiedi, giriMax: 15 });
+      while (esito && esito.stato === 'attende_approvazione') {
+        if (attesa) attesa.remove();
+        var ok = await agenteApprovazione(esito.anteprima);
+        if (!ok) { window.AEGIS_AGENTE.rifiuta(); break; }
+        var fatto = await window.AEGIS_AGENTE.approva();
+        if (fatto && fatto.risultato && fatto.risultato.errore) agenteScrivi('err', String(fatto.risultato.errore));
+        else if (fatto && fatto.risultato) agenteScrivi('str', '\u2713 ' + JSON.stringify(fatto.risultato).slice(0, 200));
+        attesa = agenteScrivi('att', T('agPenso'));
+        esito = await window.AEGIS_AGENTE.esegui(testoIntero, { chiedi: chiedi, giriMax: 15 });
+      }
+      if (attesa) attesa.remove();
+      if (esito && esito.stato === 'finito') {
+        agenteScrivi('lui', esito.risposta || '');
+        if (esito.senza_strumenti) agenteScrivi('err', T('agNiente'));
+      } else if (esito && esito.stato === 'tetto') agenteScrivi('err', esito.messaggio);
+    } catch (e) {
+      if (attesa) attesa.remove();
+      agenteScrivi('err', (e && e.message) || 'errore');
+    }
+    window.AEGIS_AGENTE_ONLOG = null;
+  }
+
+  // Svuotare la chat svuota anche il diario: sono la stessa colonna.
+  window.aegisAgenteAzzera = function () {
+    var d = document.getElementById('ag-agente-diario');
+    if (d) { d.innerHTML = ''; d.removeAttribute('data-pronto'); }
+    agenteMostra(false);
+  };
 
   // I tre pulsanti nuovi. L'ascolto sta sul documento perche' il pannello di
   // mezzo nasce dopo di noi: e' la stessa lezione del pulsante CONSUMO.
@@ -14810,6 +15043,43 @@ if (recognition) {
       if (t.closest('#ag-op-archivio')) {
         e.preventDefault();
         if (window.aegisApriBase) window.aegisApriBase('generale');
+        return;
+      }
+      if (t.closest('#ag-op-vettori')) {
+        e.preventDefault();
+        (async function () {
+          var stato = document.getElementById('ag-op-vestato');
+          function dire(x) { if (stato) stato.textContent = x; }
+          try { await caricaVettori(); } catch (er) { dire('aegis-vettori.js: ' + er.message); return; }
+          var V = window.AEGIS_VETTORI;
+          if (V.attivo()) {
+            V.accendi(false); await V.svuota();
+            dire((window.aegisT || function (k) { return k; })('veSpenta'));
+            return;
+          }
+          var T2 = window.aegisT || function (k) { return k; };
+          if (!confirm(T2('veConferma'))) return;
+          dire(T2('veScarico'));
+          try { await V.caricaModello(function (p) { dire(T2('veScarico') + ' ' + p + '%'); }); }
+          catch (er) { dire('' + (er && er.message)); return; }
+          V.accendi(true);
+          // Si indicizza cio' che c'e' gia' in banca dati: accendere la
+          // ricerca e non trovare niente sarebbe peggio che non accenderla.
+          dire(T2('veIndicizzo'));
+          try {
+            await caricaRag();
+            var doc = await window.AEGIS_RAG.elenco();
+            for (var i = 0; i < doc.length; i++) {
+              var d = await window.AEGIS_RAG.leggi(doc[i].id);
+              if (!d || !d.testo) continue;
+              var pezzi = String(d.testo).split(/\n\s*\n/).filter(function (x) { return x.trim().length > 30; })
+                            .map(function (x) { return { testo: x }; });
+              await window.AEGIS_VETTORI.reindicizza(doc[i].id, pezzi);
+              dire(T2('veIndicizzo') + ' ' + (i + 1) + '/' + doc.length);
+            }
+            dire(T2('veAccesa').replace('{n}', await window.AEGIS_VETTORI.quanti()));
+          } catch (er) { dire('' + (er && er.message)); }
+        })();
         return;
       }
       if (t.closest('#ag-op-sistema')) {
@@ -15254,7 +15524,8 @@ if (recognition) {
   // L'agente maschera con la STESSA funzione della chat: un solo motore.
   window.aegisMascheraTesto = mascheraTesto;
 
-  window.AEGIS_CRONOLOGIA = { leggi: leggi, codiceDi: codiceDi, trova: chatDaCodice, argomentiDi: argomentiDi, svuota: function () {
+  window.AEGIS_CRONOLOGIA = { leggi: leggi, codiceDi: codiceDi, trova: chatDaCodice,
+    messaggi: messaggiDi, argomentiDi: argomentiDi, svuota: function () {
     try { localStorage.removeItem(CHIAVE); } catch (e) {}
   } };
 })();
@@ -15516,6 +15787,6 @@ if (recognition) {
      versione vecchia di billing-ui.js e ogni correzione sembra non fare niente:
      si carica il file nuovo e si continua a eseguire quello vecchio. Ogni volta
      che billing-ui.js cambia, si alza questo numero. -->
-<script src="billing-ui.js?v=35" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
+<script src="billing-ui.js?v=38" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
 </body>
 </html>
