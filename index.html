@@ -669,6 +669,19 @@ body {
   border:1px solid rgba(0,0,0,.16); border-radius:10px; padding:12px 13px;
   font:400 12.5px/1.6 ui-monospace,Menlo,Consolas,monospace; color:#1d1d1f; background:#fff; outline:none; }
 .ag-mv-t:focus { border-color:#8b8b92; }
+/* modo agente */
+.ag-ag-avviso { margin-top:14px; padding:10px 13px; border-radius:10px;
+  background:rgba(200,140,20,.09); border:1px solid rgba(200,140,20,.28);
+  font-size:11.5px; color:#8a5a10; line-height:1.5; }
+.ag-ag-lista { display:flex; flex-direction:column; gap:8px; max-height:44vh; overflow-y:auto; }
+.ag-ag-str { display:grid; grid-template-columns:auto 1fr; gap:2px 10px; align-items:center;
+  padding:10px 13px; border:1px solid rgba(0,0,0,.1); border-radius:11px; }
+.ag-ag-perm { grid-row:1/3; align-self:start; font:600 9px Inter,sans-serif; letter-spacing:.05em;
+  text-transform:uppercase; padding:3px 7px; border-radius:6px; white-space:nowrap; }
+.ag-ag-perm.legge { color:#2f6a52; background:rgba(47,106,82,.11); }
+.ag-ag-perm.scrive { color:#8a5a10; background:rgba(200,140,20,.13); }
+.ag-ag-nome { font:600 12px ui-monospace,Menlo,monospace; color:#1d1d1f; }
+.ag-ag-desc { font-size:11px; color:#6e6e73; line-height:1.4; }
 /* dove va il documento */
 .ag-dv-scelte { display:flex; flex-direction:column; gap:9px; margin-top:16px; }
 .ag-dv-b { display:flex; flex-direction:column; gap:4px; text-align:left; padding:13px 15px;
@@ -8908,6 +8921,13 @@ if (recognition) {
       aiutoMic:'Detta il messaggio a voce',
       aiutoGraffetta:'Carica un documento: puoi metterlo nel messaggio o tenerlo da parte per questa conversazione',
       aiutoArchivio:'Archivia un documento su questo dispositivo: lo sistema da solo e lo ritrovi chiedendolo a parole',
+      agIntro:'L\'assistente puo\' svolgere piccoli compiti da solo, usando gli strumenti qui sotto. Legge in autonomia; tutto cio\' che scrive o esegue lo prepara e te lo mostra, e parte solo se lo confermi tu.',
+      agAvvisoBozza:'In questa fase l\'agente PREPARA le azioni ma non le esegue: e\' lo scheletro, e ogni strumento va collegato al mondo un passo alla volta.',
+      agStrumenti:'Strumenti disponibili',
+      agLegge:'legge',
+      agScrive:'scrive · conferma',
+      agNessuno:'Nessuno strumento caricato.',
+      agNota:'Il modello vede sempre e solo testo protetto, anche qui. I dati reali non entrano mai nel suo ragionamento.',
       opCancella:'Cancella la cronologia locale',
       opNota:'Le conversazioni e la corrispondenza fra codici e dati reali restano solo su questo dispositivo. Cancellandole non si recuperano.',
       opEsci:'Esci dall\u0027account', opChiudi:'Chiudi',
@@ -9147,6 +9167,13 @@ if (recognition) {
       aiutoMic:'Dicta el mensaje con la voz',
       aiutoGraffetta:'Sube un documento: puedes ponerlo en el mensaje o guardarlo para esta conversacion',
       aiutoArchivio:'Archiva un documento en este dispositivo: lo ordena solo y lo recuperas pidiendolo con palabras',
+      agIntro:'El asistente puede realizar pequenas tareas solo, usando las herramientas de abajo. Lee por su cuenta; todo lo que escribe o ejecuta lo prepara y te lo muestra, y solo sale si lo confirmas tu.',
+      agAvvisoBozza:'En esta fase el agente PREPARA las acciones pero no las ejecuta: es el esqueleto, y cada herramienta se conecta al mundo paso a paso.',
+      agStrumenti:'Herramientas disponibles',
+      agLegge:'lee',
+      agScrive:'escribe · confirmar',
+      agNessuno:'Ninguna herramienta cargada.',
+      agNota:'El modelo siempre ve solo texto protegido, tambien aqui. Los datos reales nunca entran en su razonamiento.',
       opCancella:'Borrar el historial local',
       opNota:'Las conversaciones y la correspondencia entre codigos y datos reales solo estan en este dispositivo. Si las borras no se recuperan.',
       opEsci:'Cerrar sesion', opChiudi:'Cerrar',
@@ -9386,6 +9413,13 @@ if (recognition) {
       aiutoMic:'Dictate the message',
       aiutoGraffetta:'Upload a document: put it in the message or keep it for this conversation',
       aiutoArchivio:'File a document on this device: it sorts it out itself and you get it back just by asking',
+      agIntro:'The assistant can carry out small tasks on its own, using the tools below. It reads by itself; anything it writes or runs it prepares and shows you, and it only goes out if you confirm.',
+      agAvvisoBozza:'At this stage the agent PREPARES actions but does not run them: this is the skeleton, and each tool is connected to the world one step at a time.',
+      agStrumenti:'Available tools',
+      agLegge:'reads',
+      agScrive:'writes · confirm',
+      agNessuno:'No tools loaded.',
+      agNota:'The model always sees only protected text, here too. Real data never enters its reasoning.',
       opCancella:'Delete local history',
       opNota:'Conversations and the mapping between codes and real data live only on this device. Deleting them cannot be undone.',
       opEsci:'Sign out', opChiudi:'Close',
@@ -13740,7 +13774,18 @@ if (recognition) {
       }).join('\n\n---\n\n');
       try {
         await caricaRag();
-        await window.AEGIS_RAG.aggiungi(codice + ' \u00b7 ' + mascheraTesto(chat.titolo || 'conversazione'), testo);
+        var nome = codice + ' \u00b7 ' + (mascheraTesto(chat.titolo || '') || 'conversazione');
+        // NIENTE DOPPIONI. Integrando due volte la stessa conversazione, la
+        // seconda SOSTITUISCE la prima invece di affiancarla: due voci
+        // identiche nell'elenco non aggiungono niente, e il modello si
+        // ritroverebbe lo stesso pezzo due volte fra i risultati.
+        try {
+          var gia = (await window.AEGIS_RAG.elenco()).filter(function (x) {
+            return String(x.nome) === nome;
+          });
+          for (var gi = 0; gi < gia.length; gi++) await window.AEGIS_RAG.elimina(gia[gi].id);
+        } catch (e2) {}
+        await window.AEGIS_RAG.aggiungi(nome, testo);
       } catch (e) { alert('Skills: ' + (e && e.message)); }
       // Il codice sparisce dal campo: ha fatto il suo lavoro e non deve
       // partire verso il modello, che non saprebbe cosa farsene.
@@ -13760,6 +13805,17 @@ if (recognition) {
   }
 
   // aegis-rag.js si carica solo quando serve: e' lo stesso archivio delle Skill.
+  function caricaAgente() {
+    if (window.AEGIS_AGENTE) return Promise.resolve();
+    return new Promise(function (ok, ko) {
+      var t = document.createElement('script');
+      t.src = 'aegis-agente.js';
+      t.onload = function () { ok(); };
+      t.onerror = function () { ko(new Error('aegis-agente.js')); };
+      document.head.appendChild(t);
+    });
+  }
+
   function caricaStorage() {
     if (window.AEGIS_STORAGE) return Promise.resolve();
     return new Promise(function (ok, ko) {
@@ -13779,7 +13835,28 @@ if (recognition) {
     var t = String(testo || '');
     if (!t) return '';
     try {
-      var r = (typeof maschera === 'function') ? maschera(t, false) : null;
+      /* ============ SI CONGELA. E' TUTTA QUI LA DIFFERENZA. ==============
+         maschera() ha due modi.
+         - NON congelato (false): serve all'ANTEPRIMA, il pannello di destra.
+           I codici sono provvisori, contati a parte, e NON entrano nel vault.
+           Ogni chiamata riparte dal proprio conteggio.
+         - Congelato (true): e' quello che si vede nel PANNELLO CENTRALE, cioe'
+           cio' che parte davvero. I codici entrano nel vault della sessione e
+           restano.
+
+         Qui usavo il primo. Conseguenza: una memoria salvata prendeva codici
+         provvisori, e la stessa persona finiva [[PER_01]] in un posto e
+         [[PER_03]] in un altro - oppure [[PER_01]] copriva due persone
+         diverse in due memorie diverse. Al ripristino diventavano la stessa
+         persona: l'errore peggiore che questo sistema possa fare.
+
+         Congelando, il vault e' uno solo per tutta la sessione: cerca se
+         quella parola ha gia' un codice e riusa quello; se il codice esiste
+         gia' per un'altra parola ne conia uno nuovo. Una parola, un codice.
+         Un codice, una parola. Memorie, archivio, chat e agente parlano
+         finalmente la stessa lingua.
+         ================================================================= */
+      var r = (typeof maschera === 'function') ? maschera(t, true) : null;
       var out = (r && r.testo) || '';
       // Se il mascheratore non e' disponibile NON si consegna il testo in
       // chiaro: si consegna niente. Meglio una Skill vuota che una Skill che
@@ -13959,15 +14036,33 @@ if (recognition) {
     };
   }
 
-  function apriAgente() {
+  async function apriAgente() {
     var T = window.aegisT || function (k) { return k; };
+    try { await caricaAgente(); } catch (e) {}
     var velo = document.createElement('div');
     velo.className = 'ag-vt-velo'; velo.id = 'ag-ag-velo';
     document.body.appendChild(velo);
     var d = document.createElement('div');
-    d.className = 'ag-vt'; d.style.width = 'min(460px,92vw)'; d.id = 'ag-ag';
+    d.className = 'ag-vt'; d.style.width = 'min(600px,94vw)'; d.id = 'ag-ag';
+
+    // Gli strumenti a disposizione, con il loro permesso: e' la cosa che
+    // l'utente deve vedere per primo - cosa puo' fare, e cosa NON fa da solo.
+    var strumenti = (window.AEGIS_AGENTE ? window.AEGIS_AGENTE.strumenti() : []);
+    var righe = strumenti.map(function (st) {
+      return '<div class="ag-ag-str">' +
+        '<span class="ag-ag-perm ' + (st.agisce ? 'scrive' : 'legge') + '">' +
+          T(st.agisce ? 'agScrive' : 'agLegge') + '</span>' +
+        '<span class="ag-ag-nome">' + escapeHtml(st.nome) + '</span>' +
+        '<span class="ag-ag-desc">' + escapeHtml(st.descrizione) + '</span></div>';
+    }).join('');
+
     d.innerHTML = '<button type="button" class="ag-vt-x" id="ag-ag-x">&times;</button>' +
-      '<h3>' + T('agTitolo') + '</h3><p class="ag-vt-som">' + T('agTesto') + '</p>';
+      '<h3>' + T('agTitolo') + '</h3>' +
+      '<p class="ag-vt-som">' + T('agIntro') + '</p>' +
+      '<div class="ag-ag-avviso">' + T('agAvvisoBozza') + '</div>' +
+      '<h4 style="margin:18px 0 8px">' + T('agStrumenti') + '</h4>' +
+      '<div class="ag-ag-lista">' + (righe || ('<p class="ag-vt-som">' + T('agNessuno') + '</p>')) + '</div>' +
+      '<p class="ag-dv-cmd">' + T('agNota') + '</p>';
     document.body.appendChild(d);
     function chiudi(){ var a=document.getElementById('ag-ag'),b=document.getElementById('ag-ag-velo');
       if(a)a.remove(); if(b)b.remove(); }
@@ -14249,7 +14344,14 @@ if (recognition) {
       await caricaRag();
       var cod = (typeof currentSessionId !== 'undefined' && currentSessionId)
         ? codiceDi(currentSessionId) : 'AG-SESSION';
-      await window.AEGIS_RAG.aggiungi(cod + ' \u00b7 ' + String(nome || 'documento'), protetto);
+      var etichetta = cod + ' \u00b7 ' + String(nome || 'documento');
+      try {
+        var vecchie = (await window.AEGIS_RAG.elenco()).filter(function (x) {
+          return String(x.nome) === etichetta;
+        });
+        for (var vi = 0; vi < vecchie.length; vi++) await window.AEGIS_RAG.elimina(vecchie[vi].id);
+      } catch (e2) {}
+      await window.AEGIS_RAG.aggiungi(etichetta, protetto);
       alert(T('docInMemoriaFatto').replace('{f}', String(nome || '')));
       return true;
     } catch (e) { alert('Skills: ' + (e && e.message)); return false; }
@@ -14486,6 +14588,8 @@ if (recognition) {
   window.AEGIS_ARCHIVIO = { apri: apriArchivio };
 
   window.AEGIS_MEMORIA = { apri: apriMemoria };
+  // L'agente maschera con la STESSA funzione della chat: un solo motore.
+  window.aegisMascheraTesto = mascheraTesto;
 
   window.AEGIS_CRONOLOGIA = { leggi: leggi, codiceDi: codiceDi, argomentiDi: argomentiDi, svuota: function () {
     try { localStorage.removeItem(CHIAVE); } catch (e) {}
@@ -14749,6 +14853,6 @@ if (recognition) {
      versione vecchia di billing-ui.js e ogni correzione sembra non fare niente:
      si carica il file nuovo e si continua a eseguire quello vecchio. Ogni volta
      che billing-ui.js cambia, si alza questo numero. -->
-<script src="billing-ui.js?v=23" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
+<script src="billing-ui.js?v=25" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
 </body>
 </html>
