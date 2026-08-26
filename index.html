@@ -7583,8 +7583,25 @@ if (recognition) {
       if (!ent) {
         const n = (counters.get(m.token) || 0) + 1;
         counters.set(m.token, n);
-        const tok = '[[' + m.token + '_' + String(n).padStart(2, '0') + ']]';
-        ent = { token: tok, value: m.value, type: m.token, count: 0, category: m.category, sub: m.sub, confidence: m.confidence, review: !!m.review };
+        /* ====== CODICE O SURROGATO: L'UNICO PUNTO DOVE SI DECIDE ==========
+           Il codice resta la chiave interna - identita' stabile, sempre
+           presente. Cambia solo COSA si scrive nel testo al suo posto:
+             surrogati spenti -> [[PER_01]]      (come e' sempre stato)
+             surrogati accesi -> "Fulvio Corbelli"
+           Tutto il resto del motore non si accorge di niente, perche' lavora
+           su ent.token qualunque cosa contenga. Se il modulo non c'e' o non
+           sa surrogare quel tipo, si ripiega sul codice: meglio un codice
+           onesto che un surrogato sbagliato. */
+        const codice = '[[' + m.token + '_' + String(n).padStart(2, '0') + ']]';
+        let tok = codice;
+        try {
+          const S = (typeof window !== 'undefined') && window.AEGIS_SURROGATI;
+          if (S && S.attivo()) {
+            const sur = S.surrogato(m.token, m.value, (typeof window !== 'undefined' && window.aegisLingua) ? window.aegisLingua() : 'it');
+            if (sur) tok = sur;
+          }
+        } catch (e) {}
+        ent = { token: tok, codice: codice, value: m.value, type: m.token, count: 0, category: m.category, sub: m.sub, confidence: m.confidence, review: !!m.review };
         entities.set(k, ent);
         if (m.token === 'PER') {
           ent.words = m.value.split(/\s+/).map(key).filter(Boolean);
@@ -9082,6 +9099,11 @@ if (recognition) {
       csUso:'in uso',
       csIndice:'indicizzato',
       csCaricato:'caricato',
+      suTitolo:'Come si coprono i dati',
+      suCambia:'Cambia modo',
+      suNota:'Con i SURROGATI il modello riceve un testo integro: al posto di un nome c\'e\' un altro nome, al posto di una data un\'altra data. Ragiona meglio, perche\' non trova buchi. Con i CODICI riceve [[PER_01]]: piu\' evidente, ma il ragionamento peggiora sui documenti densi. In tutti e due i casi i dati veri non escono da qui, e tu sullo schermo vedi sempre le strisce coperte.',
+      suOraSurrogati:'Adesso: surrogati.',
+      suOraCodici:'Adesso: codici.',
       opCancella:'Cancella la cronologia locale',
       opNota:'Le conversazioni e la corrispondenza fra codici e dati reali restano solo su questo dispositivo. Cancellandole non si recuperano.',
       opEsci:'Esci dall\u0027account', opChiudi:'Chiudi',
@@ -9379,6 +9401,11 @@ if (recognition) {
       csUso:'en uso',
       csIndice:'indexado',
       csCaricato:'cargado',
+      suTitolo:'Como se cubren los datos',
+      suCambia:'Cambiar modo',
+      suNota:'Con los SUSTITUTOS el modelo recibe un texto integro: en lugar de un nombre hay otro nombre, en lugar de una fecha otra fecha. Razona mejor, porque no encuentra huecos. Con los CODIGOS recibe [[PER_01]]: mas evidente, pero el razonamiento empeora en documentos densos. En ambos casos los datos reales no salen de aqui, y tu en pantalla ves siempre las franjas cubiertas.',
+      suOraSurrogati:'Ahora: sustitutos.',
+      suOraCodici:'Ahora: codigos.',
       opCancella:'Borrar el historial local',
       opNota:'Las conversaciones y la correspondencia entre codigos y datos reales solo estan en este dispositivo. Si las borras no se recuperan.',
       opEsci:'Cerrar sesion', opChiudi:'Cerrar',
@@ -9676,6 +9703,11 @@ if (recognition) {
       csUso:'in use',
       csIndice:'indexed',
       csCaricato:'loaded',
+      suTitolo:'How data is covered',
+      suCambia:'Switch mode',
+      suNota:'With SURROGATES the model receives an intact text: a name in place of a name, a date in place of a date. It reasons better, because it finds no gaps. With CODES it receives [[PER_01]]: more obvious, but reasoning degrades on dense documents. Either way the real data never leaves, and on screen you always see the covered strips.',
+      suOraSurrogati:'Now: surrogates.',
+      suOraCodici:'Now: codes.',
       opCancella:'Delete local history',
       opNota:'Conversations and the mapping between codes and real data live only on this device. Deleting them cannot be undone.',
       opEsci:'Sign out', opChiudi:'Close',
@@ -12477,6 +12509,10 @@ if (recognition) {
           '<p class="ag-op-nota">' + T('veNota') + '</p>' +
           '<button type="button" class="ag-op-btn" id="ag-op-vettori">' + T('veAccendi') + '</button>' +
           '<div class="ag-op-nota" id="ag-op-vestato" style="margin-top:8px"></div></div>' +
+        '<div class="ag-op-sez"><h4>' + T('suTitolo') + '</h4>' +
+          '<p class="ag-op-nota">' + T('suNota') + '</p>' +
+          '<button type="button" class="ag-op-btn" id="ag-op-surrogati">' + T('suCambia') + '</button>' +
+          '<div class="ag-op-nota" id="ag-op-sustato" style="margin-top:8px"></div></div>' +
         '<div class="ag-op-sez"><button type="button" class="ag-op-btn" id="ag-op-docreset">' +
           T('opDocReset') + '</button></div>' +
         '<div class="ag-op-sez"><h4>' + T('opAvvisi') + '</h4>' + righeAvvisi + '</div>' +
@@ -14514,6 +14550,20 @@ if (recognition) {
   }
 
   // aegis-rag.js si carica solo quando serve: e' lo stesso archivio delle Skill.
+  function caricaSurrogati() {
+    if (window.AEGIS_SURROGATI) return Promise.resolve();
+    return new Promise(function (ok, ko) {
+      var t = document.createElement('script');
+      t.src = 'aegis-surrogati.js';
+      t.onload = function () { ok(); };
+      t.onerror = function () { ko(new Error('aegis-surrogati.js')); };
+      document.head.appendChild(t);
+    });
+  }
+  // Si carica SUBITO, non su richiesta: e' acceso di default, e il motore lo
+  // cerca gia' alla prima analisi.
+  try { caricaSurrogati().catch(function () {}); } catch (e) {}
+
   function caricaVettori() {
     if (window.AEGIS_VETTORI) return Promise.resolve();
     return new Promise(function (ok, ko) {
@@ -15200,6 +15250,22 @@ if (recognition) {
       if (t.closest('#ag-op-archivio')) {
         e.preventDefault();
         if (window.aegisApriBase) window.aegisApriBase('generale');
+        return;
+      }
+      if (t.closest('#ag-op-surrogati')) {
+        e.preventDefault();
+        (async function () {
+          var T2 = window.aegisT || function (k) { return k; };
+          var st = document.getElementById('ag-op-sustato');
+          try { await caricaSurrogati(); } catch (er) { if (st) st.textContent = '' + er.message; return; }
+          var S = window.AEGIS_SURROGATI;
+          var nuovo = !S.attivo();
+          // Cambiare modo NON cancella la mappa: se torni ai surrogati, la
+          // stessa persona riprende lo stesso nome finto di prima.
+          S.accendi(nuovo);
+          if (st) st.textContent = T2(nuovo ? 'suOraSurrogati' : 'suOraCodici');
+          try { valoriPreview.clear(); aggiorna(); } catch (er2) {}
+        })();
         return;
       }
       if (t.closest('#ag-op-vettori')) {
@@ -15944,6 +16010,6 @@ if (recognition) {
      versione vecchia di billing-ui.js e ogni correzione sembra non fare niente:
      si carica il file nuovo e si continua a eseguire quello vecchio. Ogni volta
      che billing-ui.js cambia, si alza questo numero. -->
-<script src="billing-ui.js?v=40" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
+<script src="billing-ui.js?v=41" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
 </body>
 </html>
