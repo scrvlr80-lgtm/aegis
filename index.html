@@ -462,13 +462,15 @@ body.ag-pennello-on .ag-voci-corpo .ag-gr-voce{
   cursor:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26'><circle cx='11' cy='11' r='7' fill='none' stroke='%23E5484D' stroke-width='2'/><path d='M7 11h8' stroke='%23E5484D' stroke-width='2' stroke-linecap='round'/></svg>") 11 11, crosshair}
 .ag-ia svg{width:13px;height:13px;vertical-align:-2px;margin-right:5px;fill:currentColor}
 /* --- modalita' riservata --- */
-body.ag-riservato .ag-voci .ag-voci-corpo,
-body.ag-riservato .ag-lista,
-body.ag-riservato .ag-anteprima,
+/* La modalita' riservata NON sfoca piu' lo specchio: sfocando spariscono
+   anche i colori, che sono l'unica cosa che dice quale tipo di dato c'e'
+   sotto. Adesso copre i codici con una striscia e i colori restano. La
+   sfocatura totale resta per 'ag-sfocato', che e' un'altra cosa: nascondi
+   tutto perche' qualcuno si e' avvicinato. */
 body.ag-sfocato .ag-voci .ag-voci-corpo,
 body.ag-sfocato .ag-lista,
 body.ag-sfocato .ag-anteprima{filter:blur(7px);user-select:none;transition:filter .18s}
-body.ag-riservato .chat-messages,body.ag-sfocato .chat-messages{filter:blur(7px);transition:filter .18s}
+body.ag-sfocato .chat-messages{filter:blur(7px);transition:filter .18s}
 body.ag-sfocato .ag-scena::after,body.ag-riservato .ag-scena::after{
   content:var(--ag-riservato-testo,'\2014');
   position:fixed;left:50%;top:86px;transform:translateX(-50%);z-index:2200;
@@ -13381,9 +13383,20 @@ if (recognition) {
             if (larghOspite >= full.length) {
               dentro += full + new Array(larghOspite - full.length + 1).join('\u00b7');
             } else {
+            // COPRENTE: la striscia resta, il codice sparisce.
+            // La modalita' riservata serviva a nascondere lo schermo a chi
+            // passa alle spalle, e lo faceva sfocando tutto - anche i colori,
+            // che sono l'unica cosa che dice all'utente CHE COSA e' coperto.
+            // Adesso fa il contrario e fa la cosa giusta: i colori restano,
+            // il codice sparisce sotto la striscia. Si vede che quel pezzo e'
+            // protetto e di che tipo, senza leggere niente.
+            if (riservato) {
+              dentro += new Array(larghOspite + 1).join('\u00b7');
+            } else {
               var sc = larghOspite / full.length;
               dentro += '<span class="ag-cod" style="width:' + larghOspite + 'ch">' +
                         '<i style="transform:scaleX(' + sc.toFixed(3) + ')">' + full + '</i></span>';
+            }
             }
             ci = ospite.a - 1;
             continue;
@@ -14165,8 +14178,15 @@ if (recognition) {
          materiale su cui deve lavorare adesso. Chiederlo era un passaggio in
          piu' che offriva anche la risposta sbagliata - salvarlo in memoria
          invece di darglielo. */
-      var inAgente = !!(window.aegisAgenteAcceso && window.aegisAgenteAcceso());
-      var scelta = inAgente ? 'messaggio' : await window.aegisDoveVaIlDocumento(file.name);
+      /* LA DESTINAZIONE LA DECIDE IL PULSANTE, NON UNA DOMANDA.
+         Adesso ci sono tre strade e ognuna ha il suo comando:
+           graffetta         -> nel messaggio di adesso
+           cassetto          -> banca di conoscenza generale
+           /database         -> banca di questa conversazione
+         Chiedere "dove lo metto?" a chi ha gia' scelto premendo un pulsante
+         preciso e' un passaggio in piu' che offre anche la risposta sbagliata.
+         La domanda aveva senso quando le strade erano due e un pulsante solo. */
+      var scelta = 'messaggio';
       if (scelta === 'annulla') { stato(''); return; }
       if (scelta === 'memoria') {
         await window.aegisInMemoriaSessione(file.name, testo);
@@ -16327,6 +16347,6 @@ if (recognition) {
      versione vecchia di billing-ui.js e ogni correzione sembra non fare niente:
      si carica il file nuovo e si continua a eseguire quello vecchio. Ogni volta
      che billing-ui.js cambia, si alza questo numero. -->
-<script src="billing-ui.js?v=47" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
+<script src="billing-ui.js?v=48" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
 </body>
 </html>
