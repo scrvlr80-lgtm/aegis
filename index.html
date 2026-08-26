@@ -1331,13 +1331,6 @@ body {
             <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
         </button>
     </div>
-    <div class="chat-input-wrapper ag-agente-barra" id="ag-agente-barra" style="display:none">
-        <div class="chat-input-container">
-            <textarea id="ag-agente-compito" class="chat-input" rows="1"
-                placeholder="Che cosa devo fare?"></textarea>
-            <button class="send-btn-icon" id="ag-agente-via" type="button">&#9654;</button>
-        </div>
-    </div>
     <div class="chat-input-wrapper" id="chat-input-wrapper">
         <div class="input-inner">
             <button class="icon-btn mic-btn mic-blink" id="mic-btn" onclick="openMinimalMic()">
@@ -4171,6 +4164,12 @@ body {
         // QUI si chiede chi sei, non prima. Il testo scritto resta dov'e': se
         // l'utente entra, il messaggio parte da solo; se cambia idea, non ha
         // perso niente.
+        // In modalita' agente il pulsante invia manda il compito all'agente,
+        // non alla chat. Un solo pulsante, due destinazioni, nessuna barra
+        // doppia da tenere allineata.
+        if (typeof _agenteAcceso !== 'undefined' && _agenteAcceso) {
+          if (typeof agenteEsegui === 'function') { agenteEsegui(); return; }
+        }
         if (chiediConsenso(function () { handleSendMessage(); })) return;
         // Un codice di conversazione non e' un messaggio: apre il pannello.
         try { if (window.aegisCodiceInAttesa && window.aegisCodiceInAttesa()) return; } catch (e) {}
@@ -9009,7 +9008,7 @@ if (recognition) {
       webScopriEManda:'Scopri i selezionati e manda',
       aiutoMic:'Detta il messaggio a voce',
       aiutoGraffetta:'Carica un documento: puoi metterlo nel messaggio o tenerlo da parte per questa conversazione',
-      aiutoArchivio:'Archivia un documento su questo dispositivo: lo sistema da solo e lo ritrovi chiedendolo a parole',
+      aiutoArchivio:'Carica un documento nella base di conoscenza generale: si maschera, si indicizza, e resta per tutte le conversazioni',
       agIntro:'L\'assistente puo\' svolgere piccoli compiti da solo, usando gli strumenti qui sotto. Legge in autonomia; tutto cio\' che scrive o esegue lo prepara e te lo mostra, e parte solo se lo confermi tu.',
       agAvvisoBozza:'Gli strumenti che scrivono su disco o eseguono codice ora agiscono davvero. Non partono mai da soli: ogni azione ti viene mostrata per esteso e parte solo se premi Conferma. Il codice gira in un processo separato senza rete, i file si scrivono solo nella cartella che scegli tu.',
       agStrumenti:'Strumenti disponibili',
@@ -9063,6 +9062,11 @@ if (recognition) {
       veIndicizzo:'Preparo i documenti…',
       veAccesa:'Accesa. {n} pezzi pronti.',
       veSpenta:'Spenta. Torna la ricerca per parole.',
+      csTitolo:'Documenti in gioco',
+      csVuoto:'Nessuno, per ora.',
+      csUso:'in uso',
+      csIndice:'indicizzato',
+      csCaricato:'caricato',
       opCancella:'Cancella la cronologia locale',
       opNota:'Le conversazioni e la corrispondenza fra codici e dati reali restano solo su questo dispositivo. Cancellandole non si recuperano.',
       opEsci:'Esci dall\u0027account', opChiudi:'Chiudi',
@@ -9301,7 +9305,7 @@ if (recognition) {
       webScopriEManda:'Descubrir los marcados y enviar',
       aiutoMic:'Dicta el mensaje con la voz',
       aiutoGraffetta:'Sube un documento: puedes ponerlo en el mensaje o guardarlo para esta conversacion',
-      aiutoArchivio:'Archiva un documento en este dispositivo: lo ordena solo y lo recuperas pidiendolo con palabras',
+      aiutoArchivio:'Sube un documento a la base de conocimiento general: se enmascara, se indexa y se queda para todas las conversaciones',
       agIntro:'El asistente puede realizar pequenas tareas solo, usando las herramientas de abajo. Lee por su cuenta; todo lo que escribe o ejecuta lo prepara y te lo muestra, y solo sale si lo confirmas tu.',
       agAvvisoBozza:'Las herramientas que escriben en disco o ejecutan codigo ahora actuan de verdad. Nunca se lanzan solas: cada accion se te muestra entera y solo sale si pulsas Confirmar. El codigo corre en un proceso aparte sin red, y los archivos se escriben solo en la carpeta que elijas tu.',
       agStrumenti:'Herramientas disponibles',
@@ -9355,6 +9359,11 @@ if (recognition) {
       veIndicizzo:'Preparando los documentos…',
       veAccesa:'Encendida. {n} fragmentos listos.',
       veSpenta:'Apagada. Vuelve la busqueda por palabras.',
+      csTitolo:'Documentos en juego',
+      csVuoto:'Ninguno, por ahora.',
+      csUso:'en uso',
+      csIndice:'indexado',
+      csCaricato:'cargado',
       opCancella:'Borrar el historial local',
       opNota:'Las conversaciones y la correspondencia entre codigos y datos reales solo estan en este dispositivo. Si las borras no se recuperan.',
       opEsci:'Cerrar sesion', opChiudi:'Cerrar',
@@ -9593,7 +9602,7 @@ if (recognition) {
       webScopriEManda:'Reveal ticked and send',
       aiutoMic:'Dictate the message',
       aiutoGraffetta:'Upload a document: put it in the message or keep it for this conversation',
-      aiutoArchivio:'File a document on this device: it sorts it out itself and you get it back just by asking',
+      aiutoArchivio:'Add a document to the general knowledge base: it gets masked, indexed, and stays for every conversation',
       agIntro:'The assistant can carry out small tasks on its own, using the tools below. It reads by itself; anything it writes or runs it prepares and shows you, and it only goes out if you confirm.',
       agAvvisoBozza:'The tools that write to disk or run code now really act. They never start on their own: every action is shown to you in full and only goes ahead if you press Confirm. Code runs in a separate process with no network, and files are written only into the folder you choose.',
       agStrumenti:'Available tools',
@@ -9647,6 +9656,11 @@ if (recognition) {
       veIndicizzo:'Preparing the documents…',
       veAccesa:'On. {n} passages ready.',
       veSpenta:'Off. Word search is back.',
+      csTitolo:'Documents in play',
+      csVuoto:'None yet.',
+      csUso:'in use',
+      csIndice:'indexed',
+      csCaricato:'loaded',
       opCancella:'Delete local history',
       opNota:'Conversations and the mapping between codes and real data live only on this device. Deleting them cannot be undone.',
       opEsci:'Sign out', opChiudi:'Close',
@@ -9923,6 +9937,27 @@ if (recognition) {
       '.ag-agente-diario .ag-ag-vuoto{margin:auto;max-width:420px;text-align:center;' +
         'font-size:12.5px;color:var(--text-light);line-height:1.6}' +
       '.ag-agente-barra .chat-input-container{width:100%}' +
+      /* La fila in alto a destra non deve andare a capo: i pulsanti si
+         stringono e, se proprio non ci stanno, accorciano il testo coi
+         puntini invece di impilarsi su due righe. */
+      '.chat-header{flex-wrap:nowrap!important}' +
+      '.chat-header .lang-change-btn{min-width:0;white-space:nowrap;overflow:hidden;' +
+        'text-overflow:ellipsis;padding-left:10px;padding-right:10px}' +
+      '.ag-cassetto{flex:none;border-top:1px solid var(--hairline);padding:10px 12px 12px;' +
+        'max-height:26vh;overflow-y:auto}' +
+      '.ag-cassetto h4{margin:0 0 7px;font:700 9px Inter,sans-serif;letter-spacing:.07em;' +
+        'text-transform:uppercase;color:var(--text-light)}' +
+      '.ag-cs-vuoto{margin:0;font-size:10.5px;color:var(--text-light)}' +
+      '.ag-cs-file{display:flex;align-items:center;gap:7px;padding:4px 0;font-size:10.5px;' +
+        'color:var(--text-main)}' +
+      '.ag-cs-file i{width:6px;height:6px;border-radius:50%;flex:none}' +
+      '.ag-cs-file i.uso{background:#2f6a52}' +
+      '.ag-cs-file i.indice{background:#8a5a10}' +
+      '.ag-cs-file i.caricato{background:var(--hairline)}' +
+      '.ag-cs-file span{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;' +
+        'white-space:nowrap}' +
+      '.ag-cs-file b{flex:none;font:600 8.5px Inter,sans-serif;letter-spacing:.05em;' +
+        'text-transform:uppercase;color:var(--text-light)}' +
       '.ag-ag-barra{flex:none;display:flex;gap:9px}' +
       '.ag-ag-barra input{flex:1 1 auto;min-width:0;height:42px;padding:0 15px;box-sizing:border-box;' +
         'border:1px solid var(--hairline);border-radius:12px;background:var(--primary);' +
@@ -10128,7 +10163,10 @@ if (recognition) {
         '<button type="button" class="ag-tab" data-s="aggiunte">' + T('tabAggiunte') + '</button>' +
         '<button type="button" class="ag-tab" data-s="rimosse">' + T('tabRimosse') + '</button>' +
       '</div>' +
-      '<div class="ag-voci-corpo" id="ag-voci-corpo"></div>';
+      '<div class="ag-voci-corpo" id="ag-voci-corpo"></div>' +
+      // Il cassetto dei file, sotto l'elenco dei dati coperti: si vede
+      // sempre quali documenti stanno alimentando il contesto.
+      '<div class="ag-cassetto" id="ag-cassetto"></div>';
     scena.insertBefore(col, pannello);
     col.querySelector('.ag-voci-testa').addEventListener('click', function(e){
       var b = e.target.closest('.ag-tab'); if (!b) return;
@@ -14723,7 +14761,7 @@ if (recognition) {
       msg: document.getElementById('chat-messages'),
       barra: document.getElementById('chat-input-wrapper'),
       diario: document.getElementById('ag-agente-diario'),
-      barraAg: document.getElementById('ag-agente-barra'),
+      campo: document.getElementById('user-input'),
       nuova: document.getElementById('new-chat-btn'),
       storia: document.getElementById('history-btn')
     };
@@ -14733,15 +14771,43 @@ if (recognition) {
     var e = elementiChat();
     _agenteAcceso = !!acceso;
     if (e.msg) e.msg.style.display = acceso ? 'none' : 'flex';
-    if (e.barra) e.barra.style.display = acceso ? 'none' : 'flex';
+    // LA BARRA RESTA QUELLA VERA. Ne avevo costruita una piccola apposta per
+    // l'agente: campo rimpicciolito e via microfono, graffetta, archivio e
+    // ricerca. Sbagliato due volte - meno spazio per scrivere, e sparivano gli
+    // allegati proprio dove servono. Adesso si riusa la barra di sempre e
+    // cambia solo dove va a finire il testo quando premi invio.
     if (e.diario) e.diario.style.display = acceso ? 'flex' : 'none';
-    if (e.barraAg) e.barraAg.style.display = acceso ? 'flex' : 'none';
+    if (e.campo) e.campo.placeholder = acceso
+      ? ((window.aegisT && window.aegisT('agCompito')) || 'Che cosa devo fare?') : '';
     // Nuova chat e Cronologia non hanno senso mentre l'agente lavora: al loro
     // posto compare il modo di uscire.
     if (e.nuova) e.nuova.style.display = acceso ? 'none' : '';
     if (e.storia) e.storia.style.display = acceso ? 'none' : '';
     var esci = document.getElementById('ag-agente-esci');
     if (esci) esci.style.display = acceso ? '' : 'none';
+
+    /* PULSANTI FUORI CONTESTO. Dentro la modalita' agente, "Modo agente" e'
+       gia' dove sei, "Memoria chats" e "Migliora piano" aprono cose che non
+       c'entrano, e "Configurazione" porta via. Restano solo gli interruttori
+       che agiscono sul testo che l'agente sta per ricevere: Pennello,
+       Profondo, Motore, Riservato, Evidenzia. Un pulsante che non serve qui
+       non e' neutro: e' un invito a sbagliare strada. */
+    ['ag-opzioni-btn', 'ag-memoria-btn', 'ag-upgrade-btn', 'ag-agente-btn'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.style.display = acceso ? 'none' : '';
+    });
+    // Il cerchietto dell'account Google appartiene alla pagina principale.
+    // Il cerchietto dell'account appartiene alla pagina principale. Non ha un
+    // nome fisso perche' lo monta billing-ui: si prende per posizione, cioe'
+    // il figlio della testa che non e' la griglia dei pulsanti.
+    try {
+      var testa = document.querySelector('.ag-testa');
+      if (testa) {
+        Array.prototype.forEach.call(testa.children, function (c) {
+          if (!c.classList.contains('ag-pulsanti')) c.style.display = acceso ? 'none' : '';
+        });
+      }
+    } catch (e) {}
     var btn = document.getElementById('ag-agente-btn');
     if (btn) btn.classList.toggle('on', acceso);
   }
@@ -14757,6 +14823,10 @@ if (recognition) {
       b.className = 'lang-change-btn'; b.id = 'ag-agente-esci'; b.type = 'button';
       b.textContent = T('agEsci'); b.style.display = 'none';
       b.onclick = function () { agenteMostra(false); };
+      /* L'ORDINE CONTA. "Esci da agente" va dove stava "Nuova chat", cioe'
+         subito dopo il selettore del modello: e' il posto dove la mano va
+         gia' a cercare il comando che cambia stato. Messo in fondo si perde
+         fra Lingua e schermo intero. */
       var rif = document.getElementById('new-chat-btn');
       if (testa && rif) testa.insertBefore(b, rif); else if (testa) testa.appendChild(b);
     }
@@ -14766,12 +14836,6 @@ if (recognition) {
     if (diario && !diario.getAttribute('data-pronto')) {
       diario.setAttribute('data-pronto', '1');
       diario.innerHTML = '<div class="ag-ag-vuoto">' + T('agIntro') + '</div>';
-      var campo = document.getElementById('ag-agente-compito');
-      var via = document.getElementById('ag-agente-via');
-      if (via) via.onclick = function () { agenteEsegui(); };
-      if (campo) campo.addEventListener('keydown', function (ev) {
-        if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); agenteEsegui(); }
-      });
     }
     if (diario) diario.scrollTop = diario.scrollHeight;
   }
@@ -14821,7 +14885,7 @@ if (recognition) {
 
   async function agenteEsegui() {
     var T = window.aegisT || function (k) { return k; };
-    var campo = document.getElementById('ag-agente-compito');
+    var campo = document.getElementById('user-input');
     var compito = String(campo && campo.value || '').trim();
 
     /* IL COMPITO E IL DOCUMENTO VIAGGIANO INSIEME.
@@ -14886,6 +14950,55 @@ if (recognition) {
   }
 
   // Svuotare la chat svuota anche il diario: sono la stessa colonna.
+  /* ============ IL CASSETTO DEI FILE ====================================
+     In fondo alla colonna di sinistra, sotto l'elenco dei dati coperti.
+     Dice quali documenti stanno alimentando il contesto in questo momento -
+     e distingue le tre cose che altrimenti si confondono:
+       caricati    = sono nell'archivio, ma nessuno li sta leggendo
+       indicizzati = pronti per essere trovati da una ricerca
+       in uso      = stanno dentro il contesto di adesso
+     Senza questa distinzione il riquadro diventa un elenco ambiguo, che e'
+     peggio di nessun elenco: fa credere di sapere cosa sta succedendo.
+     Quello che si mostra e' sempre il nome gia' coperto: anche il nome di un
+     file e' un dato ("Contratto Bianchi.pdf").
+     ===================================================================== */
+  var _fileInUso = [];
+  window.aegisFileInUso = function (elenco) {
+    _fileInUso = Array.isArray(elenco) ? elenco : [];
+    disegnaCassetto();
+  };
+
+  async function disegnaCassetto() {
+    var T = window.aegisT || function (k) { return k; };
+    var box = document.getElementById('ag-cassetto');
+    if (!box) return;
+    var righe = [];
+    _fileInUso.forEach(function (f) {
+      righe.push({ stato: 'uso', nome: String(f) });
+    });
+    try {
+      if (window.AEGIS_RAG) {
+        var doc = await window.AEGIS_RAG.elenco();
+        var vettori = !!(window.AEGIS_VETTORI && window.AEGIS_VETTORI.attivo());
+        doc.slice(0, 8).forEach(function (d) {
+          righe.push({ stato: vettori ? 'indice' : 'caricato', nome: String(d.nome || '') });
+        });
+      }
+    } catch (e) {}
+    if (!righe.length) {
+      box.innerHTML = '<h4>' + T('csTitolo') + '</h4><p class="ag-cs-vuoto">' + T('csVuoto') + '</p>';
+      return;
+    }
+    box.innerHTML = '<h4>' + T('csTitolo') + '</h4>' +
+      righe.slice(0, 12).map(function (r) {
+        return '<div class="ag-cs-file"><i class="' + r.stato + '"></i>' +
+               '<span>' + escapeHtml(r.nome) + '</span>' +
+               '<b>' + T(r.stato === 'uso' ? 'csUso' : r.stato === 'indice' ? 'csIndice' : 'csCaricato') +
+               '</b></div>';
+      }).join('');
+  }
+  window.aegisDisegnaCassetto = disegnaCassetto;
+
   window.aegisAgenteAzzera = function () {
     var d = document.getElementById('ag-agente-diario');
     if (d) { d.innerHTML = ''; d.removeAttribute('data-pronto'); }
@@ -15032,8 +15145,18 @@ if (recognition) {
     document.addEventListener('click', function (e) {
       var t = e.target; if (!t || !t.closest) return;
       if (t.closest('#arch-btn')) {
+        /* LA SECONDA GRAFFETTA. Era l'archivio dei file su disco, una cosa a
+           parte che si e' rivelata confusa. Adesso e' l'ingresso esplicito al
+           percorso della base di conoscenza GENERALE:
+              carichi -> si maschera -> si indicizza -> banca dati di tutte le chat
+           La graffetta normale resta quella del messaggio di adesso. Due
+           graffette, due destini, e ognuna dice il suo nella nuvoletta. */
         e.preventDefault();
-        var i = document.getElementById('arch-file-input'); if (i) i.click();
+        if (window.aegisApriBase) window.aegisApriBase('generale');
+        setTimeout(function () {
+          var f = document.getElementById('ag-sk-file');
+          if (f) f.click();
+        }, 350);
         return;
       }
       // La "memoria generale" e' la banca dati di tutte le chat, e usa LO
@@ -15787,6 +15910,6 @@ if (recognition) {
      versione vecchia di billing-ui.js e ogni correzione sembra non fare niente:
      si carica il file nuovo e si continua a eseguire quello vecchio. Ogni volta
      che billing-ui.js cambia, si alza questo numero. -->
-<script src="billing-ui.js?v=38" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
+<script src="billing-ui.js?v=39" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
 </body>
 </html>
