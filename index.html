@@ -1851,6 +1851,21 @@ body {
 
     const LOCAL_ID = "aegis";
     const AEGIS_BENVENUTO = {"it": "Sono un’intelligenza artificiale che ti permette di usare i modelli di frontiera più avanzati, proteggendo i tuoi dati sensibili attraverso una pseudonimizzazione selettiva: nomi, indirizzi, date, telefoni, email e documenti vengono sostituiti da codici sul tuo dispositivo prima che il messaggio mi raggiunga, e ricompaiono al loro posto nella risposta. Io non vedo mai i dati originali. Le mie risposte sono generate automaticamente e possono contenere errori: verificale prima di usarle per decisioni importanti. Per il resto rispondo normalmente: dimmi pure di cosa hai bisogno.", "es": "Soy una inteligencia artificial que te permite utilizar los modelos de frontera más avanzados, protegiendo tus datos sensibles mediante una pseudonimización selectiva: nombres, direcciones, fechas, telefonos, correos y documentos se sustituyen por codigos en tu dispositivo antes de que el mensaje me llegue, y vuelven a su sitio en la respuesta. Yo nunca veo los datos originales. Mis respuestas se generan automaticamente y pueden contener errores: verificalas antes de usarlas para decisiones importantes. Por lo demas respondo con normalidad: dime que necesitas.", "en": "I’m an AI that lets you use the most advanced frontier models while protecting your sensitive data through selective pseudonymization: names, addresses, dates, phone numbers, emails and documents are replaced with codes on your device before the message reaches me, and they reappear in place in the reply. I never see the original data. My answers are generated automatically and may contain errors: check them before using them for important decisions. Otherwise I answer normally — tell me what you need."};
+    /* Il benvenuto della modalita' agente. Stessa promessa - i dati non li
+       vedo mai - ma dice che cosa sa fare di diverso, altrimenti l'utente
+       entra in agente e legge la presentazione della chat, che qui e' falsa
+       per omissione. */
+    const AEGIS_BENVENUTO_AGENTE = {
+      "it": "Sono l\u2019agente di Aegis. Uso i modelli di frontiera piu\u2019 avanzati e, oltre a rispondere, posso lavorare da solo per passi: leggo i tuoi documenti, cerco nelle cartelle del computer, faccio calcoli. Tutto quello che scrive o esegue te lo mostro prima e parte solo se lo confermi tu. I tuoi dati sensibili restano protetti: nomi, indirizzi, date, telefoni, email e documenti diventano codici sul tuo dispositivo prima che mi arrivino, e tornano al loro posto nella risposta. Io non vedo mai i dati originali. Le mie risposte sono generate automaticamente e possono contenere errori: verificale prima di usarle per decisioni importanti. Dimmi che cosa devo fare.",
+      "es": "Soy el agente de Aegis. Uso los modelos de frontera mas avanzados y, adem\u00e1s de responder, puedo trabajar solo por pasos: leo tus documentos, busco en las carpetas del ordenador, hago calculos. Todo lo que escribe o ejecuta te lo muestro antes y solo sale si lo confirmas tu. Tus datos sensibles siguen protegidos: nombres, direcciones, fechas, telefonos, correos y documentos se convierten en codigos en tu dispositivo antes de que me lleguen, y vuelven a su sitio en la respuesta. Yo nunca veo los datos originales. Mis respuestas se generan automaticamente y pueden contener errores: verificalas antes de usarlas para decisiones importantes. Dime que tengo que hacer.",
+      "en": "I\u2019m the Aegis agent. I use the most advanced frontier models and, beyond answering, I can work on my own step by step: read your documents, search the folders on your computer, run calculations. Anything I write or run I show you first, and it only goes ahead if you confirm. Your sensitive data stays protected: names, addresses, dates, phone numbers, emails and documents become codes on your device before they reach me, and they return to their place in the reply. I never see the original data. My answers are generated automatically and may contain errors: check them before using them for important decisions. Tell me what to do."
+    };
+    function benvenutoAgente(lang){
+      var k = String(lang || 'it').slice(0,2).toLowerCase();
+      return AEGIS_BENVENUTO_AGENTE[k] || AEGIS_BENVENUTO_AGENTE.it;
+    }
+    window.aegisBenvenutoAgente = benvenutoAgente;
+
     function benvenutoAegis(lang){
         var l=String(lang||'it').slice(0,2).toLowerCase();
         return AEGIS_BENVENUTO[l] || AEGIS_BENVENUTO.en;
@@ -9018,7 +9033,7 @@ if (recognition) {
       agNota:'Il modello vede sempre e solo testo protetto, anche qui. I dati reali non entrano mai nel suo ragionamento.',
       agCompito:'Che cosa devo fare? Per esempio: trova i contratti del 2026',
       agVia:'Esegui',
-      agPenso:'Sto pensando…',
+      agPenso:'Elaborando\u2026',
       agConfermaTit:'Serve la tua conferma',
       agConferma:'Conferma ed esegui',
       agRifiuta:'No, ferma',
@@ -9315,7 +9330,7 @@ if (recognition) {
       agNota:'El modelo siempre ve solo texto protegido, tambien aqui. Los datos reales nunca entran en su razonamiento.',
       agCompito:'¿Que tengo que hacer? Por ejemplo: busca los contratos de 2026',
       agVia:'Ejecutar',
-      agPenso:'Estoy pensando…',
+      agPenso:'Elaborando\u2026',
       agConfermaTit:'Hace falta tu confirmacion',
       agConferma:'Confirmar y ejecutar',
       agRifiuta:'No, para',
@@ -9612,7 +9627,7 @@ if (recognition) {
       agNota:'The model always sees only protected text, here too. Real data never enters its reasoning.',
       agCompito:'What should I do? For example: find the 2026 contracts',
       agVia:'Run',
-      agPenso:'Thinking…',
+      agPenso:'Working\u2026',
       agConfermaTit:'Your confirmation is needed',
       agConferma:'Confirm and run',
       agRifiuta:'No, stop',
@@ -9941,8 +9956,20 @@ if (recognition) {
          stringono e, se proprio non ci stanno, accorciano il testo coi
          puntini invece di impilarsi su due righe. */
       '.chat-header{flex-wrap:nowrap!important}' +
+      /* IN MODALITA' AGENTE il comando che conta e' quello che ti riporta
+         indietro: prende lo spazio che gli serve e si vede, mentre gli altri
+         si stringono. Prima era largo come Lingua e si perdeva in mezzo. */
+      '#ag-agente-esci{flex:0 0 auto!important;width:auto!important;min-width:132px;' +
+        'padding:0 16px;font-weight:700;border-color:var(--g-bordo);' +
+        'background:var(--g-fondo-hover);color:var(--text-main)}' +
+      '#ag-agente-esci:hover{background:var(--primary)}' +
+      'body.ag-modo-agente .chat-header .lang-change-btn:not(#ag-agente-esci){' +
+        'min-width:0;flex:0 1 auto}' +
       '.chat-header .lang-change-btn{min-width:0;white-space:nowrap;overflow:hidden;' +
         'text-overflow:ellipsis;padding-left:10px;padding-right:10px}' +
+      '.ag-ag-benvenuto{max-width:640px;padding:16px 18px;border-radius:14px;' +
+        'background:var(--primary);border:1px solid var(--hairline);' +
+        'font-size:13px;line-height:1.7;color:var(--text-main)}' +
       '.ag-cassetto{flex:none;border-top:1px solid var(--hairline);padding:10px 12px 12px;' +
         'max-height:26vh;overflow-y:auto}' +
       '.ag-cassetto h4{margin:0 0 7px;font:700 9px Inter,sans-serif;letter-spacing:.07em;' +
@@ -14754,6 +14781,7 @@ if (recognition) {
      dentro invece che in una finestra a parte.
      ===================================================================== */
   var _agenteAcceso = false;
+  var _segnaPosto = null;
   var _agenteOnLog = null;
 
   function elementiChat() {
@@ -14777,8 +14805,10 @@ if (recognition) {
     // allegati proprio dove servono. Adesso si riusa la barra di sempre e
     // cambia solo dove va a finire il testo quando premi invio.
     if (e.diario) e.diario.style.display = acceso ? 'flex' : 'none';
-    if (e.campo) e.campo.placeholder = acceso
-      ? ((window.aegisT && window.aegisT('agCompito')) || 'Che cosa devo fare?') : '';
+    // Il campo dice sempre la stessa cosa: e' lo stesso campo. Il suggerimento
+    // lungo stava su due righe e copriva mezza barra.
+    if (e.campo && !acceso) e.campo.placeholder = _segnaPosto || e.campo.placeholder;
+    if (e.campo && acceso) { _segnaPosto = e.campo.placeholder; }
     // Nuova chat e Cronologia non hanno senso mentre l'agente lavora: al loro
     // posto compare il modo di uscire.
     if (e.nuova) e.nuova.style.display = acceso ? 'none' : '';
@@ -14810,6 +14840,7 @@ if (recognition) {
     } catch (e) {}
     var btn = document.getElementById('ag-agente-btn');
     if (btn) btn.classList.toggle('on', acceso);
+    document.body.classList.toggle('ag-modo-agente', acceso);
   }
 
   async function apriAgente() {
@@ -14835,7 +14866,10 @@ if (recognition) {
     var diario = document.getElementById('ag-agente-diario');
     if (diario && !diario.getAttribute('data-pronto')) {
       diario.setAttribute('data-pronto', '1');
-      diario.innerHTML = '<div class="ag-ag-vuoto">' + T('agIntro') + '</div>';
+      // Il benvenuto dell'agente al posto della riga generica.
+      var ben = (window.aegisBenvenutoAgente
+        ? window.aegisBenvenutoAgente(activeLanguageCode) : T('agIntro'));
+      diario.innerHTML = '<div class="ag-ag-benvenuto">' + escapeHtml(ben) + '</div>';
     }
     if (diario) diario.scrollTop = diario.scrollHeight;
   }
@@ -14843,7 +14877,7 @@ if (recognition) {
   function agenteScrivi(classe, testo) {
     var d = document.getElementById('ag-agente-diario');
     if (!d) return null;
-    var v = d.querySelector('.ag-ag-vuoto'); if (v) v.remove();
+    var v = d.querySelector('.ag-ag-vuoto, .ag-ag-benvenuto'); if (v) v.remove();
     var r = document.createElement('div');
     r.className = 'ag-ag-passo ' + classe;
     r.textContent = testo;
@@ -14855,7 +14889,7 @@ if (recognition) {
     var T = window.aegisT || function (k) { return k; };
     var d = document.getElementById('ag-agente-diario');
     return new Promise(function (risolvi) {
-      var v = d.querySelector('.ag-ag-vuoto'); if (v) v.remove();
+      var v = d.querySelector('.ag-ag-vuoto, .ag-ag-benvenuto'); if (v) v.remove();
       var c = document.createElement('div');
       c.className = 'ag-ag-appr';
       var campi = Object.keys(anteprima || {}).filter(function (k) {
@@ -15910,6 +15944,6 @@ if (recognition) {
      versione vecchia di billing-ui.js e ogni correzione sembra non fare niente:
      si carica il file nuovo e si continua a eseguire quello vecchio. Ogni volta
      che billing-ui.js cambia, si alza questo numero. -->
-<script src="billing-ui.js?v=39" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
+<script src="billing-ui.js?v=40" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
 </body>
 </html>
