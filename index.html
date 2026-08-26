@@ -13426,7 +13426,20 @@ if (recognition) {
             // Adesso fa il contrario e fa la cosa giusta: i colori restano,
             // il codice sparisce sotto la striscia. Si vede che quel pezzo e'
             // protetto e di che tipo, senza leggere niente.
-            if (riservato) {
+            /* LE DUE TECNICHE SI DISTINGUONO A VISTA.
+               In modalita' SURROGATI il codice non va mostrato: al modello non
+               arrivera' mai un [[PER_01]], gli arrivera' un nome. Far vedere
+               un codice che non parte e' peggio che non far vedere niente -
+               fa credere che il sistema faccia una cosa diversa da quella che
+               fa, e non c'e' modo di accorgersene guardando lo schermo.
+               Quindi: targhetta colorata, larghezza esatta della parola
+               coperta, nessuna scritta dentro. Il colore resta e dice sempre
+               di che tipo di dato si tratta.
+               In modalita' CODICI il codice si scrive, perche' li' e' davvero
+               quello che parte. */
+            var soloStriscia = riservato ||
+              (window.AEGIS_SURROGATI && window.AEGIS_SURROGATI.attivo());
+            if (soloStriscia) {
               dentro += new Array(larghOspite + 1).join('\u00b7');
             } else {
               var sc = larghOspite / full.length;
@@ -15620,7 +15633,16 @@ if (recognition) {
           // stessa persona riprende lo stesso nome finto di prima.
           S.accendi(nuovo);
           if (st) st.textContent = T2(nuovo ? 'suOraSurrogati' : 'suOraCodici');
+          /* IL CAMBIO SI VEDE SUBITO, ANCHE COL TESTO GIA' INCOLLATO.
+             aegisRicalcola svuota l'anteprima e rifa' il disegno; senza,
+             il modo cambiava davvero ma lo schermo restava indietro fino
+             alla battuta successiva, e non c'era modo di sapere quale delle
+             due tecniche fosse attiva. */
           if (window.aegisRicalcola) window.aegisRicalcola();
+          try {
+            var campoOra = document.getElementById('user-input');
+            if (campoOra) campoOra.dispatchEvent(new Event('input', { bubbles: true }));
+          } catch (e3) {}
         })();
         return;
       }
@@ -16383,6 +16405,6 @@ if (recognition) {
      versione vecchia di billing-ui.js e ogni correzione sembra non fare niente:
      si carica il file nuovo e si continua a eseguire quello vecchio. Ogni volta
      che billing-ui.js cambia, si alza questo numero. -->
-<script src="billing-ui.js?v=49" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
+<script src="billing-ui.js?v=50" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
 </body>
 </html>
