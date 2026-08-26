@@ -9104,6 +9104,32 @@ if (recognition) {
       suNota:'Con i SURROGATI il modello riceve un testo integro: al posto di un nome c\'e\' un altro nome, al posto di una data un\'altra data. Ragiona meglio, perche\' non trova buchi. Con i CODICI riceve [[PER_01]]: piu\' evidente, ma il ragionamento peggiora sui documenti densi. In tutti e due i casi i dati veri non escono da qui, e tu sullo schermo vedi sempre le strisce coperte.',
       suOraSurrogati:'Adesso: surrogati.',
       suOraCodici:'Adesso: codici.',
+      suSpiegaTit:'Due modi di coprire i dati',
+      suSpiegaSom:'Proteggono uguale: i dati veri non escono mai da questo dispositivo, e tu sullo schermo vedi le strisce in tutti e due i casi. Cambia come ragiona il modello, e quanto e\' facile risalire a cio\' che hai coperto.',
+      suVerso:'stai passando a questo',
+      suSurTit:'Surrogati',
+      suSurEs:'"Il Sig. Fulvio Corbelli, nato a Castelfronte il 23/11/1981"',
+      suSurA:'Il modello riceve un testo intero e ragiona meglio: sa che e\' una persona, sa il genere, tiene insieme chi e\' chi anche in documenti lunghi.',
+      suSurB:'Le date sono tutte spostate dello stesso numero di giorni: gli intervalli restano esatti, i conti tornano.',
+      suSurC:'Rischio: se una data vera sfugge, o il documento cita un fatto pubblico, lo spostamento si ricava per differenza. Ottimo per ragionare, meno per casi dove un dato sfuggito e\' grave.',
+      suCodTit:'Codici',
+      suCodEs:'"Il Sig. [[PER_01]], nato a [[CITY_01]] il [[DATE_01]]"',
+      suCodA:'Non si retro-ingegnerizza: un codice non somiglia a niente e non c\'e\' niente da confrontare.',
+      suCodB:'Verificabile: puoi mostrare a un cliente o a un controllo esattamente cosa e\' uscito, riga per riga, senza esibire la mappa.',
+      suCodC:'Costo: il modello trova dei buchi e su documenti densi ragiona peggio. Ma sa di non sapere, e lo dice invece di inventare.',
+      suComune:'In tutti e due i casi la corrispondenza fra dato vero e sostituto resta su questo dispositivo, e la risposta ti torna coi dati veri al loro posto. Cambiando modo non si perde niente: la mappa resta, e tornando indietro ritrovi gli stessi sostituti.',
+      suNonMostrare:'Ho capito, non mostrarmelo piu\'',
+      suAccetto:'Accetto e cambia',
+      rvTitolo:'Controlla prima di salvare',
+      rvSom:'Sto per mettere questo testo in banca dati, dove il modello lo consultera\' da solo ogni volta che serve. Ho trovato {n} dati da coprire: guardali. Quelli che togli restano IN CHIARO nel pezzo salvato.',
+      rvDiventa:'diventa',
+      rvSalva:'Copri i selezionati e salva',
+      rvAvviso:'Una banca dati non e\' un messaggio: resta li\' per settimane e il modello la legge da solo. Un dato che entra scoperto ci resta, e non se ne accorge piu\' nessuno.',
+      rvNonMostrare:'Ho capito, non chiedermelo piu\' (si riattiva dalle opzioni)',
+      opRevReset:'Torna a chiedermi conferma prima di salvare in banca dati',
+      opAvvisiTit:'Avvisi che hai silenziato',
+      opModoReset:'Torna a spiegarmi la differenza fra codici e surrogati',
+      opAvvisiNota:'Ogni volta che spunti "non mostrare piu\'", l\'avviso finisce qui. Da qui lo riaccendi.',
       opCancella:'Cancella la cronologia locale',
       opNota:'Le conversazioni e la corrispondenza fra codici e dati reali restano solo su questo dispositivo. Cancellandole non si recuperano.',
       opEsci:'Esci dall\u0027account', opChiudi:'Chiudi',
@@ -9406,6 +9432,32 @@ if (recognition) {
       suNota:'Con los SUSTITUTOS el modelo recibe un texto integro: en lugar de un nombre hay otro nombre, en lugar de una fecha otra fecha. Razona mejor, porque no encuentra huecos. Con los CODIGOS recibe [[PER_01]]: mas evidente, pero el razonamiento empeora en documentos densos. En ambos casos los datos reales no salen de aqui, y tu en pantalla ves siempre las franjas cubiertas.',
       suOraSurrogati:'Ahora: sustitutos.',
       suOraCodici:'Ahora: codigos.',
+      suSpiegaTit:'Dos formas de cubrir los datos',
+      suSpiegaSom:'Protegen igual: los datos reales nunca salen de este dispositivo, y en pantalla ves las franjas en ambos casos. Cambia como razona el modelo, y lo facil que es remontarse a lo que has cubierto.',
+      suVerso:'estas pasando a este',
+      suSurTit:'Sustitutos',
+      suSurEs:'"El Sr. Fulvio Corbelli, nacido en Castelfronte el 23/11/1981"',
+      suSurA:'El modelo recibe un texto entero y razona mejor: sabe que es una persona, sabe el genero, mantiene quien es quien en documentos largos.',
+      suSurB:'Las fechas se desplazan todas los mismos dias: los intervalos siguen exactos y las cuentas cuadran.',
+      suSurC:'Riesgo: si se escapa una fecha real, o el documento cita un hecho publico, el desplazamiento se deduce por diferencia. Muy bueno para razonar, menos donde un dato escapado es grave.',
+      suCodTit:'Codigos',
+      suCodEs:'"El Sr. [[PER_01]], nacido en [[CITY_01]] el [[DATE_01]]"',
+      suCodA:'No se puede revertir: un codigo no se parece a nada y no hay con que compararlo.',
+      suCodB:'Verificable: puedes ensenar a un cliente o a una auditoria exactamente que ha salido, linea por linea, sin ensenar el mapa.',
+      suCodC:'Coste: el modelo encuentra huecos y en documentos densos razona peor. Pero sabe que no sabe, y lo dice en vez de inventar.',
+      suComune:'En ambos casos la correspondencia entre dato real y sustituto se queda en este dispositivo, y la respuesta vuelve con los datos reales en su sitio. Cambiar de modo no pierde nada: el mapa se queda, y al volver atras recuperas los mismos sustitutos.',
+      suNonMostrare:'Entendido, no me lo muestres mas',
+      suAccetto:'Acepto y cambia',
+      rvTitolo:'Comprueba antes de guardar',
+      rvSom:'Voy a meter este texto en la base de datos, donde el modelo lo consultara solo cada vez que haga falta. He encontrado {n} datos que cubrir: mirarlos. Los que quites se quedan EN CLARO en el fragmento guardado.',
+      rvDiventa:'pasa a ser',
+      rvSalva:'Cubrir los marcados y guardar',
+      rvAvviso:'Una base de datos no es un mensaje: se queda ahi semanas y el modelo la lee solo. Un dato que entra descubierto se queda, y ya no se da cuenta nadie.',
+      rvNonMostrare:'Entendido, no me lo preguntes mas (se reactiva desde las opciones)',
+      opRevReset:'Volver a pedirme confirmacion antes de guardar en la base de datos',
+      opAvvisiTit:'Avisos que has silenciado',
+      opModoReset:'Volver a explicarme la diferencia entre codigos y sustitutos',
+      opAvvisiNota:'Cada vez que marcas "no mostrar mas", el aviso acaba aqui. Desde aqui lo vuelves a encender.',
       opCancella:'Borrar el historial local',
       opNota:'Las conversaciones y la correspondencia entre codigos y datos reales solo estan en este dispositivo. Si las borras no se recuperan.',
       opEsci:'Cerrar sesion', opChiudi:'Cerrar',
@@ -9708,6 +9760,32 @@ if (recognition) {
       suNota:'With SURROGATES the model receives an intact text: a name in place of a name, a date in place of a date. It reasons better, because it finds no gaps. With CODES it receives [[PER_01]]: more obvious, but reasoning degrades on dense documents. Either way the real data never leaves, and on screen you always see the covered strips.',
       suOraSurrogati:'Now: surrogates.',
       suOraCodici:'Now: codes.',
+      suSpiegaTit:'Two ways to cover data',
+      suSpiegaSom:'They protect equally: real data never leaves this device, and on screen you see the strips either way. What changes is how the model reasons, and how easy it is to work back to what you covered.',
+      suVerso:'switching to this',
+      suSurTit:'Surrogates',
+      suSurEs:'"Mr Fulvio Corbelli, born in Castelfronte on 23/11/1981"',
+      suSurA:'The model gets an intact text and reasons better: it knows it is a person, knows the gender, keeps track of who is who across long documents.',
+      suSurB:'Dates are all shifted by the same number of days: intervals stay exact and the arithmetic works.',
+      suSurC:'Risk: if one real date slips through, or the document cites a public fact, the shift can be worked out by difference. Great for reasoning, less so where one leaked item is serious.',
+      suCodTit:'Codes',
+      suCodEs:'"Mr [[PER_01]], born in [[CITY_01]] on [[DATE_01]]"',
+      suCodA:'Cannot be reversed: a code resembles nothing and there is nothing to compare it against.',
+      suCodB:'Verifiable: you can show a client or an audit exactly what went out, line by line, without revealing the map.',
+      suCodC:'Cost: the model sees gaps and reasons worse on dense documents. But it knows it does not know, and says so instead of inventing.',
+      suComune:'Either way the mapping between real value and substitute stays on this device, and the reply comes back with the real data in place. Switching mode loses nothing: the map stays, and coming back you get the same substitutes.',
+      suNonMostrare:'Understood, do not show this again',
+      suAccetto:'Accept and switch',
+      rvTitolo:'Check before saving',
+      rvSom:'I am about to put this text into the knowledge base, where the model will consult it on its own whenever needed. I found {n} items to cover: look at them. Anything you untick stays IN THE CLEAR in the saved passage.',
+      rvDiventa:'becomes',
+      rvSalva:'Cover the ticked and save',
+      rvAvviso:'A knowledge base is not a message: it sits there for weeks and the model reads it by itself. An item that goes in uncovered stays there, and nobody notices again.',
+      rvNonMostrare:'Understood, stop asking (can be re-enabled in settings)',
+      opRevReset:'Ask me again before saving into the knowledge base',
+      opAvvisiTit:'Warnings you silenced',
+      opModoReset:'Explain the difference between codes and surrogates again',
+      opAvvisiNota:'Every time you tick "do not show again", the warning lands here. From here you turn it back on.',
       opCancella:'Delete local history',
       opNota:'Conversations and the mapping between codes and real data live only on this device. Deleting them cannot be undone.',
       opEsci:'Sign out', opChiudi:'Close',
@@ -9987,6 +10065,16 @@ if (recognition) {
       /* La fila in alto a destra non deve andare a capo: i pulsanti si
          stringono e, se proprio non ci stanno, accorciano il testo coi
          puntini invece di impilarsi su due righe. */
+      /* UNO DEI DUE SPARISCE, SEMPRE.
+         Il diario dell'agente porta la classe .chat-messages per ereditarne
+         l'aspetto, e questo faceva si' che una regola sulla classe li tenesse
+         visibili tutti e due: il benvenuto della chat sopra, quello
+         dell'agente sotto, accavallati. Qui la decisione la prende il segno
+         sul corpo della pagina, con !important, e non c'e' regola che possa
+         vincerla. */
+      'body.ag-modo-agente #chat-messages{display:none!important}' +
+      'body:not(.ag-modo-agente) #ag-agente-diario{display:none!important}' +
+      'body.ag-modo-agente #ag-agente-diario{display:flex!important}' +
       '.chat-header{flex-wrap:nowrap!important}' +
       /* IN MODALITA' AGENTE il comando che conta e' quello che ti riporta
          indietro: prende lo spazio che gli serve e si vede, mentre gli altri
@@ -9999,9 +10087,7 @@ if (recognition) {
         'min-width:0;flex:0 1 auto}' +
       '.chat-header .lang-change-btn{min-width:0;white-space:nowrap;overflow:hidden;' +
         'text-overflow:ellipsis;padding-left:10px;padding-right:10px}' +
-      '.ag-ag-benvenuto{max-width:640px;padding:16px 18px;border-radius:14px;' +
-        'background:var(--primary);border:1px solid var(--hairline);' +
-        'font-size:13px;line-height:1.7;color:var(--text-main)}' +
+      '.ag-agente-diario .ag-ag-benvenuto{align-self:stretch;max-width:none}' +
       '.ag-cassetto{flex:none;border-top:1px solid var(--hairline);padding:10px 12px 12px;' +
         'max-height:26vh;overflow-y:auto}' +
       '.ag-cassetto h4{margin:0 0 7px;font:700 9px Inter,sans-serif;letter-spacing:.07em;' +
@@ -10017,6 +10103,20 @@ if (recognition) {
         'white-space:nowrap}' +
       '.ag-cs-file b{flex:none;font:600 8.5px Inter,sans-serif;letter-spacing:.05em;' +
         'text-transform:uppercase;color:var(--text-light)}' +
+      '.ag-su-due{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}' +
+      '@media(max-width:640px){.ag-su-due{grid-template-columns:1fr}}' +
+      '.ag-su-modo{position:relative;border:1px solid rgba(0,0,0,.12);border-radius:13px;' +
+        'padding:15px 16px;background:#fff}' +
+      '.ag-su-modo.scelto{border-color:#2f6a52;border-width:2px;padding:14px 15px;' +
+        'background:rgba(47,106,82,.045)}' +
+      '.ag-su-marca{position:absolute;top:-9px;left:14px;background:#2f6a52;color:#fff;' +
+        'border-radius:6px;padding:2px 8px;font:600 8.5px Inter,sans-serif;' +
+        'letter-spacing:.06em;text-transform:uppercase}' +
+      '.ag-su-modo h5{margin:0 0 7px;font:700 12px Inter,sans-serif;color:#1d1d1f}' +
+      '.ag-su-esempio{margin:0 0 9px;padding:8px 10px;border-radius:8px;background:#F4F4F6;' +
+        'font:400 10.5px ui-monospace,Menlo,monospace;color:#1d1d1f;line-height:1.5}' +
+      '.ag-su-modo ul{margin:0;padding-left:16px}' +
+      '.ag-su-modo li{font-size:11px;color:#4a4a50;line-height:1.5;margin-bottom:5px}' +
       '.ag-ag-barra{flex:none;display:flex;gap:9px}' +
       '.ag-ag-barra input{flex:1 1 auto;min-width:0;height:42px;padding:0 15px;box-sizing:border-box;' +
         'border:1px solid var(--hairline);border-radius:12px;background:var(--primary);' +
@@ -12025,6 +12125,79 @@ if (recognition) {
     });
   }
 
+  /* ============ REVISIONE DURA PRIMA DI SALVARE =========================
+     Niente entra in banca dati senza che l'utente abbia guardato, voce per
+     voce, che cosa sta per essere coperto. La banca dati non e' un messaggio:
+     resta li' e il modello la consulta da solo, per settimane. Un dato che
+     entra scoperto ci resta, e nessuno se ne accorge piu'.
+     Le voci sono tutte SPUNTATE: togliere la spunta lascia quel dato IN
+     CHIARO nel pezzo salvato, ed e' scritto a chiare lettere.
+     Chi ha capito spunta "non mostrare piu'", e lo riattiva dalle opzioni.
+     ===================================================================== */
+  var CHIAVE_REV = 'aegis_revisione_saltata';
+
+  function revisionePrima(chiaro) {
+    var T = window.aegisT || function (k) { return k; };
+    // Che cosa verrebbe coperto, con il valore vero accanto.
+    var r;
+    try { r = maschera(String(chiaro || ''), false); } catch (e) { r = null; }
+    var voci = (r && r.voci) ? r.voci.slice() : [];
+    try { if (localStorage.getItem(CHIAVE_REV) === '1') return Promise.resolve(voci.map(function(v){return v.val;})); } catch (e) {}
+    if (!voci.length) return Promise.resolve([]);
+
+    return new Promise(function (risolvi) {
+      var velo = document.createElement('div');
+      velo.className = 'ag-vt-velo'; velo.id = 'ag-rv-velo';
+      document.body.appendChild(velo);
+      var d = document.createElement('div');
+      d.className = 'ag-vt'; d.id = 'ag-rv'; d.style.width = 'min(760px,95vw)';
+      d.innerHTML =
+        '<h3>' + T('rvTitolo') + '</h3>' +
+        '<p class="ag-vt-som">' + T('rvSom').replace('{n}', voci.length) + '</p>' +
+        '<div class="ag-arg-lista">' + voci.map(function (v, i) {
+          return '<label class="ag-arg-riga"><input type="checkbox" checked data-i="' + i + '">' +
+            '<span class="ag-arg-l" style="color:' + (coloreCategoria(v.cat) || '#8b8b90') + '">' +
+              escapeHtml(String(v.cat || '')) + '</span>' +
+            '<span class="ag-arg-c"><b>' + escapeHtml(String(v.val || '')) + '</b>' +
+            '<i>' + T('rvDiventa') + ' ' + escapeHtml(String(v.tok || '')) + '</i></span></label>';
+        }).join('') + '</div>' +
+        '<p class="ag-dv-cmd">' + T('rvAvviso') + '</p>' +
+        '<label class="ag-dv-ric"><input type="checkbox" id="ag-rv-mai"> ' + T('rvNonMostrare') + '</label>' +
+        '<div class="ag-arg-piede">' +
+          '<button type="button" class="leggero" data-a="tutte">' + T('argTutti') + '</button>' +
+          '<button type="button" class="leggero" data-a="no">' + T('webAnnulla') + '</button>' +
+          '<button type="button" data-a="si">' + T('rvSalva') + '</button>' +
+        '</div>';
+      document.body.appendChild(d);
+      function chiudi(v) {
+        try {
+          if (v && document.getElementById('ag-rv-mai').checked) localStorage.setItem(CHIAVE_REV, '1');
+        } catch (e) {}
+        var a = document.getElementById('ag-rv'), b = document.getElementById('ag-rv-velo');
+        if (a) a.remove(); if (b) b.remove();
+        risolvi(v);
+      }
+      velo.onclick = function () { chiudi(null); };
+      d.addEventListener('click', function (e) {
+        var b = e.target.closest ? e.target.closest('[data-a]') : null;
+        if (!b) return;
+        var a = b.getAttribute('data-a');
+        if (a === 'tutte') {
+          var c = d.querySelectorAll('input[type=checkbox][data-i]');
+          var on = Array.prototype.every.call(c, function (x) { return x.checked; });
+          Array.prototype.forEach.call(c, function (x) { x.checked = !on; });
+          return;
+        }
+        if (a === 'no') { chiudi(null); return; }
+        var tenuti = [];
+        Array.prototype.forEach.call(d.querySelectorAll('input[type=checkbox][data-i]'), function (x) {
+          if (x.checked) tenuti.push(voci[+x.getAttribute('data-i')].val);
+        });
+        chiudi(tenuti);
+      });
+    });
+  }
+
   async function apriSkills(modo) {
     var seSessione = (modo === 'sessione');
     var skOrigine = null;   // da quale conversazione e quali messaggi
@@ -12408,6 +12581,18 @@ if (recognition) {
            ================================================================ */
         var chiaro = area.value.trim();
         if (!chiaro) { dimmi(T('skVuotoTesto'), true); return; }
+        // REVISIONE DURA: niente entra senza che l'utente abbia guardato.
+        var tenuti = await revisionePrima(chiaro);
+        if (tenuti === null) return;              // ha annullato
+        // Le voci con la spunta tolta restano in chiaro: si aggiungono agli
+        // esclusi, che e' il meccanismo di sempre, cosi' la scelta resta
+        // visibile nella scheda "rimosse" e si disfa da li'.
+        try {
+          var r0 = maschera(chiaro, false);
+          (r0 && r0.voci ? r0.voci : []).forEach(function (v) {
+            if (tenuti.indexOf(v.val) === -1) esclusi.add(v.val);
+          });
+        } catch (e) {}
         var t = '';
         try { var rp = maschera(chiaro, true); t = (rp && rp.testo) || ''; } catch (e) { t = ''; }
         if (!t) { dimmi(T('skNoMaschera'), true); return; }
@@ -12513,8 +12698,14 @@ if (recognition) {
           '<p class="ag-op-nota">' + T('suNota') + '</p>' +
           '<button type="button" class="ag-op-btn" id="ag-op-surrogati">' + T('suCambia') + '</button>' +
           '<div class="ag-op-nota" id="ag-op-sustato" style="margin-top:8px"></div></div>' +
-        '<div class="ag-op-sez"><button type="button" class="ag-op-btn" id="ag-op-docreset">' +
-          T('opDocReset') + '</button></div>' +
+        // TUTTI I "NON MOSTRARE PIU'" IN UN POSTO SOLO. Ogni spunta che
+        // silenzia un avviso deve avere qui la sua riga per riaccenderlo:
+        // una scorciatoia che non si puo' disfare non e' una scorciatoia.
+        '<div class="ag-op-sez"><h4>' + T('opAvvisiTit') + '</h4>' +
+          '<p class="ag-op-nota">' + T('opAvvisiNota') + '</p>' +
+          '<button type="button" class="ag-op-btn" id="ag-op-docreset">' + T('opDocReset') + '</button>' +
+          '<button type="button" class="ag-op-btn" id="ag-op-revreset">' + T('opRevReset') + '</button>' +
+          '<button type="button" class="ag-op-btn" id="ag-op-modoreset">' + T('opModoReset') + '</button></div>' +
         '<div class="ag-op-sez"><h4>' + T('opAvvisi') + '</h4>' + righeAvvisi + '</div>' +
         '<div class="ag-op-sez"><h4>' + T('opProtezione') + '</h4>' +
           '<label class="ag-op-riga"><input type="checkbox" id="op-riempi"' + (RIEMPIMENTO ? ' checked' : '') + '>' +
@@ -12723,6 +12914,30 @@ if (recognition) {
   // Il pannello della base di conoscenza, raggiungibile anche da fuori.
   // 'generale' = i documenti dell'utente, 'sessione' = questa conversazione.
   window.aegisApriBase = function (modo) { return apriSkills(modo); };
+
+  /* IL MASCHERATORE, VISTO DA FUORI.
+     maschera() vive dentro questa funzione e da un altro blocco di codice non
+     esiste. mascheraTesto(), che sta altrove, la chiamava in un try/catch: il
+     risultato era che falliva SEMPRE, in silenzio, e l'utente leggeva "non
+     posso proteggere questo testo" su qualsiasi documento. Nessun errore in
+     console, perche' il catch se lo mangiava.
+     Congelato: i codici sono quelli del vault, non numeri d'anteprima. */
+  /* Rifare i conti e ridisegnare, dal di fuori. L'interruttore dei surrogati
+     sta nelle opzioni (blocco 4) ma il suo gestore vive nel blocco 6, dove
+     valoriPreview e aggiorna() non esistono: la chiamata falliva in silenzio
+     dentro un catch e il testo restava coperto col modo vecchio finche' non
+     si ricaricava la pagina. */
+  window.aegisRicalcola = function () {
+    try { valoriPreview.clear(); } catch (e) {}
+    try { aggiorna(); } catch (e) {}
+  };
+
+  window.aegisMascheraCongelata = function (testo) {
+    try {
+      var r = maschera(String(testo || ''), true);
+      return (r && r.testo) || '';
+    } catch (e) { return ''; }
+  };
 
   window.AEGIS_INTERRUTTORI = {
     stato: function () {
@@ -13923,7 +14138,15 @@ if (recognition) {
       // adesso, oppure lasciarlo li' perche' il modello possa consultarlo per
       // tutta la sessione. Prima decideva l'applicazione al posto suo; adesso
       // si chiede, una volta, con la possibilita' di non chiederlo piu'.
-      var scelta = await window.aegisDoveVaIlDocumento(file.name);
+      /* IN MODALITA' AGENTE NON SI CHIEDE NIENTE.
+         La domanda "dove lo metto?" ha senso in chat, dove le destinazioni
+         sono due. Con l'agente acceso ce n'e' una sola: il documento e' il
+         materiale su cui deve lavorare adesso. Chiederlo era un passaggio in
+         piu' che offriva anche la risposta sbagliata - salvarlo in memoria
+         invece di darglielo. */
+      var scelta = (typeof _agenteAcceso !== 'undefined' && _agenteAcceso)
+        ? 'messaggio'
+        : await window.aegisDoveVaIlDocumento(file.name);
       if (scelta === 'annulla') { stato(''); return; }
       if (scelta === 'memoria') {
         await window.aegisInMemoriaSessione(file.name, testo);
@@ -14550,6 +14773,68 @@ if (recognition) {
   }
 
   // aegis-rag.js si carica solo quando serve: e' lo stesso archivio delle Skill.
+  /* ============ LA SPIEGAZIONE PRIMA DI CAMBIARE MODO ====================
+     Le due strade proteggono uguale ma si comportano in modo diverso, e la
+     differenza non e' intuibile guardando lo schermo: in tutti e due i casi
+     l'utente vede strisce. Quindi si spiega, una volta, con il modo verso cui
+     si sta andando messo in evidenza. Chi ha capito spunta e non lo rivede.
+     ===================================================================== */
+  var CHIAVE_SPIEGA = 'aegis_surrogati_spiegato';
+  function spiegaModo(versoSurrogati) {
+    var T = window.aegisT || function (k) { return k; };
+    try { if (localStorage.getItem(CHIAVE_SPIEGA) === '1') return Promise.resolve(true); } catch (e) {}
+    return new Promise(function (risolvi) {
+      var velo = document.createElement('div');
+      velo.className = 'ag-vt-velo'; velo.id = 'ag-su-velo';
+      document.body.appendChild(velo);
+      var d = document.createElement('div');
+      d.className = 'ag-vt'; d.id = 'ag-su'; d.style.width = 'min(720px,95vw)';
+
+      function blocco(chiave, evidenziato) {
+        return '<div class="ag-su-modo' + (evidenziato ? ' scelto' : '') + '">' +
+          (evidenziato ? '<span class="ag-su-marca">' + T('suVerso') + '</span>' : '') +
+          '<h5>' + T(chiave + 'Tit') + '</h5>' +
+          '<p class="ag-su-esempio">' + T(chiave + 'Es') + '</p>' +
+          '<ul><li>' + T(chiave + 'A') + '</li><li>' + T(chiave + 'B') + '</li>' +
+          '<li>' + T(chiave + 'C') + '</li></ul></div>';
+      }
+
+      d.innerHTML =
+        '<h3>' + T('suSpiegaTit') + '</h3>' +
+        '<p class="ag-vt-som">' + T('suSpiegaSom') + '</p>' +
+        '<div class="ag-su-due">' +
+          blocco('suSur', versoSurrogati) +
+          blocco('suCod', !versoSurrogati) +
+        '</div>' +
+        '<p class="ag-dv-cmd">' + T('suComune') + '</p>' +
+        '<label class="ag-dv-ric"><input type="checkbox" id="ag-su-mai"> ' + T('suNonMostrare') + '</label>' +
+        '<div class="ag-arg-piede">' +
+          '<button type="button" class="leggero" data-v="no">' + T('webAnnulla') + '</button>' +
+          '<button type="button" data-v="si">' + T('suAccetto') + '</button>' +
+        '</div>';
+      document.body.appendChild(d);
+
+      function chiudi(v) {
+        try {
+          if (v && document.getElementById('ag-su-mai').checked) {
+            localStorage.setItem(CHIAVE_SPIEGA, '1');
+          }
+        } catch (e) {}
+        var a = document.getElementById('ag-su'), b = document.getElementById('ag-su-velo');
+        if (a) a.remove(); if (b) b.remove();
+        risolvi(!!v);
+      }
+      velo.onclick = function () { chiudi(false); };
+      d.addEventListener('click', function (e) {
+        var b = e.target.closest ? e.target.closest('[data-v]') : null;
+        if (b) chiudi(b.getAttribute('data-v') === 'si');
+      });
+    });
+  }
+  window.aegisResetSpiegaModo = function () {
+    try { localStorage.removeItem(CHIAVE_SPIEGA); } catch (e) {}
+  };
+
   function caricaSurrogati() {
     if (window.AEGIS_SURROGATI) return Promise.resolve();
     return new Promise(function (ok, ko) {
@@ -14604,35 +14889,15 @@ if (recognition) {
   function mascheraTesto(testo) {
     var t = String(testo || '');
     if (!t) return '';
-    try {
-      /* ============ SI CONGELA. E' TUTTA QUI LA DIFFERENZA. ==============
-         maschera() ha due modi.
-         - NON congelato (false): serve all'ANTEPRIMA, il pannello di destra.
-           I codici sono provvisori, contati a parte, e NON entrano nel vault.
-           Ogni chiamata riparte dal proprio conteggio.
-         - Congelato (true): e' quello che si vede nel PANNELLO CENTRALE, cioe'
-           cio' che parte davvero. I codici entrano nel vault della sessione e
-           restano.
-
-         Qui usavo il primo. Conseguenza: una memoria salvata prendeva codici
-         provvisori, e la stessa persona finiva [[PER_01]] in un posto e
-         [[PER_03]] in un altro - oppure [[PER_01]] copriva due persone
-         diverse in due memorie diverse. Al ripristino diventavano la stessa
-         persona: l'errore peggiore che questo sistema possa fare.
-
-         Congelando, il vault e' uno solo per tutta la sessione: cerca se
-         quella parola ha gia' un codice e riusa quello; se il codice esiste
-         gia' per un'altra parola ne conia uno nuovo. Una parola, un codice.
-         Un codice, una parola. Memorie, archivio, chat e agente parlano
-         finalmente la stessa lingua.
-         ================================================================= */
-      var r = (typeof maschera === 'function') ? maschera(t, true) : null;
-      var out = (r && r.testo) || '';
-      // Se il mascheratore non e' disponibile NON si consegna il testo in
-      // chiaro: si consegna niente. Meglio una Skill vuota che una Skill che
-      // contiene i nomi veri.
-      return out;
-    } catch (e) { return ''; }
+    // Prima la porta esposta dal pannello: e' l'unica che funziona da qui.
+    if (window.aegisMascheraCongelata) {
+      var fuori = window.aegisMascheraCongelata(t);
+      if (fuori) return fuori;
+    }
+    // Non c'e' un ripiego: se la porta non c'e', il mascheratore non e'
+    // raggiungibile da qui e chiamarlo direttamente fallirebbe in silenzio.
+    // Meglio restituire niente, che chi chiama sa gia' trattare.
+    return '';
   }
   function mascheraPerArchivio(testo) { return mascheraTesto(testo); }
 
@@ -14917,9 +15182,12 @@ if (recognition) {
     if (diario && !diario.getAttribute('data-pronto')) {
       diario.setAttribute('data-pronto', '1');
       // Il benvenuto dell'agente al posto della riga generica.
+      // Stessa forma del benvenuto della chat - stessa bolla, stesso punto -
+      // perche' e' la stessa cosa: la presentazione di chi ti sta rispondendo.
       var ben = (window.aegisBenvenutoAgente
         ? window.aegisBenvenutoAgente(activeLanguageCode) : T('agIntro'));
-      diario.innerHTML = '<div class="ag-ag-benvenuto">' + escapeHtml(ben) + '</div>';
+      diario.innerHTML = '<div class="message bot-message ag-ag-benvenuto">' +
+        '<div class="message-content"><ul><li>' + escapeHtml(ben) + '</li></ul></div></div>';
     }
     if (diario) diario.scrollTop = diario.scrollHeight;
   }
@@ -15260,11 +15528,16 @@ if (recognition) {
           try { await caricaSurrogati(); } catch (er) { if (st) st.textContent = '' + er.message; return; }
           var S = window.AEGIS_SURROGATI;
           var nuovo = !S.attivo();
+          // Si spiega PRIMA di cambiare, e si spiega il modo verso cui si sta
+          // andando: e' quello che l'utente sta per subire, non quello che
+          // lascia. Chi ha gia' capito spunta "non mostrare piu'".
+          var ok = await spiegaModo(nuovo);
+          if (!ok) return;
           // Cambiare modo NON cancella la mappa: se torni ai surrogati, la
           // stessa persona riprende lo stesso nome finto di prima.
           S.accendi(nuovo);
           if (st) st.textContent = T2(nuovo ? 'suOraSurrogati' : 'suOraCodici');
-          try { valoriPreview.clear(); aggiorna(); } catch (er2) {}
+          if (window.aegisRicalcola) window.aegisRicalcola();
         })();
         return;
       }
@@ -15310,6 +15583,18 @@ if (recognition) {
         // Percorso relativo: funziona sul sito, in locale e dentro il
         // pannello dell'estensione, senza scriverci dentro un dominio.
         try { window.open('benchmark.html', '_blank', 'noopener'); } catch (err) {}
+        return;
+      }
+      if (t.closest('#ag-op-revreset')) {
+        e.preventDefault();
+        try { localStorage.removeItem('aegis_revisione_saltata'); } catch (er) {}
+        alert((window.aegisT||function(k){return k;})('opRevReset'));
+        return;
+      }
+      if (t.closest('#ag-op-modoreset')) {
+        e.preventDefault();
+        if (window.aegisResetSpiegaModo) window.aegisResetSpiegaModo();
+        alert((window.aegisT||function(k){return k;})('opModoReset'));
         return;
       }
       if (t.closest('#ag-op-docreset')) {
@@ -16010,6 +16295,6 @@ if (recognition) {
      versione vecchia di billing-ui.js e ogni correzione sembra non fare niente:
      si carica il file nuovo e si continua a eseguire quello vecchio. Ogni volta
      che billing-ui.js cambia, si alza questo numero. -->
-<script src="billing-ui.js?v=41" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
+<script src="billing-ui.js?v=46" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
 </body>
 </html>
