@@ -4182,8 +4182,8 @@ body {
         // In modalita' agente il pulsante invia manda il compito all'agente,
         // non alla chat. Un solo pulsante, due destinazioni, nessuna barra
         // doppia da tenere allineata.
-        if (typeof _agenteAcceso !== 'undefined' && _agenteAcceso) {
-          if (typeof agenteEsegui === 'function') { agenteEsegui(); return; }
+        if (window.aegisAgenteAcceso && window.aegisAgenteAcceso()) {
+          if (window.aegisAgenteEsegui) { window.aegisAgenteEsegui(); return; }
         }
         if (chiediConsenso(function () { handleSendMessage(); })) return;
         // Un codice di conversazione non e' un messaggio: apre il pannello.
@@ -12927,6 +12927,27 @@ if (recognition) {
      valoriPreview e aggiorna() non esistono: la chiamata falliva in silenzio
      dentro un catch e il testo restava coperto col modo vecchio finche' non
      si ricaricava la pagina. */
+  /* Il valore reale dietro un codice. vault e valoriPreview vivono qui: il
+     pannello della ricerca web sta nel blocco 6 e da li' non li vede, quindi
+     mostrava "non riesco a risalire al valore" su ogni riga - proprio nel
+     pannello che serve a farti decidere se scoprire un dato. */
+  window.aegisValoreDi = function (cod) {
+    try {
+      var trovato = null;
+      if (vault && typeof vault.forEach === 'function') {
+        vault.forEach(function (val, k) {
+          if (String(k) === cod || String(k) === '[[' + cod + ']]') trovato = val;
+        });
+      }
+      if (trovato) return String(trovato);
+      if (valoriPreview && valoriPreview.get) {
+        var p = valoriPreview.get(cod) || valoriPreview.get('[[' + cod + ']]');
+        if (p) return String(p);
+      }
+    } catch (e) {}
+    return null;
+  };
+
   window.aegisRicalcola = function () {
     try { valoriPreview.clear(); } catch (e) {}
     try { aggiorna(); } catch (e) {}
@@ -14144,9 +14165,8 @@ if (recognition) {
          materiale su cui deve lavorare adesso. Chiederlo era un passaggio in
          piu' che offriva anche la risposta sbagliata - salvarlo in memoria
          invece di darglielo. */
-      var scelta = (typeof _agenteAcceso !== 'undefined' && _agenteAcceso)
-        ? 'messaggio'
-        : await window.aegisDoveVaIlDocumento(file.name);
+      var inAgente = !!(window.aegisAgenteAcceso && window.aegisAgenteAcceso());
+      var scelta = inAgente ? 'messaggio' : await window.aegisDoveVaIlDocumento(file.name);
       if (scelta === 'annulla') { stato(''); return; }
       if (scelta === 'memoria') {
         await window.aegisInMemoriaSessione(file.name, testo);
@@ -15096,6 +15116,12 @@ if (recognition) {
      dentro invece che in una finestra a parte.
      ===================================================================== */
   var _agenteAcceso = false;
+  /* Lo stato dell'agente, leggibile da fuori. Sta nel blocco 6, ma serve al
+     blocco 5 (caricamento documenti) e al blocco 4: un `typeof _agenteAcceso`
+     da li' non lo trova e risponde sempre "spento". E' la terza volta che
+     questo progetto paga la stessa moneta: le variabili non attraversano i
+     blocchi, le funzioni su window si'. */
+  window.aegisAgenteAcceso = function () { return !!_agenteAcceso; };
   var _segnaPosto = null;
   var _agenteOnLog = null;
 
@@ -15235,6 +15261,7 @@ if (recognition) {
     });
   }
 
+  window.aegisAgenteEsegui = function () { return agenteEsegui(); };
   async function agenteEsegui() {
     var T = window.aegisT || function (k) { return k; };
     var campo = document.getElementById('user-input');
@@ -15817,6 +15844,11 @@ if (recognition) {
   // Il valore reale dietro un codice: sta nel vault di questa sessione, e non
   // esce da qui. Serve solo a far vedere all'utente cosa sta per scoprire.
   function valorePerCodice(cod) {
+    // Prima la porta del pannello: e' l'unica che vede il vault da qui.
+    if (window.aegisValoreDi) {
+      var v0 = window.aegisValoreDi(cod);
+      if (v0) return v0;
+    }
     try {
       var v = (typeof vault !== 'undefined' && vault) ? vault : null;
       if (v && typeof v.forEach === 'function') {
@@ -16295,6 +16327,6 @@ if (recognition) {
      versione vecchia di billing-ui.js e ogni correzione sembra non fare niente:
      si carica il file nuovo e si continua a eseguire quello vecchio. Ogni volta
      che billing-ui.js cambia, si alza questo numero. -->
-<script src="billing-ui.js?v=46" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
+<script src="billing-ui.js?v=47" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
 </body>
 </html>
