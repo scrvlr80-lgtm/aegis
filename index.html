@@ -7594,16 +7594,21 @@ if (recognition) {
            su ent.token qualunque cosa contenga. Se il modulo non c'e' o non
            sa surrogare quel tipo, si ripiega sul codice: meglio un codice
            onesto che un surrogato sbagliato. */
-        const codice = '[[' + m.token + '_' + String(n).padStart(2, '0') + ']]';
-        let tok = codice;
-        try {
-          const S = (typeof window !== 'undefined') && window.AEGIS_SURROGATI;
-          if (S && S.attivo()) {
-            const sur = S.surrogato(m.token, m.value, (typeof window !== 'undefined' && window.aegisLingua) ? window.aegisLingua() : 'it');
-            if (sur) tok = sur;
-          }
-        } catch (e) {}
-        ent = { token: tok, codice: codice, value: m.value, type: m.token, count: 0, category: m.category, sub: m.sub, confidence: m.confidence, review: !!m.review };
+        /* ====== IL MOTORE PRODUCE SEMPRE CODICI. ==========================
+           Avevo messo qui il bivio codice/surrogato, ed era il posto
+           sbagliato. Tutto cio' che sta a valle - lo specchio, i colori, le
+           capsule di larghezza esatta, la colonna dei dati - e' costruito
+           attorno alla forma [[TIPO_NN]]. Infilandoci dentro un nome vero o
+           una data traslata, quella catena si rompe: le lunghezze non
+           coincidono piu' col testo coperto, i colori spariscono e le date
+           surrogate vengono riconosciute una seconda volta come numeri,
+           producendo codici assurdi tipo 6@@@0@201@03@@01@.
+           Il surrogato non e' un modo diverso di RILEVARE: e' un modo diverso
+           di USCIRE. Va applicato in un punto solo, sul testo che parte, dopo
+           che tutto il resto ha finito il suo lavoro. Qui si torna alla forma
+           di sempre. */
+        const tok = '[[' + m.token + '_' + String(n).padStart(2, '0') + ']]';
+        ent = { token: tok, value: m.value, type: m.token, count: 0, category: m.category, sub: m.sub, confidence: m.confidence, review: !!m.review };
         entities.set(k, ent);
         if (m.token === 'PER') {
           ent.words = m.value.split(/\s+/).map(key).filter(Boolean);
@@ -13037,6 +13042,29 @@ if (recognition) {
     } catch (e) { console.error('[Aegis] contesto:', e && e.message); return ''; }
   };
 
+  /* Sostituisce ogni [[TIPO_NN]] col suo surrogato, se la modalita' e'
+     accesa. Il valore reale lo si ritrova dal vault, che e' l'unico posto
+     dove sta scritto. Se per quel tipo non si sa fare un surrogato sensato,
+     resta il codice: meglio un codice onesto che un finto sbagliato. */
+  function surrogaUscita(testo) {
+    try {
+      var S = window.AEGIS_SURROGATI;
+      if (!S || !S.attivo()) return testo;
+      return String(testo).replace(/\[\[([A-Z]+)_(\d+)\]\]/g, function (tutto, tipo, num) {
+        var cod = tipo + '_' + num;
+        var reale = null;
+        try {
+          vault.forEach(function (val, k) {
+            if (String(k) === '[[' + cod + ']]' || String(k) === cod) reale = val;
+          });
+        } catch (e) {}
+        if (!reale) return tutto;
+        var sur = S.surrogato(tipo, reale, (window.aegisLingua ? window.aegisLingua() : 'it'));
+        return sur || tutto;
+      });
+    } catch (e) { return testo; }
+  }
+
   window.aegisMaskHistory=function(msgs){
     return msgs.map(function(m){
       if(!m||!m.content) return m;
@@ -13056,6 +13084,14 @@ if (recognition) {
       } while (t !== prima && giri < 6);
       // Se dopo sei giri cambia ancora, si coprono i residui alla lettera.
       if (t !== prima) t = copriPerForza(t);
+      /* ====== QUI, E SOLO QUI, I CODICI DIVENTANO SURROGATI. =============
+         Questo e' l'ultimo punto prima che il testo esca. Tutto cio' che sta
+         a monte - specchio, colori, capsule, colonna dei dati - continua a
+         lavorare sulla forma [[TIPO_NN]] di sempre, e quindi le lunghezze
+         coincidono col testo coperto e i colori restano.
+         Il surrogato e' un modo diverso di USCIRE, non di rilevare. Se il
+         modulo non c'e' o e' spento, esce il codice: nessuna differenza. */
+      t = surrogaUscita(t);
       return { role:m.role, content:t };
     });
   };
@@ -16347,6 +16383,6 @@ if (recognition) {
      versione vecchia di billing-ui.js e ogni correzione sembra non fare niente:
      si carica il file nuovo e si continua a eseguire quello vecchio. Ogni volta
      che billing-ui.js cambia, si alza questo numero. -->
-<script src="billing-ui.js?v=48" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
+<script src="billing-ui.js?v=49" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
 </body>
 </html>
