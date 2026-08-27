@@ -13011,7 +13011,12 @@ if (recognition) {
     return null;
   };
 
+  // Memoria dei surrogati gia' chiesti, per codice. Si svuota quando si
+  // ricalcola: e' l'unico momento in cui possono cambiare.
+  var _bandaMemo = {};
+
   window.aegisRicalcola = function () {
+    _bandaMemo = {};
     try { valoriPreview.clear(); } catch (e) {}
     try { aggiorna(); } catch (e) {}
   };
@@ -13467,6 +13472,46 @@ if (recognition) {
       for (var pi = 0; pi < parole.length; pi++) {
         if (!ospite || (parole[pi].a - parole[pi].da) > (ospite.a - ospite.da)) ospite = parole[pi];
       }
+      /* ====== IN MODALITA' SURROGATI NON SI INFILA NIENTE IN UNA PAROLA ===
+         Il disegno della capsula nasce per i codici: [[PER_01]] e' una cosa
+         sola e non puo' spezzarsi su uno spazio, quindi si cerca la parola
+         piu' lunga, ci si mette dentro il codice e il resto si riempie di
+         puntini. Su un surrogato quel meccanismo e' sbagliato in partenza:
+         il surrogato ha GIA' la lunghezza dell'originale, parola per parola
+         e spazio per spazio, quindi va scritto dov'e' - non compresso in una
+         parola sola. E' esattamente li' che il conto degli spazi sballava.
+         Se il surrogato non e' ancora stato creato (prima analisi, mappa
+         vuota) si disegnano puntini della lunghezza esatta dell'originale:
+         mai qualcosa di lunghezza diversa, che sposterebbe il testo.
+         ================================================================= */
+      var _surrOn = !!(window.AEGIS_SURROGATI && window.AEGIS_SURROGATI.attivo());
+      if (valore && _surrOn) {
+        var vedi = !riservato && window.aegisMostraSurrogati && window.aegisMostraSurrogati();
+        var testoBanda = '';
+        if (vedi) {
+          /* Si chiede il surrogato una volta per codice e ci si ricorda la
+             risposta: questo pezzo gira per OGNI dato a OGNI ridisegno, e
+             ridisegnare capita a ogni battuta. */
+          testoBanda = _bandaMemo[tok];
+          if (testoBanda === undefined) {
+            try {
+              var vr = valoriPreview.get(tok) || '';
+              testoBanda = window.AEGIS_SURROGATI.surrogato(String(tok).split('_')[0], vr,
+                            (window.aegisLingua ? window.aegisLingua() : 'it')) || '';
+            } catch (e) { testoBanda = ''; }
+            _bandaMemo[tok] = testoBanda;
+          }
+        }
+        var pezzi2 = '';
+        for (var k2 = 0; k2 < valore.length; k2++) {
+          var cOrig = valore[k2];
+          if (/\s/.test(cOrig)) { pezzi2 += cOrig; continue; }   // gli spazi restano spazi
+          pezzi2 += (testoBanda[k2] && !/\s/.test(testoBanda[k2])) ? testoBanda[k2] : '\u00b7';
+        }
+        return '<span class="ag-t ag-' + (colorDi.get(tok) || colore(tok)) + extra + '"' +
+               titolo + '>' + pezzi2 + '</span>';
+      }
+
       if (valore && ospite) {
         var larghOspite = ospite.a - ospite.da;
         var dentro = '';
@@ -16518,6 +16563,6 @@ if (recognition) {
      versione vecchia di billing-ui.js e ogni correzione sembra non fare niente:
      si carica il file nuovo e si continua a eseguire quello vecchio. Ogni volta
      che billing-ui.js cambia, si alza questo numero. -->
-<script src="billing-ui.js?v=54" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
+<script src="billing-ui.js?v=56" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
 </body>
 </html>
