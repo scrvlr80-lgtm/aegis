@@ -7214,6 +7214,36 @@ if (recognition) {
       if (conf < sogliaProp) return;
       let banda = conf >= sogliaMask ? 'mask' : 'propose';
 
+      /* ====== UN NOME DI PERSONA SI COPRE, PUNTO ========================
+         "Laura", "Tomas", "Maria" arrivavano qui con 0,54 - sotto la soglia -
+         e finivano fra le PROPOSTE, cioe' restavano scoperti. Proprio i dati
+         che questo sistema esiste per proteggere.
+         Il vuoto lo riempiva il modello locale, che indovina guardando le
+         maiuscole: e' da li' che venivano fuori Informe, Compraventa,
+         Atrofia come nomi di persona.
+         Un nome che sta negli elenchi anagrafici E comincia per maiuscola non
+         e' un'ipotesi: e' un nome. Si copre. Il costo e' coprire ogni tanto
+         un "Rosa" che era un fiore - e in un sistema che protegge dati
+         personali quello e' il verso giusto in cui sbagliare.
+         ================================================================= */
+      if (banda === 'propose' && /^[A-Z\u00C0-\u00DE]/.test(value)) {
+        try {
+          const parole = String(value).split(/\s+/).filter(Boolean);
+          const anagrafico = parole.every(w => {
+            const n = w.toLowerCase().replace(/[^\p{L}']/gu, '');
+            return n.length > 1 && (GSET.given.has(n) || GSET.family.has(n));
+          });
+          // ...ma non se e' preceduto da San / Santa / Saint: li' non e' una
+          // persona, e' un ospedale, una via, una citta'. "San Diego" dava
+          // "Diego", "Sant'Orsola" dava "Orsola".
+          // Si guarda un pezzo piu' largo, perche' "Sant'Orsola" ha
+          // l'apostrofo attaccato e la finestra corta lo tagliava fuori.
+          const prima8 = text.slice(Math.max(0, start - 12), start);
+          const eSanto = /(?:^|[\s(])(?:san|sant|santa|santo|saint|st)[.'\u2019\s]*$/i.test(prima8);
+          if (anagrafico && !eSanto) banda = 'mask';
+        } catch (e) {}
+      }
+
       // REGOLA DI FONDO: l'evidenza puramente lessicale non maschera mai da
       // sola. Elenchi anagrafici, nessuna ancora, nessuna maiuscola, nessun
       // calcolo di controllo: due parole minuscole di fila che stanno negli
@@ -7491,6 +7521,24 @@ if (recognition) {
       if (/(?:^|[\s(])(?:d|d[n\u00F1]a|sig|sig\.ra|sig\.na|sr|sra|srta|dr|dott|dott\.ssa|avv|prof|ing|mr|mrs|ms|miss|don|do[n\u00F1]a|lic)\.?\s*$/i.test(pre)) return true;
       // uscita 2: il documento la usa dentro un nome intero -> vale
       if (dentroNomeIntero.has(pulita)) return true;
+
+      /* ====== UN NOME DI PERSONA RESTA UN NOME =========================
+         Il dizionario contiene anche i nomi propri comuni: Laura, Tomas,
+         Maria, Carlos. Trattandoli come "parole comuni" venivano retrocessi
+         a semplice proposta, e restavano SCOPERTI - proprio i dati che
+         questo sistema esiste per proteggere.
+         Il vuoto lo riempiva il modello locale, che indovina guardando le
+         maiuscole e proponeva Informe, Compraventa, Atrofia: e' da li' che
+         nascevano i nomi a casaccio.
+         Qui si guarda se la parola e' un nome di persona conosciuto. Se lo
+         e', si copre e basta - anche da sola, anche se sta nel dizionario.
+         "Laura" dopo "Paciente:" e' una persona; "Laura" da sola in una
+         frase spagnola e' quasi sempre una persona lo stesso.
+         ================================================================ */
+      try {
+        if (GSET && GSET.given && GSET.given.has(pulita)) return true;
+        if (GSET && GSET.family && GSET.family.has(pulita)) return true;
+      } catch (e) {}
 
       const lg = linguaIn(m.start);
       const f = L.fascia(pulita, lg);
@@ -8737,6 +8785,32 @@ if (recognition) {
         .forEach(function(testo){
           if (esclusi.has(testo) || banditi.has(testo)) return;
           if (!testo || out.indexOf(testo) === -1) return;
+          /* ====== IL VETO DEL DIZIONARIO VALE ANCHE PER IL MODELLO =======
+             Il motore a regole scarta gia' "Informe", "Acta", "Compraventa":
+             sono parole comuni spagnole, stanno nel vocabolario. Ma il
+             modello locale non lo sa, le ripropone come nomi di persona, e
+             da qui entravano senza nessun controllo - saltando esattamente
+             la difesa costruita per fermarle.
+             Il modello vede una parola maiuscola in mezzo a una frase e
+             indovina; il dizionario sa. Fra i due comanda il dizionario.
+             Restano fuori dal veto le parole SCONOSCIUTE al vocabolario, che
+             sono quelle dove il modello serve davvero: un cognome raro, un
+             nome straniero, una grafia che nessuna regola prevede. */
+          try {
+            var catProp = (suggeriti.get(testo) || {}).cat || 'per';
+            if (catProp === 'per' || catProp === 'nombres') {
+              var parole = String(testo).trim().split(/\s+/);
+              var comuni = 0;
+              parole.forEach(function (p) {
+                var nudo = p.toLowerCase().replace(/[^\p{L}]/gu, '');
+                if (nudo.length > 2 && window.AEGIS_LEX && window.AEGIS_LEX.fascia &&
+                    window.AEGIS_LEX.fascia(nudo)) comuni++;
+              });
+              // Una sola parola, ed e' comune: e' quasi certamente un falso.
+              // Piu' parole tutte comuni ("Acta de Compraventa"): idem.
+              if (comuni === parole.length) return;
+            }
+          } catch (e) {}
           var cat = (suggeriti.get(testo) || {}).cat || 'per';
           var chiave = 'ai_' + testo.toLowerCase();
           var tok = vociAI.get(chiave);
@@ -15036,7 +15110,7 @@ if (recognition) {
         '<p class="ag-dv-cmd">' + T('suComune') + '</p>' +
         '<div class="ag-arg-piede">' +
           '<button type="button" class="leggero" data-v="no">' + T('webAnnulla') + '</button>' +
-          '<button type="button" data-v="si" disabled>' + T('suConferma') + '</button>' +
+          '<button type="button" data-v="si">' + T('suConferma') + '</button>' +
         '</div>';
       document.body.appendChild(d);
 
@@ -15070,8 +15144,13 @@ if (recognition) {
           } else if (suo !== sceltaOra && marca) marca.remove();
           else if (marca) marca.textContent = T(sceltaOra === versoSurrogati ? 'suAttivo' : 'suScelto');
         });
-        var ok = d.querySelector('[data-v="si"]');
-        if (ok) ok.disabled = (sceltaOra === versoSurrogati);
+        /* IL PULSANTE RESTA VIVO SEMPRE.
+           Lo spegnevo quando la scelta coincideva con la modalita' gia'
+           attiva. Ma il pannello serve anche solo a mettere la spunta degli
+           sviluppatori: uno entra, spunta, e vuole uscire confermando -
+           trovando il pulsante spento sembra che il pannello sia rotto.
+           Confermare senza cambiare modalita' non fa niente di male: chiude
+           e basta. */
       }
       d.addEventListener('click', function (e) {
         // La spunta non deve cambiare modalita': e' dentro il riquadro, ma
@@ -16616,6 +16695,6 @@ if (recognition) {
      versione vecchia di billing-ui.js e ogni correzione sembra non fare niente:
      si carica il file nuovo e si continua a eseguire quello vecchio. Ogni volta
      che billing-ui.js cambia, si alza questo numero. -->
-<script src="billing-ui.js?v=57" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
+<script src="billing-ui.js?v=59" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
 </body>
 </html>
