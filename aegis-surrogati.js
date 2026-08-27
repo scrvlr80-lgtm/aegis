@@ -228,6 +228,53 @@
      meglio: in quel caso chi chiama usa il codice di sempre. Meglio un codice
      onesto che un surrogato sbagliato.
      ========================================================================= */
+  /* ============ LA LUNGHEZZA DEVE COINCIDERE ============================
+     Un surrogato piu' corto o piu' lungo dell'originale sposta tutto il testo
+     che segue. Nell'interfaccia le targhette si calcolano sulla parola
+     coperta: se sotto c'e' qualcosa di lunghezza diversa, le bande si
+     disallineano e, togliendo la copertura, il testo si scompone.
+     Quindi si pareggia, contando anche gli spazi:
+       troppo corto -> si allunga
+       troppo lungo -> si accorcia
+     E si pareggia PAROLA PER PAROLA, non solo in totale: e' cio' che permette
+     di separare piu' tardi un gruppo coperto insieme. "Mario Rossi" (5+1+5)
+     deve diventare un surrogato di 5+1+5, non uno di 11 caratteri qualsiasi,
+     altrimenti scorporare "Rossi" da solo non e' piu' possibile.
+     ==================================================================== */
+  function pareggia(parola, quanti) {
+    var p = String(parola);
+    if (p.length === quanti) return p;
+    if (p.length > quanti) {
+      // Si taglia, ma senza lasciare una vocale mozza in fondo dove si puo'.
+      return p.slice(0, quanti);
+    }
+    // Si allunga ripetendo le lettere interne, non aggiungendo simboli: deve
+    // continuare a sembrare una parola.
+    var corpo = p.length > 2 ? p.slice(1, -1) : p;
+    var out = p;
+    var i = 0;
+    while (out.length < quanti) {
+      out = out.slice(0, -1) + corpo[i % corpo.length] + p.slice(-1);
+      i++;
+      if (i > 200) break;
+    }
+    return out.slice(0, quanti);
+  }
+
+  function stessaLunghezza(finto, reale) {
+    if (finto.length === reale.length) return finto;
+    var pR = reale.split(' '), pF = finto.split(' ');
+    // Stesso numero di parole: si pareggia una per una, e gli spazi tornano
+    // dove stavano. E' il caso che tiene in piedi lo scorporo successivo.
+    if (pR.length === pF.length) {
+      return pF.map(function (x, i) { return pareggia(x, pR[i].length); }).join(' ');
+    }
+    // Numero di parole diverso: si pareggia il totale. Si perde la
+    // possibilita' di scorporare, ma la lunghezza - che e' cio' che tiene
+    // allineato il testo - resta esatta.
+    return pareggia(finto.replace(/\s+/g, ' '), reale.length);
+  }
+
   function surrogato(tipo, reale, lg) {
     var chiave = tipo + '|' + String(reale).toLowerCase().trim();
     var m = mappa();
@@ -247,7 +294,7 @@
           var scelto = (i === 0)
             ? pesca(femminile(p) ? L.nomiF[k] : L.nomiM[k], s2, u)
             : pesca(L.cognomi[k], s2, u);
-          if (scelto) { m[sotto] = scelto; u[scelto.toLowerCase()] = 1; }
+          if (scelto) { m[sotto] = scelto; u[scelto.toLowerCase()] = 1; ricordaForma(sotto, p); }
           return scelto || p;
         }).join(' ');
         break;
@@ -273,15 +320,37 @@
     }
 
     if (!out) return null;
+    out = stessaLunghezza(out, String(reale));
     m[chiave] = out;
+    ricordaForma(chiave, reale);
     salvaMappa();
     return out;
   }
 
+  /* La chiave della mappa e' in minuscolo, perche' serve a riconoscere lo
+     stesso dato scritto in modi diversi. Ma il valore da RIMETTERE nella
+     risposta deve avere le maiuscole giuste: "pasquale gonzolone" al posto
+     di "Pasquale Gonzolone" e' un ripristino sbagliato, e si vede. Quindi si
+     tiene da parte anche la forma originale. */
+  var CHIAVE_ORIG = 'aegis_surrogati_forme';
+  var _forme = null;
+  function forme() {
+    if (_forme) return _forme;
+    try { _forme = JSON.parse(localStorage.getItem(CHIAVE_ORIG) || '{}'); }
+    catch (e) { _forme = {}; }
+    return _forme;
+  }
+  function ricordaForma(chiave, originale) {
+    var f = forme();
+    if (f[chiave]) return;
+    f[chiave] = String(originale);
+    try { localStorage.setItem(CHIAVE_ORIG, JSON.stringify(f)); } catch (e) {}
+  }
+
   function inverso() {
-    var m = mappa(), inv = {};
+    var m = mappa(), f = forme(), inv = {};
     Object.keys(m).forEach(function (k) {
-      var reale = k.slice(k.indexOf('|') + 1);
+      var reale = f[k] || k.slice(k.indexOf('|') + 1);
       inv[String(m[k]).toLowerCase()] = reale;
     });
     return inv;
@@ -296,8 +365,8 @@
     carica: carica,
     liste: function () { return L; },
     svuota: function () {
-      try { localStorage.removeItem(CHIAVE_MAPPA); } catch (e) {}
-      _mappa = null;
+      try { localStorage.removeItem(CHIAVE_MAPPA); localStorage.removeItem(CHIAVE_ORIG); } catch (e) {}
+      _mappa = null; _forme = null;
     }
   };
 })(typeof window !== 'undefined' ? window : globalThis);
