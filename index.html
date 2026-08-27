@@ -370,9 +370,9 @@ body.ag-attivo{overflow:hidden;margin:0}
 .ag-av-riga.sel .ck{background:var(--accent);border-color:var(--accent)}
 
 /* forbici: aprono la riga parola per parola */
-.ag-av-taglia{border:0;background:transparent;cursor:pointer;font-size:13px;line-height:1;
-  color:#8B8B92;padding:2px 6px;border-radius:6px;flex:none}
-.ag-av-taglia:hover{background:rgba(0,0,0,.07);color:#1d1d1f}
+.ag-av-taglia{border:0;background:transparent;cursor:pointer;font-size:11px;line-height:1;
+  color:#B8B8BE;padding:3px 5px;border-radius:6px;flex:none;transition:color .15s,background .15s}
+.ag-av-taglia:hover{background:rgba(0,0,0,.06);color:#6E6E73}
 .ag-av-taglia-no{width:25px;flex:none}
 .ag-av-chips{display:flex;flex-wrap:wrap;gap:5px;padding:2px 12px 10px 46px}
 .ag-av-chip{border:1px solid rgba(0,0,0,.16);background:#fff;color:#8B8B92;border-radius:7px;
@@ -8141,6 +8141,9 @@ if (recognition) {
      cui si consegna sempre una copia superficiale con il vault clonato.
      ---------------------------------------------------------------------- */
   var _memo = [];
+  // Si puo' svuotare da fuori: serve quando arriva il dizionario, perche'
+  // le risposte calcolate senza vocabolario sono sbagliate e resterebbero.
+  root.AEGIS_SCORDA = function () { _memo.length = 0; };
   function protectMemo(testo, opts) {
     var firma;
     try { firma = String(testo) + '\u0000' + JSON.stringify(opts || {}); } catch (e) { firma = null; }
@@ -11156,9 +11159,16 @@ if (recognition) {
         return '<div class="ag-av-riga' + (scelte[i] ? ' sel' : '') + '" data-i="' + i + '">' +
                  '<span class="ck"></span><span class="n">' + (i+1) + '</span>' +
                  '<span class="v">' + esc(v) + '</span>' +
-                 (parole[i].length > 1
-                   ? '<button type="button" class="ag-av-taglia" data-t="' + i + '">\u2702</button>'
-                   : '<span class="ag-av-taglia-no"></span>') +
+                 /* LE FORBICI SU TUTTE LE VOCI.
+                    Prima comparivano solo dove c'era piu' di una parola, e
+                    sulle altre restava un buco. Ma anche una voce di una
+                    parola sola si puo' voler spezzare - "34742013350" e' un
+                    numero che magari va diviso - e comunque un elenco dove
+                    meta' righe hanno un pulsante e meta' no si legge male.
+                    Ora ci sono sempre, piccole e chiare: si notano se le
+                    cerchi, non danno fastidio se non ti servono. */
+                 '<button type="button" class="ag-av-taglia" data-t="' + i + '" title="' +
+                   esc(T('numSpezza') || '') + '">\u2702</button>' +
                  '<span class="c" style="background:' + coloreCategoria('id') + '"></span>' +
                '</div>' +
                (aperte[i] ? '<div class="ag-av-chips">' + chip + '</div>' : '');
@@ -16556,6 +16566,49 @@ if (recognition) {
      esterni (billing-ui.js) leggono gia' questa variabile. -->
 <script>window.AEGIS_BACKEND = 'https://chatbot-backend-dev.onrender.com';</script>
 <script src="gazetteer.js"></script>
+<script>
+/* ============ IL DIZIONARIO ARRIVA DOPO, E CAMBIA TUTTO =================
+   gazetteer.js pesa un paio di megabyte e si carica qui, in fondo alla
+   pagina. Fino a quel momento il motore gira senza vocabolario: non sa che
+   "Informe", "Acta", "Titulo" sono parole comuni spagnole, e le prende per
+   nomi di persona. Chi incolla un documento subito - cioe' chiunque - vede
+   proprio quello.
+   Peggio: il risultato finisce nella memoria di protect(), quindi resta
+   sbagliato anche dopo, finche' qualcosa non la svuota. E' il motivo per cui
+   "si sistemava spegnendo e riaccendendo un bottone": quel gesto svuotava la
+   memoria e la seconda analisi, col dizionario ormai carico, era giusta.
+   Qui si chiude il cerchio: appena il dizionario e' pronto si butta via
+   tutto cio' che era stato calcolato senza, e si ridisegna. Una volta sola,
+   all'avvio, e nessuno se ne accorge.
+   ===================================================================== */
+(function () {
+  function pronto() {
+    try {
+      return !!(window.AEGIS_LEX && window.AEGIS_LEX.conta &&
+                (window.AEGIS_LEX.conta('es') || {}).es);
+    } catch (e) { return false; }
+  }
+  function rinfresca() {
+    try {
+      // La memoria del motore va svuotata: dentro ci sono risposte date
+      // senza vocabolario, e sono sbagliate.
+      if (window.AEGIS_SCORDA) window.AEGIS_SCORDA();
+      if (window.aegisRicalcola) window.aegisRicalcola();
+      var c = document.getElementById('user-input');
+      if (c && String(c.value || '').trim()) {
+        c.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    } catch (e) {}
+  }
+  if (pronto()) { rinfresca(); return; }
+  var giri = 0;
+  var t = setInterval(function () {
+    giri++;
+    if (pronto()) { clearInterval(t); rinfresca(); }
+    else if (giri > 100) { clearInterval(t); }   // 20 secondi e si smette
+  }, 200);
+})();
+</script>
 <!-- BILLING — modulo esterno, caricato per ultimo e in modo non bloccante.
      Se il file manca o fallisce, il selettore dei modelli resta quello di
      sempre e la chat funziona identica: qui non c'e' nessuna dipendenza. -->
@@ -16563,6 +16616,6 @@ if (recognition) {
      versione vecchia di billing-ui.js e ogni correzione sembra non fare niente:
      si carica il file nuovo e si continua a eseguire quello vecchio. Ogni volta
      che billing-ui.js cambia, si alza questo numero. -->
-<script src="billing-ui.js?v=56" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
+<script src="billing-ui.js?v=57" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
 </body>
 </html>
