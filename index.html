@@ -735,6 +735,34 @@ body {
 .web-btn.on { background:rgba(47,106,82,.12); border-radius:50%; color:#2f6a52; }
 .web-btn.on svg { fill:#2f6a52; }
 
+/* ancora fra le due colonne: piccolo, in fondo allo specchio */
+.ag-ancora{margin-left:auto;width:26px;height:22px;border:1px solid transparent;background:transparent;
+  border-radius:7px;cursor:pointer;color:#C2C2C8;display:inline-flex;align-items:center;
+  justify-content:center;flex:none;transition:color .15s,background .15s,border-color .15s}
+.ag-ancora svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8;
+  stroke-linecap:round;stroke-linejoin:round}
+.ag-ancora:hover{color:#8B8B92;background:rgba(0,0,0,.05)}
+.ag-ancora.on{color:#2f6a52;background:rgba(47,106,82,.12);border-color:rgba(47,106,82,.28)}
+
+/* cerca nella conversazione */
+.ag-cerca{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:4000;
+  display:flex;align-items:center;gap:6px;background:#fff;border:1px solid rgba(0,0,0,.14);
+  border-radius:12px;padding:7px 9px;box-shadow:0 8px 28px rgba(0,0,0,.14);max-width:min(620px,94vw)}
+.ag-cerca input{flex:1 1 240px;min-width:0;border:0;outline:none;font:400 13px Inter,sans-serif;
+  color:#1d1d1f;padding:4px 6px}
+.ag-cerca-n{flex:none;font:500 11px Inter,sans-serif;color:#8b8b90;min-width:34px;text-align:right}
+.ag-cerca button{flex:none;border:0;background:transparent;cursor:pointer;color:#6e6e73;
+  font-size:14px;line-height:1;padding:4px 7px;border-radius:6px}
+.ag-cerca button:hover{background:rgba(0,0,0,.06);color:#1d1d1f}
+.ag-cerca-lista{display:none;position:absolute;top:100%;left:0;right:0;margin-top:6px;
+  background:#fff;border:1px solid rgba(0,0,0,.12);border-radius:11px;overflow:hidden;
+  max-height:44vh;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.12)}
+.ag-cerca-lista button{display:flex;gap:9px;width:100%;text-align:left;padding:8px 11px;
+  border-radius:0;font-size:11.5px;color:#4a4a50;align-items:baseline}
+.ag-cerca-lista button b{flex:none;font:600 10px Inter,sans-serif;color:#8b8b90;min-width:14px}
+.ag-cerca-hit{background:rgba(200,160,20,.32);color:inherit;border-radius:3px;padding:0 1px}
+.ag-cerca-hit.ora{background:rgba(200,120,20,.55);box-shadow:0 0 0 2px rgba(200,120,20,.28)}
+
 /* archivio */
 .ag-ar-inp { flex:1 1 auto; min-width:0; border:1px solid rgba(0,0,0,.16); border-radius:9px;
   padding:0 12px; height:36px; font:400 12.5px Inter,sans-serif; color:#1d1d1f; background:#fff; outline:none; }
@@ -9250,6 +9278,13 @@ if (recognition) {
       suDevAiuto:'Scrive il valore surrogato sopra la banda colorata, invece di lasciarla vuota. Serve a vedere con gli occhi che cosa riceve davvero il modello: e\' l\'unico modo di controllarlo senza fidarsi. Non cambia cio\' che viene inviato, solo cio\' che vedi tu.',
       suScelto:'scelta',
       suConferma:'Conferma e cambia',
+      ancoraOn:'Colonne agganciate: scorrono insieme',
+      ancoraOff:'Colonne libere: ognuna scorre per conto suo',
+      cercaQui:'Cerca nella conversazione…',
+      cercaSu:'Precedente',
+      cercaGiu:'Successivo',
+      cercaChiudi:'Chiudi',
+      cercaNulla:'niente',
       opCancella:'Cancella la cronologia locale',
       opNota:'Le conversazioni e la corrispondenza fra codici e dati reali restano solo su questo dispositivo. Cancellandole non si recuperano.',
       opEsci:'Esci dall\u0027account', opChiudi:'Chiudi',
@@ -9584,6 +9619,13 @@ if (recognition) {
       suDevAiuto:'Escribe el valor sustituto encima de la banda de color, en vez de dejarla vacia. Sirve para ver con los ojos que recibe realmente el modelo: es la unica forma de comprobarlo sin fiarse. No cambia lo que se envia, solo lo que ves tu.',
       suScelto:'elegida',
       suConferma:'Confirmar y cambiar',
+      ancoraOn:'Columnas enganchadas: se desplazan juntas',
+      ancoraOff:'Columnas libres: cada una por su cuenta',
+      cercaQui:'Buscar en la conversacion…',
+      cercaSu:'Anterior',
+      cercaGiu:'Siguiente',
+      cercaChiudi:'Cerrar',
+      cercaNulla:'nada',
       opCancella:'Borrar el historial local',
       opNota:'Las conversaciones y la correspondencia entre codigos y datos reales solo estan en este dispositivo. Si las borras no se recuperan.',
       opEsci:'Cerrar sesion', opChiudi:'Cerrar',
@@ -9918,6 +9960,13 @@ if (recognition) {
       suDevAiuto:'Writes the surrogate value on top of the coloured band instead of leaving it blank. It lets you see with your own eyes what the model actually receives: the only way to check without taking it on trust. It does not change what is sent, only what you see.',
       suScelto:'selected',
       suConferma:'Confirm and switch',
+      ancoraOn:'Columns linked: they scroll together',
+      ancoraOff:'Columns free: each scrolls on its own',
+      cercaQui:'Search the conversation…',
+      cercaSu:'Previous',
+      cercaGiu:'Next',
+      cercaChiudi:'Close',
+      cercaNulla:'none',
       opCancella:'Delete local history',
       opNota:'Conversations and the mapping between codes and real data live only on this device. Deleting them cannot be undone.',
       opEsci:'Sign out', opChiudi:'Close',
@@ -16383,6 +16432,227 @@ if (recognition) {
     } catch (e) { return 0; }
   };
 
+  /* ============ ANCORA: LE DUE COLONNE SCORRONO INSIEME =================
+     Lo specchio a sinistra e la chat a destra raccontano la stessa
+     conversazione: leggerne una e dover riallineare l'altra a mano e' il
+     genere di attrito che fa smettere di usare uno strumento.
+     L'ancora le lega in proporzione, non riga per riga: le due colonne hanno
+     altezze diverse (a destra c'e' anche la risposta del modello), quindi
+     legarle al pixel farebbe saltare l'una mentre si scorre l'altra. In
+     proporzione, l'inizio combacia con l'inizio e la fine con la fine.
+     ALLINEAMENTO AL MOMENTO DELL'AGGANCIO: accendendo l'ancora la colonna
+     che non hai in mano si sposta subito nella stessa posizione relativa.
+     Senza, restano sfasate finche' non scorri, e sembra che non funzioni.
+     ===================================================================== */
+  var CHIAVE_ANCORA = 'aegis_ancora_scorrimento';
+  var _ancoraAttiva = false, _ancoraInCorso = false;
+
+  function colonne() {
+    return {
+      sx: document.getElementById('ag-lista'),
+      dx: document.getElementById('chat-messages')
+    };
+  }
+  function quotaDi(el) {
+    var corsa = el.scrollHeight - el.clientHeight;
+    return corsa > 0 ? (el.scrollTop / corsa) : 0;
+  }
+  function portaA(el, quota) {
+    var corsa = el.scrollHeight - el.clientHeight;
+    if (corsa > 0) el.scrollTop = Math.round(quota * corsa);
+  }
+  function segui(da, a) {
+    if (!_ancoraAttiva || _ancoraInCorso) return;
+    _ancoraInCorso = true;
+    portaA(a, quotaDi(da));
+    // Si rilascia al giro dopo: senza, il movimento provocato qui rimbalza
+    // indietro e le due colonne si rincorrono all'infinito.
+    requestAnimationFrame(function () { _ancoraInCorso = false; });
+  }
+
+  function ancoraDisegna() {
+    var b = document.getElementById('ag-ancora-btn');
+    if (!b) return;
+    var T = window.aegisT || function (k) { return k; };
+    b.classList.toggle('on', _ancoraAttiva);
+    b.title = T(_ancoraAttiva ? 'ancoraOn' : 'ancoraOff');
+    b.setAttribute('aria-pressed', _ancoraAttiva ? 'true' : 'false');
+  }
+
+  function ancoraCommuta() {
+    _ancoraAttiva = !_ancoraAttiva;
+    try { _ancoraAttiva ? localStorage.setItem(CHIAVE_ANCORA, '1')
+                        : localStorage.removeItem(CHIAVE_ANCORA); } catch (e) {}
+    ancoraDisegna();
+    // Accendendo, si allineano subito: la destra segue la sinistra.
+    if (_ancoraAttiva) {
+      var c = colonne();
+      if (c.sx && c.dx) portaA(c.dx, quotaDi(c.sx));
+    }
+  }
+
+  function ancoraMonta() {
+    var c = colonne();
+    if (!c.sx || !c.dx) return false;
+    if (!document.getElementById('ag-ancora-btn')) {
+      // Il pulsante sta in fondo allo specchio, accanto alla legenda dei
+      // colori: e' il bordo fra le due colonne, cioe' il posto dove uno
+      // guarda quando pensa a tenerle insieme.
+      var casa = document.querySelector('.ag-legenda') || c.sx.parentNode;
+      if (!casa) return false;
+      var b = document.createElement('button');
+      b.id = 'ag-ancora-btn'; b.type = 'button'; b.className = 'ag-ancora';
+      b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true">' +
+        '<path d="M12 5v14M8 9l4-4 4 4M5 12h14"/></svg>';
+      casa.appendChild(b);
+      b.addEventListener('click', ancoraCommuta);
+    }
+    try { _ancoraAttiva = localStorage.getItem(CHIAVE_ANCORA) === '1'; } catch (e) {}
+    ancoraDisegna();
+    c.sx.addEventListener('scroll', function () { segui(c.sx, c.dx); }, { passive: true });
+    c.dx.addEventListener('scroll', function () { segui(c.dx, c.sx); }, { passive: true });
+    return true;
+  }
+  try {
+    var _am = setInterval(function () { if (ancoraMonta()) clearInterval(_am); }, 400);
+    setTimeout(function () { clearInterval(_am); }, 15000);
+  } catch (e) {}
+
+  /* ============ CERCA NELLA CONVERSAZIONE ===============================
+     Ctrl+F dentro Aegis cerca QUI, non nella pagina del browser. Scorre alla
+     ricorrenza piu' vicina a dove stai guardando - non alla prima dall'alto,
+     che quasi mai e' quella che cerchi - e se ce n'e' piu' d'una le elenca
+     numerate: premi 2 e vai alla seconda.
+     Cerca in tutte e due le colonne, perche' una frase puo' stare solo nello
+     specchio (protetta) o solo nella chat (ripristinata).
+     ===================================================================== */
+  var _trovati = [], _trovatoOra = -1;
+
+  function _puliscoEvid() {
+    Array.prototype.forEach.call(document.querySelectorAll('.ag-cerca-hit'), function (n) {
+      var p = n.parentNode; if (!p) return;
+      p.replaceChild(document.createTextNode(n.textContent), n);
+      p.normalize();
+    });
+  }
+
+  function _cercaIn(radice, ago, out) {
+    if (!radice) return;
+    var cam = document.createTreeWalker(radice, NodeFilter.SHOW_TEXT, null);
+    var n;
+    while ((n = cam.nextNode())) {
+      var t = n.nodeValue || '';
+      var da = 0, i;
+      var basso = t.toLowerCase();
+      while ((i = basso.indexOf(ago, da)) !== -1) {
+        out.push({ nodo: n, da: i, a: i + ago.length });
+        da = i + ago.length;
+      }
+    }
+  }
+
+  function _evidenzia(p, corrente) {
+    try {
+      var n = p.nodo, t = n.nodeValue;
+      var dopo = n.splitText(p.da);
+      dopo.splitText(p.a - p.da);
+      var sp = document.createElement('mark');
+      sp.className = 'ag-cerca-hit' + (corrente ? ' ora' : '');
+      sp.textContent = dopo.nodeValue;
+      dopo.parentNode.replaceChild(sp, dopo);
+      return sp;
+    } catch (e) { return null; }
+  }
+
+  function cercaInChat(testo) {
+    _puliscoEvid();
+    _trovati = []; _trovatoOra = -1;
+    var ago = String(testo || '').trim().toLowerCase();
+    if (ago.length < 2) return 0;
+    var c = colonne();
+    _cercaIn(c.sx, ago, _trovati);
+    _cercaIn(c.dx, ago, _trovati);
+    return _trovati.length;
+  }
+
+  function vaiA(indice) {
+    if (!_trovati.length) return;
+    _puliscoEvid();
+    // Gli indici dei nodi si perdono dopo una pulizia: si ricerca e si va.
+    var n = _trovati.length;
+    indice = ((indice % n) + n) % n;
+    _trovatoOra = indice;
+    var segni = [];
+    _trovati.forEach(function (p, k) { segni.push(_evidenzia(p, k === indice)); });
+    var qui = segni[indice];
+    if (qui && qui.scrollIntoView) qui.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+
+  function apriCerca() {
+    var T = window.aegisT || function (k) { return k; };
+    var vecchio = document.getElementById('ag-cerca');
+    if (vecchio) { vecchio.querySelector('input').focus(); return; }
+    var d = document.createElement('div');
+    d.id = 'ag-cerca'; d.className = 'ag-cerca';
+    d.innerHTML =
+      '<input type="text" placeholder="' + T('cercaQui') + '" autocomplete="off">' +
+      '<span class="ag-cerca-n"></span>' +
+      '<button type="button" data-a="su" title="' + T('cercaSu') + '">\u2191</button>' +
+      '<button type="button" data-a="giu" title="' + T('cercaGiu') + '">\u2193</button>' +
+      '<button type="button" data-a="x" title="' + T('cercaChiudi') + '">\u00d7</button>' +
+      '<div class="ag-cerca-lista"></div>';
+    document.body.appendChild(d);
+    var inp = d.querySelector('input');
+    var cont = d.querySelector('.ag-cerca-n');
+    var lista = d.querySelector('.ag-cerca-lista');
+
+    function aggiorna() {
+      var n = cercaInChat(inp.value);
+      cont.textContent = n ? ('1/' + n) : (inp.value.trim().length > 1 ? T('cercaNulla') : '');
+      // Con piu' di una ricorrenza si elencano: premi il numero e ci vai.
+      if (n > 1) {
+        lista.innerHTML = _trovati.map(function (p, k) {
+          var t = String(p.nodo.nodeValue || '');
+          var ctx = t.slice(Math.max(0, p.da - 24), p.a + 24).replace(/\s+/g, ' ');
+          return '<button type="button" data-i="' + k + '"><b>' + (k + 1) + '</b>' +
+                 escapeHtml(ctx) + '</button>';
+        }).join('');
+        lista.style.display = 'block';
+      } else { lista.innerHTML = ''; lista.style.display = 'none'; }
+      if (n) { vaiA(0); cont.textContent = '1/' + n; }
+    }
+    var att;
+    inp.addEventListener('input', function () { clearTimeout(att); att = setTimeout(aggiorna, 200); });
+    inp.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); vaiA(_trovatoOra + (e.shiftKey ? -1 : 1));
+        if (_trovati.length) cont.textContent = (_trovatoOra + 1) + '/' + _trovati.length; }
+      if (e.key === 'Escape') { e.preventDefault(); chiudi(); }
+    });
+    function chiudi() { _puliscoEvid(); d.remove(); }
+    d.addEventListener('click', function (e) {
+      var b = e.target.closest ? e.target.closest('[data-a],[data-i]') : null;
+      if (!b) return;
+      var i = b.getAttribute('data-i');
+      if (i !== null) { vaiA(+i); cont.textContent = (_trovatoOra + 1) + '/' + _trovati.length; return; }
+      var a = b.getAttribute('data-a');
+      if (a === 'x') { chiudi(); return; }
+      vaiA(_trovatoOra + (a === 'su' ? -1 : 1));
+      if (_trovati.length) cont.textContent = (_trovatoOra + 1) + '/' + _trovati.length;
+    });
+    setTimeout(function () { inp.focus(); }, 40);
+  }
+  window.aegisCerca = apriCerca;
+
+  // Ctrl+F prende il posto di quello del browser SOLO qui dentro: cercare
+  // nella pagina non serve a niente, cercare nella conversazione si'.
+  try {
+    document.addEventListener('keydown', function (e) {
+      if ((e.ctrlKey || e.metaKey) && String(e.key).toLowerCase() === 'f') {
+        e.preventDefault(); apriCerca();
+      }
+    });
+  } catch (e) {}
+
   window.AEGIS_ARCHIVIO = { apri: apriArchivio };
 
   window.AEGIS_MEMORIA = { apri: apriMemoria };
@@ -16695,6 +16965,6 @@ if (recognition) {
      versione vecchia di billing-ui.js e ogni correzione sembra non fare niente:
      si carica il file nuovo e si continua a eseguire quello vecchio. Ogni volta
      che billing-ui.js cambia, si alza questo numero. -->
-<script src="billing-ui.js?v=59" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
+<script src="billing-ui.js?v=60" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
 </body>
 </html>
