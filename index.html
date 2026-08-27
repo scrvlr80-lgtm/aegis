@@ -9171,6 +9171,8 @@ if (recognition) {
       suDevTit:'Mostra i nomi finti  ',
       suDevSot:'(sviluppatori e collaudo)',
       suDevAiuto:'Scrive il valore surrogato sopra la banda colorata, invece di lasciarla vuota. Serve a vedere con gli occhi che cosa riceve davvero il modello: e\' l\'unico modo di controllarlo senza fidarsi. Non cambia cio\' che viene inviato, solo cio\' che vedi tu.',
+      suScelto:'scelta',
+      suConferma:'Conferma e cambia',
       opCancella:'Cancella la cronologia locale',
       opNota:'Le conversazioni e la corrispondenza fra codici e dati reali restano solo su questo dispositivo. Cancellandole non si recuperano.',
       opEsci:'Esci dall\u0027account', opChiudi:'Chiudi',
@@ -9503,6 +9505,8 @@ if (recognition) {
       suDevTit:'Mostrar los nombres falsos  ',
       suDevSot:'(desarrollo y pruebas)',
       suDevAiuto:'Escribe el valor sustituto encima de la banda de color, en vez de dejarla vacia. Sirve para ver con los ojos que recibe realmente el modelo: es la unica forma de comprobarlo sin fiarse. No cambia lo que se envia, solo lo que ves tu.',
+      suScelto:'elegida',
+      suConferma:'Confirmar y cambiar',
       opCancella:'Borrar el historial local',
       opNota:'Las conversaciones y la correspondencia entre codigos y datos reales solo estan en este dispositivo. Si las borras no se recuperan.',
       opEsci:'Cerrar sesion', opChiudi:'Cerrar',
@@ -9835,6 +9839,8 @@ if (recognition) {
       suDevTit:'Show the fake names  ',
       suDevSot:'(developers and testing)',
       suDevAiuto:'Writes the surrogate value on top of the coloured band instead of leaving it blank. It lets you see with your own eyes what the model actually receives: the only way to check without taking it on trust. It does not change what is sent, only what you see.',
+      suScelto:'selected',
+      suConferma:'Confirm and switch',
       opCancella:'Delete local history',
       opNota:'Conversations and the mapping between codes and real data live only on this device. Deleting them cannot be undone.',
       opEsci:'Sign out', opChiudi:'Close',
@@ -10156,6 +10162,7 @@ if (recognition) {
       '@media(max-width:640px){.ag-su-due{grid-template-columns:1fr}}' +
       '.ag-su-modo{position:relative;border:1px solid rgba(0,0,0,.12);border-radius:13px;' +
         'padding:15px 16px;background:#fff}' +
+      '.ag-arg-piede button[disabled]{opacity:.4;cursor:default}' +
       '.ag-su-modo.scelto{border-color:#2f6a52;border-width:2px;padding:14px 15px;' +
         'background:rgba(47,106,82,.045)}' +
       '.ag-su-marca{position:absolute;top:-9px;left:14px;background:#2f6a52;color:#fff;' +
@@ -14974,6 +14981,7 @@ if (recognition) {
         '<p class="ag-dv-cmd">' + T('suComune') + '</p>' +
         '<div class="ag-arg-piede">' +
           '<button type="button" class="leggero" data-v="no">' + T('webAnnulla') + '</button>' +
+          '<button type="button" data-v="si" disabled>' + T('suConferma') + '</button>' +
         '</div>';
       document.body.appendChild(d);
 
@@ -14988,15 +14996,40 @@ if (recognition) {
           if (window.aegisMostraSurrogati) window.aegisMostraSurrogati(e.target.checked);
         }
       });
+      /* IL CLIC SCEGLIE, IL PULSANTE CONFERMA.
+         Prima il clic dentro un riquadro applicava e chiudeva: bastava
+         sfiorare quello sbagliato e la modalita' cambiava senza appello, in
+         un pannello che si legge. Adesso il clic sposta l'evidenziazione e
+         basta; si esce solo premendo Conferma o Torna indietro. */
+      var sceltaOra = versoSurrogati;
+      function segnaScelta() {
+        Array.prototype.forEach.call(d.querySelectorAll('[data-modo]'), function (box) {
+          var suo = box.getAttribute('data-modo') === 'surrogati';
+          box.classList.toggle('scelto', suo === sceltaOra);
+          var marca = box.querySelector('.ag-su-marca');
+          if (suo === sceltaOra && !marca) {
+            var m = document.createElement('span');
+            m.className = 'ag-su-marca';
+            m.textContent = T(suo === versoSurrogati ? 'suAttivo' : 'suScelto');
+            box.insertBefore(m, box.firstChild);
+          } else if (suo !== sceltaOra && marca) marca.remove();
+          else if (marca) marca.textContent = T(sceltaOra === versoSurrogati ? 'suAttivo' : 'suScelto');
+        });
+        var ok = d.querySelector('[data-v="si"]');
+        if (ok) ok.disabled = (sceltaOra === versoSurrogati);
+      }
       d.addEventListener('click', function (e) {
         // La spunta non deve cambiare modalita': e' dentro il riquadro, ma
         // e' un'altra cosa.
         if (e.target.closest && e.target.closest('.ag-su-dev')) return;
         var box = e.target.closest ? e.target.closest('[data-modo]') : null;
-        if (box) { chiudi(box.getAttribute('data-modo') === 'surrogati'); return; }
+        if (box) { sceltaOra = (box.getAttribute('data-modo') === 'surrogati'); segnaScelta(); return; }
         var b = e.target.closest ? e.target.closest('[data-v]') : null;
-        if (b) chiudi(b.getAttribute('data-v') === 'si' ? versoSurrogati : null);
+        if (!b) return;
+        if (b.getAttribute('data-v') === 'si') chiudi(sceltaOra);
+        else chiudi(null);
       });
+      segnaScelta();
     });
   }
   window.aegisResetSpiegaModo = function () {
@@ -16485,6 +16518,6 @@ if (recognition) {
      versione vecchia di billing-ui.js e ogni correzione sembra non fare niente:
      si carica il file nuovo e si continua a eseguire quello vecchio. Ogni volta
      che billing-ui.js cambia, si alza questo numero. -->
-<script src="billing-ui.js?v=53" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
+<script src="billing-ui.js?v=54" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
 </body>
 </html>
