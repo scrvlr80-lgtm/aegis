@@ -102,8 +102,32 @@
     catch (e) { _mappa = {}; }
     return _mappa;
   }
+  /* ====== SI SCRIVE UNA VOLTA, NON MILLE ==============================
+     Ogni assegnazione chiamava salvaMappa(), e ogni salvaMappa e' una
+     scrittura sincrona su disco che ferma la pagina. Su un documento con
+     trecento dati diventavano milleduecento scritture di un oggetto che
+     intanto cresce: e' quello che bloccava il browser.
+     Adesso si segna che c'e' da salvare e si salva una volta sola, appena
+     il filo di esecuzione si libera. Il risultato e' identico, il costo no.
+     ================================================================== */
+  var _daSalvare = false;
   function salvaMappa() {
-    try { localStorage.setItem(CHIAVE_MAPPA, JSON.stringify(_mappa || {})); } catch (e) {}
+    if (_daSalvare) return;
+    _daSalvare = true;
+    var scrivi = function () {
+      _daSalvare = false;
+      try {
+        localStorage.setItem(CHIAVE_MAPPA, JSON.stringify(_mappa || {}));
+        localStorage.setItem(CHIAVE_ORIG, JSON.stringify(_forme || {}));
+      } catch (e) {
+        // Spazio esaurito: si smette di crescere invece di rompersi. La
+        // sessione continua a funzionare, i surrogati nuovi restano in
+        // memoria e la prossima pulizia libera spazio.
+        try { console.warn('[surrogati] non riesco a salvare la mappa:', e && e.message); } catch (e2) {}
+      }
+    };
+    if (typeof queueMicrotask === 'function') setTimeout(scrivi, 0);
+    else setTimeout(scrivi, 0);
   }
 
   /* Il cestino: togliere un'associazione senza perderla. Un'assegnazione
@@ -172,11 +196,18 @@
   }
 
   // Nomi gia' usati, per non dare lo stesso surrogato a due persone diverse.
+  /* L'elenco dei surrogati gia' presi. Veniva ricostruito da capo a ogni
+     parola: con trecento dati sono novantamila giri per niente. Si costruisce
+     una volta e si aggiorna quando se ne assegna uno nuovo. */
+  var _usati = null;
   function usati() {
-    var m = mappa(), u = {};
-    Object.keys(m).forEach(function (k) { u[String(m[k]).toLowerCase()] = 1; });
-    return u;
+    if (_usati) return _usati;
+    var m = mappa();
+    _usati = {};
+    Object.keys(m).forEach(function (k) { _usati[String(m[k]).toLowerCase()] = 1; });
+    return _usati;
   }
+  function segnaUsato(v) { if (_usati && v) _usati[String(v).toLowerCase()] = 1; }
 
   /* Cifre e lettere finte con la forma giusta. La chiave: NON devono passare
      il controllo di validita'. */
@@ -294,7 +325,7 @@
           var scelto = (i === 0)
             ? pesca(femminile(p) ? L.nomiF[k] : L.nomiM[k], s2, u)
             : pesca(L.cognomi[k], s2, u);
-          if (scelto) { m[sotto] = scelto; u[scelto.toLowerCase()] = 1; ricordaForma(sotto, p); }
+          if (scelto) { m[sotto] = scelto; segnaUsato(scelto); ricordaForma(sotto, p); }
           return scelto || p;
         }).join(' ');
         break;
@@ -322,6 +353,7 @@
     if (!out) return null;
     out = stessaLunghezza(out, String(reale));
     m[chiave] = out;
+    segnaUsato(out);
     ricordaForma(chiave, reale);
     salvaMappa();
     return out;
@@ -344,7 +376,7 @@
     var f = forme();
     if (f[chiave]) return;
     f[chiave] = String(originale);
-    try { localStorage.setItem(CHIAVE_ORIG, JSON.stringify(f)); } catch (e) {}
+    salvaMappa();          // scrive tutto insieme, una volta sola
   }
 
   function inverso() {
@@ -366,7 +398,7 @@
     liste: function () { return L; },
     svuota: function () {
       try { localStorage.removeItem(CHIAVE_MAPPA); localStorage.removeItem(CHIAVE_ORIG); } catch (e) {}
-      _mappa = null; _forme = null;
+      _mappa = null; _forme = null; _usati = null;
     }
   };
 })(typeof window !== 'undefined' ? window : globalThis);
