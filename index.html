@@ -13465,46 +13465,33 @@ if (recognition) {
         var dentro = '';
         for (var ci = 0; ci < valore.length; ci++) {
           if (ci === ospite.da) {
-            if (larghOspite >= full.length) {
-              dentro += full + new Array(larghOspite - full.length + 1).join('\u00b7');
-            } else {
-            // COPRENTE: la striscia resta, il codice sparisce.
-            // La modalita' riservata serviva a nascondere lo schermo a chi
-            // passa alle spalle, e lo faceva sfocando tutto - anche i colori,
-            // che sono l'unica cosa che dice all'utente CHE COSA e' coperto.
-            // Adesso fa il contrario e fa la cosa giusta: i colori restano,
-            // il codice sparisce sotto la striscia. Si vede che quel pezzo e'
-            // protetto e di che tipo, senza leggere niente.
-            /* LE DUE TECNICHE SI DISTINGUONO A VISTA.
-               In modalita' SURROGATI il codice non va mostrato: al modello non
-               arrivera' mai un [[PER_01]], gli arrivera' un nome. Far vedere
-               un codice che non parte e' peggio che non far vedere niente -
-               fa credere che il sistema faccia una cosa diversa da quella che
-               fa, e non c'e' modo di accorgersene guardando lo schermo.
-               Quindi: targhetta colorata, larghezza esatta della parola
-               coperta, nessuna scritta dentro. Il colore resta e dice sempre
-               di che tipo di dato si tratta.
-               In modalita' CODICI il codice si scrive, perche' li' e' davvero
-               quello che parte. */
-            var inSurrogati = !!(window.AEGIS_SURROGATI && window.AEGIS_SURROGATI.attivo());
-            var mostraFinto = inSurrogati && !riservato &&
+            /* LA DECISIONE SI PRENDE UNA VOLTA SOLA, PRIMA DEI DUE RAMI.
+               Qui sotto ci sono due strade - parola piu' larga del codice, e
+               parola piu' stretta - e io ne avevo corretta una sola. Il ramo
+               non corretto e' quello che scatta quasi sempre, ed e' il motivo
+               per cui i codici continuavano a comparire in modalita'
+               surrogati. Adesso la scelta e' presa qui, sopra a tutti e due. */
+            var inSurr = !!(window.AEGIS_SURROGATI && window.AEGIS_SURROGATI.attivo());
+            var vediFinto = inSurr && !riservato &&
               window.aegisMostraSurrogati && window.aegisMostraSurrogati();
-            if (mostraFinto) {
-              // Il nome finto, scritto sopra la banda del colore giusto. La
-              // lunghezza coincide con l'originale, quindi la banda resta
-              // esattamente larga com'era.
-              var vero = valoriPreview.get(tok) || '';
-              var fin = '';
-              try { fin = window.AEGIS_SURROGATI.surrogato(tok.split('_')[0], vero,
-                     (window.aegisLingua ? window.aegisLingua() : 'it')) || ''; } catch (e) {}
-              dentro += fin ? fin.slice(0, larghOspite) : new Array(larghOspite + 1).join('\u00b7');
-            } else if (riservato || inSurrogati) {
-              dentro += new Array(larghOspite + 1).join('\u00b7');
-            } else {
-              var sc = larghOspite / full.length;
-              dentro += '<span class="ag-cod" style="width:' + larghOspite + 'ch">' +
-                        '<i style="transform:scaleX(' + sc.toFixed(3) + ')">' + full + '</i></span>';
+            var scritta = full;                       // il codice, per difetto
+            if (vediFinto) {
+              var veroQui = valoriPreview.get(tok) || '';
+              try {
+                scritta = (window.AEGIS_SURROGATI.surrogato(String(tok).split('_')[0], veroQui,
+                          (window.aegisLingua ? window.aegisLingua() : 'it')) || full);
+              } catch (e) { scritta = full; }
+            } else if (inSurr || riservato) {
+              scritta = '';                           // solo striscia
             }
+            if (!scritta) {
+              dentro += new Array(larghOspite + 1).join('\u00b7');
+            } else if (larghOspite >= scritta.length) {
+              dentro += scritta + new Array(larghOspite - scritta.length + 1).join('\u00b7');
+            } else {
+              var sc = larghOspite / scritta.length;
+              dentro += '<span class="ag-cod" style="width:' + larghOspite + 'ch">' +
+                        '<i style="transform:scaleX(' + sc.toFixed(3) + ')">' + scritta + '</i></span>';
             }
             ci = ospite.a - 1;
             continue;
@@ -16498,6 +16485,6 @@ if (recognition) {
      versione vecchia di billing-ui.js e ogni correzione sembra non fare niente:
      si carica il file nuovo e si continua a eseguire quello vecchio. Ogni volta
      che billing-ui.js cambia, si alza questo numero. -->
-<script src="billing-ui.js?v=52" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
+<script src="billing-ui.js?v=53" defer onerror="console.warn('[billing] ui non caricata, si prosegue senza')"></script>
 </body>
 </html>
