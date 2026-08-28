@@ -16476,13 +16476,49 @@ if (recognition) {
     var corsa = el.scrollHeight - el.clientHeight;
     if (corsa > 0) el.scrollTop = Math.round(quota * corsa);
   }
+  /* IL RIMBALZO SI RICONOSCE DALLA POSIZIONE, NON DAL TEMPO.
+     Prima si alzava una bandiera e la si abbassava con requestAnimationFrame.
+     Non poteva funzionare: impostare scrollTop NON emette l'evento subito, il
+     browser lo accoda e lo emette negli "scroll steps", che nel ciclo di
+     disegno vengono PRIMA delle callback di requestAnimationFrame. Quando
+     l'evento di rimbalzo arrivava, la bandiera era gia' caduta: le due
+     colonne si rincorrevano, e siccome le corse hanno lunghezze diverse gli
+     arrotondamenti si mangiavano il movimento. Scorrevi e venivi riportato
+     indietro, quindi da fuori sembrava che l'ancora non facesse niente.
+     Adesso si segna DOVE si e' spostata l'altra colonna. Se l'evento che
+     arriva dice che quella colonna sta esattamente li', e' il rimbalzo del
+     nostro movimento e si scarta. Non dipende da nessun tempo, quindi non
+     puo' sbagliare per lentezza della macchina o per un turno di disegno
+     saltato. */
+  var _atteso = { el: null, top: 0 };
+
   function segui(da, a) {
-    if (!_ancoraAttiva || _ancoraInCorso) return;
-    _ancoraInCorso = true;
-    portaA(a, quotaDi(da));
-    // Si rilascia al giro dopo: senza, il movimento provocato qui rimbalza
-    // indietro e le due colonne si rincorrono all'infinito.
-    requestAnimationFrame(function () { _ancoraInCorso = false; });
+    if (!_ancoraAttiva || !da || !a || da === a) return;
+    // e' l'eco del movimento che ho provocato io su questa stessa colonna:
+    // si ignora, e si dimentica, cosi' il prossimo scorrimento vero passa
+    if (_atteso.el === da && Math.abs(da.scrollTop - _atteso.top) <= 1) {
+      _atteso.el = null;
+      return;
+    }
+    var corsa = a.scrollHeight - a.clientHeight;
+    if (corsa <= 0) return;              // l'altra colonna non ha da scorrere
+    var top = Math.round(quotaDi(da) * corsa);
+    if (Math.abs(a.scrollTop - top) <= 1) return;   // e' gia' li'
+    _atteso.el = a; _atteso.top = top;
+    a.scrollTop = top;
+  }
+
+  /* A quale delle due colonne appartiene l'elemento che ha scorso. Serve
+     perche' dentro una colonna puo' scorrere un contenitore diverso da
+     quello che ci aspettiamo (l'anteprima invece dell'elenco, per esempio):
+     invece di non fare niente, si muove comunque l'altra colonna. */
+  function latoDi(el) {
+    if (!el || !el.closest) return null;
+    try {
+      if (el.closest('#ag-pannello-specchio')) return 'sx';
+      if (el.closest('.ag-chat') || el.closest('.chat-container')) return 'dx';
+    } catch (e) {}
+    return null;
   }
 
   function ancoraDisegna() {
@@ -16500,9 +16536,13 @@ if (recognition) {
                         : localStorage.removeItem(CHIAVE_ANCORA); } catch (e) {}
     ancoraDisegna();
     // Accendendo, si allineano subito: la destra segue la sinistra.
+    // Si passa da segui(), non da portaA() diretto, perche' e' segui() a
+    // segnare dove ha spostato l'altra colonna: saltandolo, l'evento di
+    // questo primo allineamento sarebbe scambiato per uno scorrimento vero
+    // e farebbe partire un rimbalzo appena accesa l'ancora.
     if (_ancoraAttiva) {
       var c = colonne();
-      if (c.sx && c.dx) portaA(c.dx, quotaDi(c.sx));
+      if (c.sx && c.dx) segui(c.sx, c.dx);
     }
   }
 
@@ -16543,8 +16583,31 @@ if (recognition) {
     }
     try { _ancoraAttiva = localStorage.getItem(CHIAVE_ANCORA) === '1'; } catch (e) {}
     ancoraDisegna();
-    c.sx.addEventListener('scroll', function () { segui(c.sx, c.dx); }, { passive: true });
-    c.dx.addEventListener('scroll', function () { segui(c.dx, c.sx); }, { passive: true });
+    /* SI ASCOLTA DAL DOCUMENTO, IN FASE DI CATTURA.
+       Prima i due ascoltatori venivano appesi agli elementi trovati al
+       momento del montaggio e li' restavano. Ma il pannello viene costruito
+       dopo, e costruisci() sposta la chat dentro la scena: se l'aggancio
+       capitava nell'istante sbagliato, gli ascoltatori finivano su elementi
+       che non scorrono piu', e non c'era nessun errore a dirlo.
+       Un evento 'scroll' non risale l'albero, ma la fase di CATTURA passa
+       comunque dal documento: da qui si sentono tutti, qualunque sia il
+       contenitore che scorre e comunque sia stata rifatta la pagina. Le due
+       colonne si ritrovano a ogni evento, non si tengono da parte. */
+    if (!ancoraMonta._ascolto) {
+      ancoraMonta._ascolto = true;
+      document.addEventListener('scroll', function (e) {
+        if (!_ancoraAttiva) return;
+        var t = e.target;
+        if (!t || t.nodeType !== 1) return;      // lo scorrimento della pagina non ci riguarda
+        var q = colonne();
+        if (!q.sx || !q.dx) return;
+        if (t === q.sx) { segui(q.sx, q.dx); return; }
+        if (t === q.dx) { segui(q.dx, q.sx); return; }
+        var lato = latoDi(t);
+        if (lato === 'sx') segui(t, q.dx);
+        else if (lato === 'dx') segui(t, q.sx);
+      }, true);
+    }
     return true;
   }
   try {
