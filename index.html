@@ -10115,6 +10115,21 @@ if (recognition) {
          righe da tre senza andare a capo */
       '.ag-legenda{align-items:center}' +
       '.ag-legenda .ag-logo{margin-left:auto;opacity:.9}' +
+      /* ANCORA DELLE COLONNE. Sta nella testa della chat, accanto allo
+         schermo intero: e' li' che si guarda quando si pensa alle due
+         colonne insieme. La doppia classe vince sulla vecchia regola
+         .ag-ancora senza cancellarla: se un giorno il pulsante tornasse
+         nella legenda, quella e' ancora al suo posto e funziona. */
+      '.ag-fs-btn.ag-ancora{width:32px;height:32px;border:1px solid var(--g-bordo);' +
+        'border-radius:4px;background:transparent;color:var(--g-testo-off);flex:none;' +
+        'display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer;' +
+        'transition:border-color .15s,color .15s,background .15s}' +
+      '.ag-fs-btn.ag-ancora:hover{border-color:var(--g-bordo-on);color:var(--g-testo-on);' +
+        'background:var(--g-fondo-hover)}' +
+      '.ag-fs-btn.ag-ancora svg{width:16px;height:16px;fill:none;stroke:currentColor;' +
+        'stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;display:block}' +
+      '.ag-fs-btn.ag-ancora.on{color:#2f6a52;background:rgba(47,106,82,.12);' +
+        'border-color:rgba(47,106,82,.45)}' +
       '.ag-prov{display:inline-flex;align-items:center;gap:3px;flex:none;margin-right:5px}' +
       '.ag-prov i{width:7px;height:7px;border-radius:50%;display:block}' +
       '.ag-p-reg{background:var(--text-light)}' +
@@ -16495,16 +16510,35 @@ if (recognition) {
     var c = colonne();
     if (!c.sx || !c.dx) return false;
     if (!document.getElementById('ag-ancora-btn')) {
-      // Il pulsante sta in fondo allo specchio, accanto alla legenda dei
-      // colori: e' il bordo fra le due colonne, cioe' il posto dove uno
-      // guarda quando pensa a tenerle insieme.
-      var casa = document.querySelector('.ag-legenda') || c.sx.parentNode;
+      /* NELLA TESTA DELLA CHAT, accanto allo schermo intero.
+         Stava in coda alla legenda dei colori: grigio chiarissimo, dopo
+         tredici etichette e dopo il logo, e sotto gli 820 pixel la legenda
+         intera si nasconde - quindi il pulsante spariva del tutto. Una
+         funzione che non si vede non esiste.
+         Qui e' accanto all'altro comando che riguarda la disposizione delle
+         colonne, con la stessa cornice: si trova senza cercarlo e non si
+         confonde con gli interruttori della protezione, che sono un'altra
+         cosa.
+         Il ripiego sulla legenda resta: se un giorno la testa della chat
+         cambiasse nome, il pulsante compare dov'era prima invece di
+         scomparire in silenzio. */
+      var testa = document.querySelector('.chat-header');
+      var casa = testa || document.querySelector('.ag-legenda') || c.sx.parentNode;
       if (!casa) return false;
       var b = document.createElement('button');
-      b.id = 'ag-ancora-btn'; b.type = 'button'; b.className = 'ag-ancora';
+      b.id = 'ag-ancora-btn'; b.type = 'button';
+      b.className = testa ? 'ag-fs-btn ag-ancora' : 'ag-ancora';
+      /* Due anelli agganciati: dice "legate" senza bisogno di una parola,
+         e resta leggibile a sedici pixel. La freccia di prima sembrava un
+         "torna su" e nessuno l'avrebbe mai premuta per questo. */
       b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true">' +
-        '<path d="M12 5v14M8 9l4-4 4 4M5 12h14"/></svg>';
-      casa.appendChild(b);
+        '<path d="M9.6 14.4l4.8-4.8"/>' +
+        '<path d="M11.2 6.6l1.3-1.3a3.6 3.6 0 0 1 5.1 5.1l-1.3 1.3"/>' +
+        '<path d="M12.8 17.4l-1.3 1.3a3.6 3.6 0 0 1-5.1-5.1l1.3-1.3"/></svg>';
+      /* Prima dello schermo intero, che e' l'ultimo della fila: cosi' i due
+         comandi di disposizione stanno insieme e in ordine di uso. */
+      var fs = document.getElementById('ag-fs-btn');
+      if (testa && fs) casa.insertBefore(b, fs); else casa.appendChild(b);
       b.addEventListener('click', ancoraCommuta);
     }
     try { _ancoraAttiva = localStorage.getItem(CHIAVE_ANCORA) === '1'; } catch (e) {}
