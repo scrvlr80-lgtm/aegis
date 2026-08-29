@@ -700,6 +700,11 @@ body {
 .ag-ag-passo.att { color:#8b8b90; font-style:italic; padding:3px 4px; }
 .ag-ag-passo.lui { background:#fff; border:1px solid rgba(0,0,0,.1); color:#1d1d1f; }
 .ag-ag-passo.err { background:rgba(176,48,48,.07); color:#b03030; }
+/* La riga di lavoro dentro la conversazione: discreta, monospaziata, non e'
+   una bolla e non deve sembrarlo. */
+.ag-passo-chat { font:600 10.5px ui-monospace,Menlo,Consolas,monospace;
+  color:#8b8b90; letter-spacing:.02em; padding:2px 4px; margin:2px 0;
+  align-self:flex-start; max-width:100%; }
 /* Le due righe che portano l'interruttore diventano una colonnina: il testo
    sopra, il pulsante sotto a destra. Il testo tiene gli a capo, perche' una
    risposta dell'agente arriva gia' impaginata e senza questo si appiattiva
@@ -1973,6 +1978,28 @@ body {
             conversationHistory.push({ role: ruolo === 'assistant' ? 'assistant' : 'user', content: t });
             return true;
         } catch (e) { return false; }
+    };
+
+    /* I PASSI DEL LAVORO, DENTRO LA CONVERSAZIONE.
+       Quando il modello usa uno strumento non deve sembrare che si sia
+       bloccato: una riga leggera dice cosa sta facendo. Non e' una bolla -
+       non ha interruttore, non entra nella memoria, non finisce nello
+       specchio - perche' non e' un turno della conversazione: e' il rumore
+       del lavoro in corso. Sparisce di significato appena arriva la
+       risposta, e va bene cosi'. */
+    window.aegisPassoChat = function (testo) {
+        try {
+            var cm = document.getElementById('chat-messages');
+            if (!cm) return null;
+            var r = document.createElement('div');
+            r.className = 'ag-passo-chat';
+            r.textContent = String(testo || '');
+            var ind = cm.querySelector('.typing-indicator');
+            if (ind && ind.parentNode === cm) cm.insertBefore(r, ind);
+            else cm.appendChild(r);
+            try { autoScroll(cm); } catch (e) { cm.scrollTop = cm.scrollHeight; }
+            return r;
+        } catch (e) { return null; }
     };
 
     let currentTypingMsg = '';
@@ -4253,9 +4280,13 @@ body {
         // In modalita' agente il pulsante invia manda il compito all'agente,
         // non alla chat. Un solo pulsante, due destinazioni, nessuna barra
         // doppia da tenere allineata.
-        if (window.aegisAgenteAcceso && window.aegisAgenteAcceso()) {
-          if (window.aegisAgenteEsegui) { window.aegisAgenteEsegui(); return; }
-        }
+        /* LA DEVIAZIONE VERSO LA SECONDA INTERFACCIA NON C'E' PIU'.
+           Qui l'invio saltava su agenteEsegui() quando la modalita' agente era
+           accesa, e da li' in poi era un altro programma: altro schermo, altro
+           registro, altra memoria. Adesso il percorso e' uno solo - questo - e
+           gli strumenti entrano in gioco piu' avanti, quando e se il modello li
+           chiede. Chi usa Aegis non deve piu' sapere in anticipo se il suo
+           compito e' "da agente": lo decide il modello, non l'utente. */
         if (chiediConsenso(function () { handleSendMessage(); })) return;
         // Un codice di conversazione non e' un messaggio: apre il pannello.
         try { if (window.aegisCodiceInAttesa && window.aegisCodiceInAttesa()) return; } catch (e) {}
@@ -4299,6 +4330,22 @@ body {
             // prima di consegnarlo. Passa comunque da aegisMaskHistory come
             // tutto il resto, perche' non esistono percorsi privilegiati.
             let memoriaCorta = window.aegisMaskHistory ? window.aegisMaskHistory(conversationHistory.slice(-8)) : conversationHistory.slice(-8);
+            /* GLI STRUMENTI SI OFFRONO SEMPRE, E QUASI SEMPRE NON SERVONO.
+               Non c'e' piu' un modo agente da accendere: il modello riceve
+               l'elenco di cio' che puo' far fare e decide da solo. La regola
+               che accompagna l'elenco dice il contrario di quella del ciclo -
+               rispondi a parole, il JSON solo se devi agire davvero - quindi
+               una conversazione normale resta una conversazione normale, con
+               una sola chiamata e la risposta scritta a macchina come sempre.
+               Va in coda alla memoria e non in testa: e' l'ultima cosa che il
+               modello legge prima del messaggio, ed e' li' che pesa di piu'.
+               Va come 'user' perche' il core scarta i ruoli 'system'. */
+            try {
+              if (window.AEGIS_AGENTE && window.AEGIS_AGENTE.offerta) {
+                var _off = window.AEGIS_AGENTE.offerta();
+                if (_off) memoriaCorta = [{ role: 'user', content: _off }].concat(memoriaCorta);
+              }
+            } catch (e) {}
             if (window.aegisPreparaContesto) {
                 try {
                     const ctx = await window.aegisPreparaContesto(text);
@@ -4332,6 +4379,34 @@ body {
             const langTagRegex = /\[LANG:\s*([a-zA-Z]{2,3}-[a-zA-Z]{2,4})\]/i;
             const match = botReplyText.match(langTagRegex);
             if (match) { const dl = match[1]; botReplyText = botReplyText.replace(langTagRegex, '').trim(); applyGlobalLanguage(dl, false); activeLanguageCode = dl; chipsRetired = true; if (typeof hideChips === 'function') hideChips(); }
+
+            /* ====== IL MODELLO HA CHIESTO UNO STRUMENTO ==================
+               Qui si decide se questo turno e' una conversazione o un lavoro.
+               leggiStrumento e' volutamente severo: conta solo una risposta
+               che e' JSON e nient'altro, e che nomina uno strumento che
+               esiste davvero. Un paragrafo con dentro una graffa resta un
+               paragrafo, perche' il costo di sbagliare qui e' mostrare del
+               codice al posto di una frase.
+               Se scatta, il ciclo lavora e restituisce la risposta finale
+               ancora PROTETTA: rientra nel percorso normale due righe sotto,
+               dove aegisModello la mette nello specchio e la rende leggibile.
+               Un solo punto in cui una risposta diventa visibile. */
+            var _richiesta = null;
+            try {
+              if (window.AEGIS_AGENTE && window.AEGIS_AGENTE.leggiStrumento) {
+                _richiesta = window.AEGIS_AGENTE.leggiStrumento(botReplyText);
+              }
+            } catch (e) {}
+            if (_richiesta && window.aegisAgenteInChat) {
+                const esitoAg = await window.aegisAgenteInChat(text, _richiesta, memoriaCorta);
+                if (esitoAg && esitoAg.errore) {
+                    conversationHistory.pop();
+                    transformTypingIntoMessage(typingIndicator, String(esitoAg.errore), false, false);
+                    return;
+                }
+                botReplyText = (esitoAg && esitoAg.risposta) || '';
+            }
+
             if (window.aegisModello) botReplyText = window.aegisModello(botReplyText);
             conversationHistory.push({ role: "assistant", content: botReplyText });
             transformTypingIntoMessage(typingIndicator, botReplyText, true, false);
@@ -14034,7 +14109,11 @@ if (recognition) {
         // TERZA FILA. La griglia resta di tre colonne e l'altezza complessiva
         // non cambia: i pulsanti si stringono, non si allargano in basso.
         '<button class="ag-ia" id="ag-memoria-btn" type="button" data-aiuto="Riprendi una conversazione di prima: incolla il suo codice e scegli quali argomenti portarti dietro.">' + T('btnMemoria') + '</button>'+
-        '<button class="ag-ia" id="ag-agente-btn" type="button" data-aiuto="Presto: l\u0027assistente lavora da solo su cartelle e posta, sempre sui dati gia\u0027 protetti.">' + T('btnAgente') + '</button>'+
+        /* IL PULSANTE "MODO AGENTE" NON ESISTE PIU'. Apriva la seconda
+           interfaccia, che non c'e' piu': gli strumenti sono sempre a
+           disposizione dentro questa chat, e li chiama il modello quando
+           servono. Un pulsante che chiede all'utente in che modalita' vuole
+           lavorare gli sta chiedendo di conoscere l'architettura. */
         '<button class="ag-ia" id="ag-upgrade-btn" type="button" data-aiuto="Vedi i piani e quanto rende ciascuno.">' + T('btnUpgrade') + '</button>'+
         '</div>'+
       '</div>'+
@@ -15441,6 +15520,24 @@ if (recognition) {
     });
   }
 
+  /* IL MOTORE SI CARICA DA SOLO, ALL'AVVIO.
+     Prima lo tirava su apriAgente(), cioe' solo se qualcuno entrava nella
+     modalita' separata. Adesso quella modalita' non esiste e l'offerta degli
+     strumenti parte dal primo messaggio: se il motore non fosse gia' in
+     memoria, AEGIS_AGENTE.offerta() non esisterebbe, la chat andrebbe avanti
+     senza dire niente a nessuno e gli strumenti non verrebbero MAI proposti.
+     Un guasto silenzioso di questo tipo si scopre settimane dopo, chiedendosi
+     perche' l'agente "non funziona piu'".
+     Si carica in ritardo e senza bloccare: se il file manca, la chat resta
+     una chat normale, che e' esattamente il comportamento giusto. */
+  try {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function () { caricaAgente().catch(function () {}); });
+    } else {
+      setTimeout(function () { caricaAgente().catch(function () {}); }, 0);
+    }
+  } catch (e) {}
+
   function caricaStorage() {
     if (window.AEGIS_STORAGE) return Promise.resolve();
     return new Promise(function (ok, ko) {
@@ -15656,126 +15753,29 @@ if (recognition) {
      esattamente come fa la base di conoscenza. Chi passa da una all'altra
      deve sentire di essere nello stesso programma.
      ===================================================================== */
-  /* ================== MODALITA' AGENTE ===================================
-     Non e' una finestra sopra Aegis: e' Aegis con la colonna di destra
-     cambiata. A sinistra restano i dati coperti, in mezzo lo specchio e il
-     riquadro dove si incolla. A destra, al posto della chat, il diario
-     dell'agente e la barra del compito.
-     Cosi' il documento che incolli nel riquadro di mezzo lo vedi coperto e
-     l'agente ci lavora sopra: e' il motivo per cui la modalita' sta qui
-     dentro invece che in una finestra a parte.
+  /* ================== GLI STRUMENTI, DENTRO LA CHAT =====================
+     Qui c'era la modalita' agente: uno stato acceso/spento, una funzione per
+     scambiare la chat col diario, e la mappa degli elementi da nascondere.
+     Non serve piu' niente di tutto questo. Il motore vive dentro la
+     conversazione: la chat offre gli strumenti a ogni messaggio, il modello
+     li chiede quando gli servono, il ciclo lavora e la risposta rientra dalla
+     porta di sempre. Non c'e' uno stato da accendere, quindi non c'e' uno
+     stato che possa restare acceso per sbaglio.
+     Restano qui sotto le cose vere: il caricamento del motore, il ponte
+     verso il ciclo e la conferma delle azioni che scrivono.
      ===================================================================== */
-  var _agenteAcceso = false;
-  /* Lo stato dell'agente, leggibile da fuori. Sta nel blocco 6, ma serve al
-     blocco 5 (caricamento documenti) e al blocco 4: un `typeof _agenteAcceso`
-     da li' non lo trova e risponde sempre "spento". E' la terza volta che
-     questo progetto paga la stessa moneta: le variabili non attraversano i
-     blocchi, le funzioni su window si'. */
-  window.aegisAgenteAcceso = function () { return !!_agenteAcceso; };
-  var _segnaPosto = null;
-  var _agenteOnLog = null;
 
-  function elementiChat() {
-    return {
-      msg: document.getElementById('chat-messages'),
-      barra: document.getElementById('chat-input-wrapper'),
-      diario: document.getElementById('ag-agente-diario'),
-      campo: document.getElementById('user-input'),
-      nuova: document.getElementById('new-chat-btn'),
-      storia: document.getElementById('history-btn')
-    };
-  }
-
-  function agenteMostra(acceso) {
-    var e = elementiChat();
-    _agenteAcceso = !!acceso;
-    if (e.msg) e.msg.style.display = acceso ? 'none' : 'flex';
-    // LA BARRA RESTA QUELLA VERA. Ne avevo costruita una piccola apposta per
-    // l'agente: campo rimpicciolito e via microfono, graffetta, archivio e
-    // ricerca. Sbagliato due volte - meno spazio per scrivere, e sparivano gli
-    // allegati proprio dove servono. Adesso si riusa la barra di sempre e
-    // cambia solo dove va a finire il testo quando premi invio.
-    if (e.diario) e.diario.style.display = acceso ? 'flex' : 'none';
-    // Il campo dice sempre la stessa cosa: e' lo stesso campo. Il suggerimento
-    // lungo stava su due righe e copriva mezza barra.
-    if (e.campo && !acceso) e.campo.placeholder = _segnaPosto || e.campo.placeholder;
-    if (e.campo && acceso) { _segnaPosto = e.campo.placeholder; }
-    // Nuova chat e Cronologia non hanno senso mentre l'agente lavora: al loro
-    // posto compare il modo di uscire.
-    if (e.nuova) e.nuova.style.display = acceso ? 'none' : '';
-    if (e.storia) e.storia.style.display = acceso ? 'none' : '';
-    var esci = document.getElementById('ag-agente-esci');
-    if (esci) esci.style.display = acceso ? '' : 'none';
-
-    /* PULSANTI FUORI CONTESTO. Dentro la modalita' agente, "Modo agente" e'
-       gia' dove sei, "Memoria chats" e "Migliora piano" aprono cose che non
-       c'entrano, e "Configurazione" porta via. Restano solo gli interruttori
-       che agiscono sul testo che l'agente sta per ricevere: Pennello,
-       Profondo, Motore, Riservato, Evidenzia. Un pulsante che non serve qui
-       non e' neutro: e' un invito a sbagliare strada. */
-    ['ag-opzioni-btn', 'ag-memoria-btn', 'ag-upgrade-btn', 'ag-agente-btn'].forEach(function (id) {
-      var el = document.getElementById(id);
-      if (el) el.style.display = acceso ? 'none' : '';
-    });
-    // Il cerchietto dell'account Google appartiene alla pagina principale.
-    // Il cerchietto dell'account appartiene alla pagina principale. Non ha un
-    // nome fisso perche' lo monta billing-ui: si prende per posizione, cioe'
-    // il figlio della testa che non e' la griglia dei pulsanti.
-    try {
-      var testa = document.querySelector('.ag-testa');
-      if (testa) {
-        Array.prototype.forEach.call(testa.children, function (c) {
-          if (!c.classList.contains('ag-pulsanti')) c.style.display = acceso ? 'none' : '';
-        });
-      }
-    } catch (e) {}
-    var btn = document.getElementById('ag-agente-btn');
-    if (btn) btn.classList.toggle('on', acceso);
-    document.body.classList.toggle('ag-modo-agente', acceso);
-    /* IL TETTO DEL CAMPO SI RIMISURA A OGNI CAMBIO DI MODALITA'.
-       altezzaCampo() misura cio' che sta sotto la barra di scrittura, e
-       entrando o uscendo dall'agente quelle righe cambiano. Senza questa
-       riga il campo si porta dietro il tetto della modalita' precedente e
-       puo' sfondare la colonna o restare piu' basso del dovuto. Si misura
-       dopo il cambio di classe sul corpo, quando il nuovo layout esiste. */
-    try {
-      if (window.aegisAdattaCampo) window.aegisAdattaCampo(document.getElementById('user-input'));
-    } catch (e) {}
-  }
-
-  async function apriAgente() {
-    var T = window.aegisT || function (k) { return k; };
-    try { await caricaAgente(); } catch (e) {}
-
-    // il pulsante per uscire, accanto al selettore del modello
-    if (!document.getElementById('ag-agente-esci')) {
-      var testa = document.querySelector('.chat-header');
-      var b = document.createElement('button');
-      b.className = 'lang-change-btn'; b.id = 'ag-agente-esci'; b.type = 'button';
-      b.textContent = T('agEsci'); b.style.display = 'none';
-      b.onclick = function () { agenteMostra(false); };
-      /* L'ORDINE CONTA. "Esci da agente" va dove stava "Nuova chat", cioe'
-         subito dopo il selettore del modello: e' il posto dove la mano va
-         gia' a cercare il comando che cambia stato. Messo in fondo si perde
-         fra Lingua e schermo intero. */
-      var rif = document.getElementById('new-chat-btn');
-      if (testa && rif) testa.insertBefore(b, rif); else if (testa) testa.appendChild(b);
-    }
-    agenteMostra(true);
-
-    var diario = document.getElementById('ag-agente-diario');
-    if (diario && !diario.getAttribute('data-pronto')) {
-      diario.setAttribute('data-pronto', '1');
-      // Il benvenuto dell'agente al posto della riga generica.
-      // Stessa forma del benvenuto della chat - stessa bolla, stesso punto -
-      // perche' e' la stessa cosa: la presentazione di chi ti sta rispondendo.
-      var ben = (window.aegisBenvenutoAgente
-        ? window.aegisBenvenutoAgente(activeLanguageCode) : T('agIntro'));
-      diario.innerHTML = '<div class="message bot-message ag-ag-benvenuto">' +
-        '<div class="message-content"><ul><li>' + escapeHtml(ben) + '</li></ul></div></div>';
-    }
-    if (diario) diario.scrollTop = diario.scrollHeight;
-  }
+  /* LE DUE FUNZIONI DELLA MODALITA' SEPARATA SONO STATE RIMOSSE.
+     agenteMostra() nascondeva la chat per mostrare il diario, spegneva meta'
+     dei pulsanti della barra e montava un "Esci da agente" accanto al
+     selettore del modello; apriAgente() la accendeva. Servivano a tenere in
+     piedi due schermi per una cosa sola.
+     Ora il motore lavora dentro la chat: i passi compaiono come righe nella
+     conversazione, le conferme sopra la barra di scrittura, la risposta come
+     qualunque altra risposta. Il diario #ag-agente-diario resta nel documento
+     ma non viene piu' mostrato - toglierlo dall'HTML e' una pulizia a parte,
+     e mescolarla a questo cambio renderebbe piu' difficile capire cosa ha
+     rotto cosa se qualcosa si rompe. */
 
   /* DAL COPERTO AL LEGGIBILE, SOLO PER IL DIARIO.
      Tutto cio' che torna dall'agente e dagli strumenti e' mascherato per
@@ -15789,58 +15789,9 @@ if (recognition) {
     return t;
   }
 
-  function agenteScrivi(classe, testo) {
-    var d = document.getElementById('ag-agente-diario');
-    if (!d) return null;
-    var v = d.querySelector('.ag-ag-vuoto, .ag-ag-benvenuto'); if (v) v.remove();
-    var r = document.createElement('div');
-    r.className = 'ag-ag-passo ' + classe;
-
-    /* L'EVIDENZIATORE VALE ANCHE QUI.
-       In modalita' agente #chat-messages e' nascosta, e con lei spariscono le
-       bolle della chat: il pulsante Resaltado stava dentro l'ultima di quelle,
-       quindi spariva anche lui, e con lui i colori sui dati ripristinati. Non
-       era un guasto dell'evidenziatore - era che il diario e' un'altra
-       superficie e nessuno gliel'aveva dato.
-       Lo ricevono solo le due righe che sono davvero conversazione: il compito
-       dell'utente e la risposta. I passi degli strumenti e le attese non
-       contengono dati della persona e un interruttore su ognuna sarebbe solo
-       rumore.
-       Nasce ACCESO, al contrario di quello della chat: li' il messaggio arriva
-       scritto a macchina e i colori si posano alla fine, qui il testo compare
-       tutto insieme e il motivo per cui si guarda il diario e' proprio vedere
-       che cosa e' stato coperto. */
-    if (classe === 'io' || classe === 'lui') {
-      var corpo = document.createElement('div');
-      corpo.className = 'ag-ag-testo';
-      corpo.textContent = testo;
-      r.appendChild(corpo);
-
-      var b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'ag-toggle ag-ag-hl on';
-      var etichetta = '';
-      try { if (window.aegisEtichettaHL) etichetta = window.aegisEtichettaHL(true); } catch (e) {}
-      b.innerHTML = '<span class="ag-dot"></span><span class="ag-lbl"></span>';
-      var lbl = b.querySelector('.ag-lbl');
-      if (lbl && etichetta) lbl.textContent = etichetta;
-      b.addEventListener('click', function (e) {
-        e.stopPropagation();
-        try { if (window.aegisToggleHL) window.aegisToggleHL(b); } catch (err) {}
-      });
-      r.appendChild(b);
-
-      d.appendChild(r); d.scrollTop = d.scrollHeight;
-      // Dopo l'inserimento: aegisEvidenzia lavora sui nodi di testo gia' nel
-      // documento, e salta da se' quelli dentro il pulsante.
-      try { if (window.aegisEvidenzia) window.aegisEvidenzia(r); } catch (e) {}
-      return r;
-    }
-
-    r.textContent = testo;
-    d.appendChild(r); d.scrollTop = d.scrollHeight;
-    return r;
-  }
+  /* agenteScrivi() e' stata rimossa insieme al diario: scriveva le righe
+     della modalita' separata. Il suo posto lo prendono aegisPassoChat() per
+     i passi del lavoro e il normale percorso delle risposte per il resto. */
 
   function agenteApprovazione(anteprima) {
     var T = window.aegisT || function (k) { return k; };
@@ -15874,83 +15825,24 @@ if (recognition) {
     });
   }
 
-  window.aegisAgenteEsegui = function () { return agenteEsegui(); };
-  async function agenteEsegui() {
+  /* ====== IL PONTE FRA LA CHAT E IL CICLO ==============================
+     Non c'e' piu' una modalita' agente da accendere. La chat offre gli
+     strumenti a ogni messaggio; se il modello ne chiede uno, il turno passa
+     di qui e torna indietro con la risposta finale, che la chat mostra come
+     mostra qualunque altra risposta.
+     Firma: (compito, richiesta, memoria) -> { risposta, errore }
+       compito   il testo dell'utente, in chiaro (la mascheratura la fa la chat)
+       richiesta la prima chiamata di strumento gia' letta dalla risposta
+       memoria   la conversazione protetta, gia' pronta per il modello
+     La risposta torna PROTETTA: chi chiama la passa ad aegisModello() come
+     sempre, cosi' esiste un solo punto in cui una risposta diventa leggibile
+     e finisce nello specchio. Due punti sarebbero due modi di sbagliare. */
+  window.aegisAgenteInChat = async function (compito, richiesta, memoria) {
     var T = window.aegisT || function (k) { return k; };
-    var campo = document.getElementById('user-input');
-    var compito = String(campo && campo.value || '').trim();
+    if (!window.AEGIS_AGENTE) return { errore: 'motore non caricato' };
+    try { await caricaAgente(); } catch (e) {}
 
-    /* IL COMPITO VIAGGIA UNA VOLTA SOLA.
-       Qui c'era un secondo giro di lettura, pensato per un riquadro di
-       incollaggio separato che in questa revisione non esiste piu': rileggeva
-       lo STESSO #user-input da cui il compito era gia' stato preso, quindi
-       ogni messaggio partiva duplicato ("compito + compito") e il diario
-       annunciava un documento di N caratteri che nessuno aveva caricato.
-       I documenti hanno gia' la loro strada: graffetta, archivio e Skills. */
-
-    if (!compito) return;
-    if (!window.AEGIS_AGENTE) { agenteScrivi('err', 'aegis-agente.js non caricato'); return; }
-    if (campo) campo.value = '';
-    /* IL CAMPO TORNA AL MINIMO, COME DOPO OGNI INVIO.
-       altezzaCampo() lascia crescere il campo fino a occupare TUTTA la colonna
-       mentre si scrive: e' voluto, e regge finche' qualcuno lo riporta giu'
-       all'invio. handleSendMessage() lo fa, ma in modalita' agente devia qui
-       e torna PRIMA di arrivare a quel blocco: il campo restava alto, il
-       diario - che e' flex nella stessa colonna - si riduceva a una riga e la
-       risposta finiva coperta dalla barra di scrittura. Il contratto lo
-       chiudiamo qui, dove l'agente svuota il campo. */
-    if (campo) {
-      campo.style.height = (window.innerWidth <= 600) ? '40px' : '42px';
-      try { if (window.aegisAdattaCampo) window.aegisAdattaCampo(campo); } catch (e) {}
-    }
-    try {
-      var _clr = document.getElementById('clear-input-btn');
-      if (_clr) _clr.classList.remove('visible');
-    } catch (e) {}
     window.AEGIS_AGENTE._reset();
-
-    /* LA MEMORIA SI LEGGE PRIMA, NON DOPO, ED E' QUELLA DELLA CHAT.
-       Il tentativo precedente leggeva lo specchio: sembrava la scelta giusta
-       perche' lo specchio E' la conversazione protetta, ma e' protetta in un
-       altro vocabolario. Lo specchio conserva [[TIPO_NN]]; cio' che esce
-       davvero verso il modello passa da aegisMaskHistory, che dopo la
-       mascheratura applica surrogaUscita e trasforma i codici in @pe01@. Il
-       modello si sarebbe trovato il documento scritto in un alfabeto e la
-       richiesta in un altro, sulle stesse persone.
-       aegisMemoriaChat() e' la stessa identica pipeline che alimenta il campo
-       `messages` di /api/chat nella chat normale: stessa fetta, stessa
-       mascheratura, stessi surrogati. Una memoria sola, due superfici.
-       Si legge PRIMA di consegnare il compito, altrimenti il compito
-       arriverebbe due volte: una come contesto e una come richiesta. */
-    var memoria = [];
-    try { if (window.aegisMemoriaChat) memoria = window.aegisMemoriaChat(8); } catch (e) {}
-
-    /* IL COMPITO NELLA STESSA FORMA DEL CONTESTO.
-       Passa dalla porta che usa la chat, non da mascheraTesto: cosi' i codici
-       che il modello legge nella richiesta sono gli stessi che ha appena letto
-       nel documento. */
-    var compitoProtetto = '';
-    try {
-      if (window.aegisMaskHistory) {
-        var mm = window.aegisMaskHistory([{ role: 'user', content: compito }]);
-        compitoProtetto = String((mm && mm[0] && mm[0].content) || '');
-      }
-    } catch (e) {}
-    if (!compitoProtetto) compitoProtetto = mascheraTesto(compito) || compito;
-
-    /* LO SPECCHIO E LA CRONOLOGIA RESTANO ALIMENTATI DALLA PORTA DI SEMPRE.
-       aegisUtente() spinge il turno nello specchio, congela il verbale per
-       l'evidenziatore e - attraverso l'aggancio della cronologia - lo salva
-       sul dispositivo. Serve comunque, anche se il testo per il modello lo
-       prepara aegisMaskHistory: sono due lavori diversi sullo stesso turno. */
-    try { if (window.aegisUtente) window.aegisUtente(compito); } catch (e) {}
-    // E la memoria canonica, quella che il prossimo turno rileggera'.
-    try { if (window.aegisMemoriaAggiungi) window.aegisMemoriaAggiungi('user', compito); } catch (e) {}
-
-    var testoIntero = compitoProtetto;
-    // Nel diario si legge in chiaro: il diario e' cio' che sta facendo
-    // l'utente, non cio' che attraversa il confine. Il coperto sta a sinistra.
-    agenteScrivi('io', compito);
 
     var chiedi = window.AEGIS_AGENTE.creaCervello({
       backend: window.AEGIS_BACKEND || 'https://chatbot-backend-dev.onrender.com',
@@ -15962,60 +15854,120 @@ if (recognition) {
       lingua: activeLanguageCode
     });
 
+    /* I PASSI SI VEDONO NELLA CONVERSAZIONE.
+       Andavano nel diario, che era l'altra meta' della modalita' separata.
+       Adesso sono righe leggere dentro la chat: l'utente vede che sta
+       succedendo qualcosa senza cambiare schermo. */
     window.AEGIS_AGENTE_ONLOG = function (v) {
-      if (v.tipo === 'lettura') agenteScrivi('str', '\u2192 ' + v.strumento);
+      if (v.tipo === 'lettura' && window.aegisPassoChat) {
+        window.aegisPassoChat('\u2192 ' + v.strumento);
+      }
     };
-    var attesa = agenteScrivi('att', T('agPenso'));
 
+    var compitoProtetto = '';
     try {
-      var esito = await window.AEGIS_AGENTE.esegui(testoIntero,
-        { chiedi: chiedi, giriMax: 15, memoria: memoria });
+      if (window.aegisMaskHistory) {
+        var mm = window.aegisMaskHistory([{ role: 'user', content: compito }]);
+        compitoProtetto = String((mm && mm[0] && mm[0].content) || '');
+      }
+    } catch (e) {}
+    if (!compitoProtetto) compitoProtetto = mascheraTesto(compito) || compito;
+
+    var opz = { chiedi: chiedi, giriMax: 15, memoria: memoria || [] };
+    try {
+      /* IL PRIMO PASSO E' GIA' STATO FATTO. La chat ha gia' pagato una
+         chiamata e ha gia' in mano la richiesta di strumento: rifarla qui
+         sarebbe una chiamata buttata e, peggio, il modello potrebbe cambiare
+         idea e chiedere un'altra cosa. Si esegue quella, si mette il
+         risultato nella storia, e il ciclo riprende da li'. */
+      if (richiesta && richiesta.strumento) {
+        var primo = await window.AEGIS_AGENTE.invoca(richiesta.strumento, richiesta.args, {});
+        if (primo && primo.attende_approvazione) {
+          var vai = await window.aegisApprovazione(primo.anteprima);
+          if (!vai) {
+            window.AEGIS_AGENTE.rifiuta();
+            window.AEGIS_AGENTE_ONLOG = null;
+            return { risposta: T('agRifiutato') };
+          }
+          var f0 = await window.AEGIS_AGENTE.approva();
+          if (window.aegisPassoChat && f0 && f0.risultato) {
+            window.aegisPassoChat('\u2713 ' + inChiaro(JSON.stringify(f0.risultato)).slice(0, 200));
+          }
+        } else if (window.aegisPassoChat && primo) {
+          window.aegisPassoChat('\u2713 ' + inChiaro(JSON.stringify(primo.risultato || primo.errore)).slice(0, 200));
+        }
+        opz.riprendi = false;
+      }
+
+      var esito = await window.AEGIS_AGENTE.esegui(compitoProtetto, opz);
       while (esito && esito.stato === 'attende_approvazione') {
-        if (attesa) attesa.remove();
-        var ok = await agenteApprovazione(esito.anteprima);
+        var ok = await window.aegisApprovazione(esito.anteprima);
         if (!ok) { window.AEGIS_AGENTE.rifiuta(); break; }
         var fatto = await window.AEGIS_AGENTE.approva();
-        if (fatto && fatto.risultato && fatto.risultato.errore) agenteScrivi('err', String(fatto.risultato.errore));
-        else if (fatto && fatto.risultato) agenteScrivi('str', '\u2713 ' + inChiaro(JSON.stringify(fatto.risultato)).slice(0, 200));
-        attesa = agenteScrivi('att', T('agPenso'));
-        /* SI RIPRENDE, NON SI RICOMINCIA. Senza riprendi:true la storia si
-           ricostruiva da capo e il modello, non trovando piu' il risultato
-           dell'azione appena approvata, la richiedeva di nuovo: l'utente
-           doveva confermare due volte la stessa scrittura. */
-        esito = await window.AEGIS_AGENTE.esegui(testoIntero,
-          { chiedi: chiedi, giriMax: 15, memoria: memoria, riprendi: true });
+        if (window.aegisPassoChat) {
+          if (fatto && fatto.risultato && fatto.risultato.errore) {
+            window.aegisPassoChat('\u26a0 ' + String(fatto.risultato.errore));
+          } else if (fatto && fatto.risultato) {
+            window.aegisPassoChat('\u2713 ' + inChiaro(JSON.stringify(fatto.risultato)).slice(0, 200));
+          }
+        }
+        /* SI RIPRENDE, NON SI RICOMINCIA: la storia conserva i risultati gia'
+           ottenuti, altrimenti il modello richiede l'azione appena approvata
+           e l'utente deve confermare due volte la stessa scrittura. */
+        esito = await window.AEGIS_AGENTE.esegui(compitoProtetto,
+          { chiedi: chiedi, giriMax: 15, memoria: memoria || [], riprendi: true });
       }
-      if (attesa) attesa.remove();
-      if (esito && esito.stato === 'finito') {
-        /* LA RISPOSTA ARRIVA PROTETTA. L'agente non conosce il vault: lavora
-           su testo coperto e restituisce testo coperto. Passarla ad
-           agenteScrivi() cosi' com'era significava mostrare i codici
-           all'utente e non mostrare NIENTE nello specchio.
-           aegisModello() e' la porta che la cronologia usa gia' per ogni
-           risposta del modello: mette la versione protetta nello specchio e
-           restituisce quella in chiaro per la colonna di destra. Una sola
-           porta, nessuna seconda decodifica da tenere allineata. */
-        var grezza = esito.risposta || '';
-        var leggibile = grezza;
-        try {
-          if (window.aegisModello) leggibile = String(window.aegisModello(grezza) || grezza);
-          else leggibile = inChiaro(grezza);
-        } catch (e) { leggibile = inChiaro(grezza); }
-        /* IL TURNO SI CHIUDE NELLA MEMORIA COMUNE.
-           Senza questa riga il turno dopo - "adesso fallo piu' breve" - non
-           troverebbe nessun antecedente: l'agente avrebbe parlato, ma per la
-           conversazione non sarebbe mai successo niente. E' anche cio' che
-           rende indifferente passare dalla chat all'agente e viceversa. */
-        try { if (window.aegisMemoriaAggiungi) window.aegisMemoriaAggiungi('assistant', leggibile); } catch (e) {}
-        agenteScrivi('lui', leggibile);
-        if (esito.senza_strumenti) agenteScrivi('err', T('agNiente'));
-      } else if (esito && esito.stato === 'tetto') agenteScrivi('err', esito.messaggio);
+      window.AEGIS_AGENTE_ONLOG = null;
+      if (esito && esito.stato === 'finito') return { risposta: esito.risposta || '' };
+      if (esito && esito.stato === 'tetto') return { risposta: esito.messaggio || T('agNiente') };
+      return { risposta: T('agRifiutato') };
     } catch (e) {
-      if (attesa) attesa.remove();
-      agenteScrivi('err', (e && e.message) || 'errore');
+      window.AEGIS_AGENTE_ONLOG = null;
+      return { errore: (e && e.message) || 'errore' };
     }
-    window.AEGIS_AGENTE_ONLOG = null;
-  }
+  };
+
+  /* ====== LA CONFERMA STA SOPRA LA BARRA, NON NELLA CONVERSAZIONE =======
+     Come bolla sarebbe stata piu' semplice da fare, e sbagliata: una bolla
+     scorre via. Questa e' la richiesta di scrivere sul disco dell'utente, e
+     deve restare davanti agli occhi finche' non riceve una risposta. Sta
+     appena sopra il campo, dove la mano e' gia'. */
+  window.aegisApprovazione = function (anteprima) {
+    var T = window.aegisT || function (k) { return k; };
+    return new Promise(function (risolvi) {
+      var wrap = document.getElementById('chat-input-wrapper');
+      if (!wrap || !wrap.parentNode) { risolvi(false); return; }
+      var vecchio = document.getElementById('ag-appr-chat');
+      if (vecchio) vecchio.remove();
+
+      var c = document.createElement('div');
+      c.className = 'ag-ag-appr'; c.id = 'ag-appr-chat';
+      var campi = Object.keys(anteprima || {}).filter(function (k) {
+        return k !== 'descrizione' && anteprima[k];
+      }).map(function (k) {
+        return '<div class="ag-ag-camp"><span>' + escapeHtml(k) + '</span><code>' +
+               escapeHtml(String(anteprima[k]).slice(0, 500)) + '</code></div>';
+      }).join('');
+      c.innerHTML = '<b>' + T('agConfermaTit') + '</b>' +
+        '<p>' + escapeHtml((anteprima && anteprima.descrizione) || '') + '</p>' + campi +
+        '<div class="ag-ag-appr-b">' +
+          '<button type="button" class="ag-ia" data-a="no">' + T('agRifiuta') + '</button>' +
+          '<button type="button" class="ag-ia ag-pronto" data-a="si">' + T('agConferma') + '</button>' +
+        '</div>';
+      try { wrap.parentNode.insertBefore(c, wrap); } catch (e) { wrap.parentNode.appendChild(c); }
+
+      c.addEventListener('click', function (e) {
+        var b = e.target.closest ? e.target.closest('[data-a]') : null;
+        if (!b) return;
+        var si = b.getAttribute('data-a') === 'si';
+        c.classList.add(si ? 'ok' : 'no');
+        c.querySelector('.ag-ag-appr-b').innerHTML =
+          '<i>' + T(si ? 'agConfermato' : 'agRifiutato') + '</i>';
+        setTimeout(function () { if (c.parentNode) c.remove(); }, 1400);
+        risolvi(si);
+      });
+    });
+  };
 
   // Svuotare la chat svuota anche il diario: sono la stessa colonna.
   /* ============ IL CASSETTO DEI FILE ====================================
@@ -16068,9 +16020,20 @@ if (recognition) {
   window.aegisDisegnaCassetto = disegnaCassetto;
 
   window.aegisAgenteAzzera = function () {
+    /* NUOVA CHAT: si azzera il MOTORE, non piu' una seconda interfaccia.
+       Restano da pulire la storia del compito in corso, il registro di audit
+       e un'eventuale conferma rimasta aperta sopra la barra: una richiesta di
+       scrivere un file appartiene alla conversazione che l'ha generata, e
+       lasciarla in piedi sotto una chat nuova significherebbe farla approvare
+       a qualcuno che non sa piu' a cosa si riferisce. */
+    try { if (window.AEGIS_AGENTE && window.AEGIS_AGENTE._reset) window.AEGIS_AGENTE._reset(); } catch (e) {}
+    try { window.AEGIS_AGENTE_ONLOG = null; } catch (e) {}
+    var appr = document.getElementById('ag-appr-chat');
+    if (appr) appr.remove();
     var d = document.getElementById('ag-agente-diario');
-    if (d) { d.innerHTML = ''; d.removeAttribute('data-pronto'); }
-    agenteMostra(false);
+    if (d) { d.innerHTML = ''; d.removeAttribute('data-pronto'); d.style.display = 'none'; }
+    document.body.classList.remove('ag-modo-agente');
+    document.querySelectorAll('.ag-passo-chat').forEach(function (x) { x.remove(); });
   };
 
   // I tre pulsanti nuovi. L'ascolto sta sul documento perche' il pannello di
@@ -16090,7 +16053,6 @@ if (recognition) {
         if (window.aegisApriBase) window.aegisApriBase('sessione');
         return;
       }
-      if (t.closest('#ag-agente-btn'))  { e.preventDefault(); apriAgente(); return; }
       if (t.closest('#ag-upgrade-btn')) {
         e.preventDefault();
         // La vetrina dei piani vive in billing-ui.js: se non c'e', non si
