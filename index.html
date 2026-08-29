@@ -8642,7 +8642,27 @@ if (recognition) {
       // riaperto) si riprende il vault persistente, cosi' i codici di ieri
       // valgono ancora oggi.
       var d=JSON.parse(sessionStorage.getItem(CHIAVE)||'null');
-      if(!d){ try{ d=JSON.parse(localStorage.getItem(CHIAVE+'_persistente')||'null'); }catch(e2){} }
+      /* IL PERSISTENTE PORTA IL VAULT, NON LA CONVERSAZIONE.
+         Sono due cose diverse finite nello stesso pacco. Il vault DEVE
+         sopravvivere alla chiusura del browser - e' la promessa che [[PER_07]]
+         valga ancora domani - ma le righe dello specchio sono la conversazione
+         corrente, e quella no.
+         Il difetto si vedeva cosi': nuova chat, lo specchio si svuota, tutto
+         a posto; si ricarica la pagina, e lo specchio torna pieno della
+         conversazione di prima mentre a destra c'e' una chat nuova. Le due
+         colonne raccontavano due storie diverse, ed e' esattamente cio' che
+         non deve mai succedere.
+         scorda() cancella la copia di sessione ma non poteva cancellare il
+         persistente senza portarsi via anche il vault. Quindi non si cancella:
+         quando la conversazione arriva da li', si prende tutto tranne le
+         righe. La conversazione ha gia' la sua strada per tornare - riprendi()
+         e carica(), dalla cronologia sul dispositivo - e quella strada
+         ricostruisce specchio e chat INSIEME. */
+      var soloVault = false;
+      if(!d){
+        try{ d=JSON.parse(localStorage.getItem(CHIAVE+'_persistente')||'null'); }catch(e2){}
+        soloVault = !!d;
+      }
       if(!d) return;
       (d.v||[]).forEach(function(p){ vault.set(p[0],p[1]); });
       // riassegno i codici stretti nello stesso ordine in cui erano nati,
@@ -8650,7 +8670,7 @@ if (recognition) {
       cortiUsati.clear();
       (d.v||[]).forEach(function(p){ nudoDi(p[0].split('~')[0], p[1]); });
       (d.c||[]).forEach(function(p){ colorDi.set(p[0],p[1]); });
-      contatore=d.n||{}; righe=d.r||[];
+      contatore=d.n||{}; righe = soloVault ? [] : (d.r||[]);
       (d.b||[]).forEach(function(p){ banditi.set(p[0], typeof p[1]==='string'?{tok:p[1],cat:'per'}:p[1]); });
       (d.cu||[]).forEach(function(p){ categoriePersonali.set(p[0],p[1]); });
       (d.e||[]).forEach(function(x){ esclusi.add(x); });
@@ -10902,7 +10922,11 @@ if (recognition) {
   // chiamata costa quasi zero e il disegno si rifa' sempre.
   function disegnaOmbra(testo) {
     if (!ombraEl) return;
-    if (!ombraAttiva || !testo) { ombraEl.innerHTML = ''; return; }
+    // Lo stato e' uno solo: se c'e' l'interruttore centrale comanda lui.
+    // ombraAttiva resta come ripiego per l'ordine di caricamento, quando
+    // questo blocco gira prima che la porta esista.
+    var _acceso = window.aegisResaltadoStato ? window.aegisResaltadoStato() : ombraAttiva;
+    if (!_acceso || !testo) { ombraEl.innerHTML = ''; return; }
     let r;
     try { r = AEGIS.protect(String(testo), opzioni()); } catch (e) { ombraEl.innerHTML = ''; return; }
     // si lavora sulle posizioni, non sulle parole: cosi' non si sbaglia
@@ -11131,13 +11155,17 @@ if (recognition) {
       hl.setAttribute('data-aiuto', T('aiutoEvidenzia'));
       hl.addEventListener('click', function (e) {
         e.stopPropagation();
-        // Questo pulsante evidenzia le parole DENTRO il campo dove si scrive,
-        // non i codici nello specchio: quelli hanno il loro interruttore.
-        ombraAttiva = !ombraAttiva;
-        anteprimaColorata = ombraAttiva;
-        hl.classList.toggle('on', ombraAttiva);
+        /* UNA FUNZIONE SOLA. Questo pulsante aveva uno stato suo, ombraAttiva,
+           e comandava solo le parole DENTRO il campo di scrittura. Chi lo
+           spegneva vedeva sparire i colori qui e restare quelli a destra e
+           nello specchio: tre interruttori con lo stesso nome e tre esiti
+           diversi. Ora e' una vista sullo stesso stato. */
+        var acceso = window.aegisResaltado ? window.aegisResaltado() : !ombraAttiva;
+        ombraAttiva = acceso;
+        anteprimaColorata = acceso;
+        hl.classList.toggle('on', acceso);
         const lbl = hl.querySelector('.ag-lbl');
-        if (lbl) lbl.textContent = ombraAttiva ? T('evidOn') : T('evidOff');
+        if (lbl) lbl.textContent = acceso ? T('evidOn') : T('evidOff');
         const campo = document.getElementById('user-input');
         if (campo) disegnaOmbra(campo.value);
       });
@@ -12707,10 +12735,9 @@ if (recognition) {
       }
       if (b.id === 'ag-sk-riservato') { riservatezza(!riservato); return; }
       if (b.id === 'ag-sk-hl') {
-        codiciAccesi = !codiciAccesi;
-        b.classList.toggle('on', codiciAccesi);
-        var l = b.querySelector('.ag-lbl');
-        if (l) l.textContent = codiciAccesi ? T('evidOn') : T('evidOff');
+        // Stesso interruttore, altro pannello: passa dallo stesso stato.
+        // aegisResaltado allinea da se' l'aspetto di questo pulsante.
+        window.aegisResaltado();
         rispecchia();
         return;
       }
@@ -13236,7 +13263,7 @@ if (recognition) {
         }
       }
       else if (quale === 'riservato') riservato = !riservato;
-      else if (quale === 'evidenzia') codiciAccesi = !codiciAccesi;
+      else if (quale === 'evidenzia') { try { window.aegisResaltado(); } catch (e) {} }
       else return null;
       try { aggiorna(); } catch (e) {}
       return this.stato();
@@ -13566,13 +13593,20 @@ if (recognition) {
     window.aegisEvidenzia(div);
   }
   window.aegisToggleHL=function(btn){
-    /* IL DIARIO E' UNA BOLLA COME LE ALTRE.
-       Qui c'era solo closest('.message'): in modalita' agente la conversazione
-       non sta in .message ma nelle righe del diario, quindi il pulsante non
-       trovava nulla, usciva subito e sembrava rotto. Una classe in piu' nella
-       ricerca e lo stesso interruttore vale per tutte e due le superfici. */
+    /* UN PULSANTE, TUTTE LE SUPERFICI.
+       Questo interruttore comandava solo la propria bolla: era una scelta
+       difendibile finche' l'evidenziazione era una decorazione della singola
+       risposta, ma l'utente ne vede UNA sola di funzione e si aspetta che
+       "Resaltado OFF" spenga tutto. Con quattro superfici e uno stato per
+       bolla si arrivava a meta' conversazione colorata e meta' no, senza che
+       nessuno ricordasse perche'.
+       Ora comanda lo stato centrale, che ridipinge chat, diario, specchio e
+       campo insieme. La ricerca del messaggio resta perche' serve a non
+       reagire a un click arrivato da un pulsante che non e' in una bolla. */
     var msg=btn.closest('.message, .ag-ag-passo');
     if(!msg) return;
+    if (window.aegisResaltado) { window.aegisResaltado(!btn.classList.contains('on')); return; }
+    // Ripiego, se lo stato centrale non c'e': comportamento di prima.
     var on=!btn.classList.contains('on');
     btn.classList.toggle('on', on);
     var l=btn.querySelector('.ag-lbl');
@@ -13583,9 +13617,21 @@ if (recognition) {
   };
   // Ridipinge solo i messaggi con interruttore acceso (fine scrittura, restore).
   window.aegisRiapplica=function(){
-    document.querySelectorAll('.message .ag-toggle.on, .ag-ag-passo .ag-toggle.on').forEach(function(b){
+    document.querySelectorAll('.message .ag-toggle, .ag-ag-passo .ag-toggle').forEach(function(b){
+      /* I MESSAGGI NUOVI NASCONO ALLINEATI.
+         Una bolla appena creata ha l'interruttore spento per costruzione:
+         se il Resaltado e' acceso, andava accesa anche lei, altrimenti ogni
+         risposta nuova arrivava senza colori e sembrava che l'interruttore
+         si fosse spento da solo. */
+      var acceso = window.aegisResaltadoStato ? window.aegisResaltadoStato()
+                                              : b.classList.contains('on');
+      b.classList.toggle('on', acceso);
+      var l=b.querySelector('.ag-lbl');
+      if(l && window.aegisEtichettaHL) l.textContent = window.aegisEtichettaHL(acceso);
       var msg=b.closest('.message, .ag-ag-passo');
-      if(msg) bersagliDi(msg).forEach(ridipingi);
+      if(!msg) return;
+      if(acceso) bersagliDi(msg).forEach(ridipingi);
+      else bersagliDi(msg).forEach(function(d){ window.aegisTogliEvidenza(d); });
     });
   };
 
@@ -13593,6 +13639,63 @@ if (recognition) {
   var lista, anteprimaEl, badge, vuoto;
 
   var codiciAccesi = true;
+
+  /* ============ RESALTADO: UN INTERRUTTORE, QUATTRO SUPERFICI ===========
+     Le evidenziazioni sono nate una alla volta, e ognuna si era portata
+     dietro il proprio stato: codiciAccesi per i codici nello specchio,
+     ombraAttiva per le parole dentro il campo di scrittura, e una classe
+     .on per ogni singola bolla della chat. Tre memorie della stessa
+     decisione, che si spegnevano una per volta: si metteva OFF sullo
+     specchio e a destra i colori restavano, oppure si accendeva a destra e
+     il campo restava spento. L'utente ne vede UNA, di funzione, e ha
+     ragione: e' una funzione sola.
+     Da qui in avanti lo stato e' questo, e chiunque lo cambi passa da
+     aegisResaltado(). Ridipingere tutto e' un lavoro da nulla su queste
+     quantita' di testo, e costa molto meno di quattro stati che divergono.
+     ATTENZIONE: e' una funzione VISIVA. Non tocca la mascheratura, non
+     tocca cio' che viene inviato, non tocca il vault. Il testo protetto
+     resta protetto tanto acceso quanto spento. */
+  window.aegisResaltadoStato = function () { return !!codiciAccesi; };
+  window.aegisResaltado = function (acceso) {
+    var nuovo = (acceso === undefined) ? !codiciAccesi : !!acceso;
+    codiciAccesi = nuovo;
+
+    // 1) lo specchio: i codici colorati nella colonna centrale
+    try { disegna(); } catch (e) {}
+    // 2) l'anteprima e il campo di scrittura
+    try {
+      var campo = document.getElementById('user-input');
+      if (campo) anteprima(campo.value);
+    } catch (e) {}
+    // 3) le bolle della chat e le righe del diario: qui l'evidenziazione e'
+    //    fatta di nodi <mark> che vanno tolti davvero, non nascosti, o
+    //    restano attaccati al testo e riaffiorano al primo ridisegno.
+    try {
+      document.querySelectorAll('.message, .ag-ag-passo').forEach(function (m) {
+        var b = m.querySelector ? m.querySelector('.ag-toggle') : null;
+        if (b) {
+          b.classList.toggle('on', nuovo);
+          var l = b.querySelector('.ag-lbl');
+          if (l && window.aegisEtichettaHL) l.textContent = window.aegisEtichettaHL(nuovo);
+        }
+        if (nuovo) {
+          try { window.aegisTogliEvidenza(m); window.aegisEvidenzia(m); } catch (e2) {}
+        } else {
+          try { window.aegisTogliEvidenza(m); } catch (e2) {}
+        }
+      });
+    } catch (e) {}
+    // 4) tutti gli interruttori sparsi nei pannelli dicono la stessa cosa
+    try {
+      document.querySelectorAll('#ag-sp-hl, #ag-sk-hl, #ag-ant-hl').forEach(function (b) {
+        b.classList.toggle('on', nuovo);
+        var l = b.querySelector('.ag-lbl');
+        if (l && window.aegisEtichettaHL) l.textContent = window.aegisEtichettaHL(nuovo);
+      });
+    } catch (e) {}
+    return nuovo;
+  };
+
   // Gruppi spenti: il loro dato torna in chiaro nello specchio, tutto il
   // resto resta censurato. Serve a mostrare quanto contesto si perde.
   var gruppiSpenti = {};
@@ -14192,13 +14295,11 @@ if (recognition) {
     if(spHl){
       spHl.addEventListener('click',function(e){
         e.stopPropagation();
-        codiciAccesi = !codiciAccesi;
-        spHl.classList.toggle('on', codiciAccesi);
-        var l=spHl.querySelector('.ag-lbl');
-        if(l) l.textContent = ETICHETTE[lingua()][codiciAccesi?0:1];
-        disegna();
-        var i=document.getElementById('user-input');
-        if(i) anteprima(i.value);
+        // Un solo punto di verita': aegisResaltado ridipinge specchio, campo,
+        // bolle della chat e allinea gli altri interruttori. Prima qui si
+        // toccavano solo le prime due superfici, e le bolle a destra
+        // restavano indietro.
+        window.aegisResaltado();
       });
     }
 
@@ -14354,7 +14455,12 @@ if (recognition) {
       document.querySelectorAll('.ag-toggle .ag-lbl').forEach(function(l){
         if(l.textContent) return;
         var b=l.parentElement;
-        var acceso = b && b.id==='ag-sp-hl' ? codiciAccesi : false;
+        // Una bolla nuova nasce con l'etichetta vuota: va riempita con lo
+        // stato REALE, non con un OFF di comodo, o si legge "off" su un
+        // messaggio che i colori ce li ha.
+        var acceso = window.aegisResaltadoStato ? window.aegisResaltadoStato()
+                                                : (b && b.id==='ag-sp-hl' ? codiciAccesi : false);
+        if (b) b.classList.toggle('on', acceso);
         l.textContent=ETICHETTE[lingua()][acceso?0:1];
       });
     },700);
