@@ -2107,6 +2107,28 @@ body {
             try { autoScroll(cm); } catch (e) {}
         } catch (e) {}
     };
+    /* ====== L'ETICHETTA DELLA LINGUA SE NE VA, COMUNQUE SIA SCRITTA ======
+       Il modello mette in testa alla risposta un'etichetta con la lingua
+       rilevata, e il frontend la toglie prima di mostrarla. Era scritto con
+       la stessa espressione regolare copiata in OTTO punti, e tutte e otto
+       cercavano esattamente la parola LANG: il modello ha scritto LAT e
+       l'etichetta e' comparsa in faccia all'utente. Adesso e' una sola, e
+       accetta le varianti che i modelli producono davvero. La regione e'
+       facoltativa: "it" vale quanto "it-IT".
+       QUESTA DEFINIZIONE E' STATA CANCELLATA PER SBAGLIO in una revisione, e
+       le nove chiamate sono rimaste: ogni risposta del modello moriva qui e
+       l'errore usciva come "Errore di connessione", che non c'entrava niente.
+       Sta sopra a chi la usa e non va spostata sotto. */
+    const RX_ETICHETTA_LINGUA = /\[\s*(?:LANG|LANGUAGE|LANGUAGES|LAT|LNG|IDIOMA|LINGUA|LANGUE|SPRACHE)\s*[:=\-]?\s*([a-zA-Z]{2,3}(?:[-_][a-zA-Z]{2,4})?)\s*\]/i;
+    window.aegisTogliLingua = function (testo) {
+        var t = String(testo || '');
+        var m = t.match(RX_ETICHETTA_LINGUA);
+        if (!m) return { testo: t, lingua: null };
+        // Si toglie ovunque compaia, non solo la prima: capita che il modello
+        // la ripeta a meta' risposta quando cambia argomento.
+        var pulito = t.replace(new RegExp(RX_ETICHETTA_LINGUA.source, 'gi'), '').trim();
+        return { testo: pulito, lingua: String(m[1] || '').replace('_', '-') };
+    };
     window.aegisPuliscoLingua = function (testo) { return window.aegisTogliLingua(testo).testo; };
 
     /* Qui era rimasta una seconda aegisPassoChat, quella vecchia che
@@ -3054,6 +3076,7 @@ body {
             try { document.dispatchEvent(new Event('aegis-risposta')); } catch (e) {}
         } catch (error) {
             conversationHistory.pop();
+            console.error('[Aegis] errore reale durante l\'invio:', error);
             transformTypingIntoMessage(typingIndicator, error.name === 'AbortError' ? '⛔ Generación interrumpida.' : ((UI_STRINGS[activeLanguageCode] || UI_DEFAULT).errConexion || '⚠️ Error de conexión. Verifica tu conexión y pulsa el icono ↻ sobre tu mensaje para reintentar.'), false, false);
         } finally {
             currentAbortController = null;
@@ -4604,7 +4627,12 @@ body {
             else if (error && error.message === 'AEGIS_RESIDUI') {
                 transformTypingIntoMessage(typingIndicator, (window.aegisT || function(k){return k;})('invioBloccato'), false, false);
             }
-            else { transformTypingIntoMessage(typingIndicator, ((UI_STRINGS[activeLanguageCode] || UI_DEFAULT).errConexion || '⚠️ Error de conexión. Verifica tu conexión y pulsa el icono ↻ sobre tu mensaje para reintentar.'), false, false); }
+            else {
+                            /* L'errore vero va in console: questo ramo diceva "Errore di
+                               connessione" per qualunque cosa - un 500, una chiave scaduta,
+                               o una funzione del frontend cancellata per sbaglio - e mandava
+                               a cercare il guasto nella rete, l'unico posto dove non c'era. */
+                            console.error('[Aegis] errore reale durante l\'invio:', error); transformTypingIntoMessage(typingIndicator, ((UI_STRINGS[activeLanguageCode] || UI_DEFAULT).errConexion || '⚠️ Error de conexión. Verifica tu conexión y pulsa el icono ↻ sobre tu mensaje para reintentar.'), false, false); }
         } finally {
             currentAbortController = null;
             userInput.disabled = false;
@@ -5009,7 +5037,12 @@ body {
             try { document.dispatchEvent(new Event('aegis-risposta')); } catch (e) {}
         } catch (error) {
             if (error.name === 'AbortError') { transformTypingIntoMessage(typingIndicator, 'Generación interrumpida.', false, false); }
-            else { transformTypingIntoMessage(typingIndicator, ((UI_STRINGS[activeLanguageCode] || UI_DEFAULT).errConexion || '⚠️ Error de conexión. Verifica tu conexión y pulsa el icono ↻ sobre tu mensaje para reintentar.'), false, false); }
+            else {
+                            /* L'errore vero va in console: questo ramo diceva "Errore di
+                               connessione" per qualunque cosa - un 500, una chiave scaduta,
+                               o una funzione del frontend cancellata per sbaglio - e mandava
+                               a cercare il guasto nella rete, l'unico posto dove non c'era. */
+                            console.error('[Aegis] errore reale durante l\'invio:', error); transformTypingIntoMessage(typingIndicator, ((UI_STRINGS[activeLanguageCode] || UI_DEFAULT).errConexion || '⚠️ Error de conexión. Verifica tu conexión y pulsa el icono ↻ sobre tu mensaje para reintentar.'), false, false); }
         } finally {
             currentAbortController = null;
             if (userInputEl) userInputEl.disabled = false;
