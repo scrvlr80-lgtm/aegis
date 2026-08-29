@@ -303,6 +303,18 @@
           return { stato: 'attende_approvazione', anteprima: esito.anteprima, giri: _giri };
         }
         storia.push({ ruolo: 'strumento', nome: risposta.strumento, testo: JSON.stringify(esito.risultato || esito.errore) });
+        /* SE L'UTENTE HA CHIUSO LA PORTA, IL GIRO FINISCE.
+           Un risultato marcato `ferma` non e' un guasto da cui riprendersi:
+           e' una scelta della persona - ha annullato il selettore, ha detto di
+           no. Senza questa uscita il modello lo leggeva come un contrattempo,
+           richiedeva lo stesso strumento, si riapriva la stessa finestra, e si
+           arrivava al tetto dei giri a forza di riproporre una cosa gia'
+           rifiutata. */
+        var _r = esito.risultato;
+        if (_r && _r.ferma) {
+          annota({ tipo: 'fermato', strumento: risposta.strumento });
+          return { stato: 'finito', risposta: String(_r.errore || 'operazione annullata'), giri: _giri };
+        }
         continue;
       }
       annota({ tipo: 'fine', giri: _giri });
@@ -378,11 +390,9 @@
         // Passa dalla stessa porta di tutti: cosi' vale anche qui il
         // ricordo dell'ultima cartella, invece di ripartire da Documenti.
         await _apriCartella(a && a.cartella);
-        var permesso = await _cartella.queryPermission({ mode: 'readwrite' });
-        if (permesso !== 'granted') {
-          permesso = await _cartella.requestPermission({ mode: 'readwrite' });
-          if (permesso !== 'granted') return { errore: 'permesso negato sulla cartella' };
-        }
+        // Il permesso lo verifica gia' _apriCartella, che sa anche riusare
+        // quello concesso nelle sessioni precedenti. Rifarlo qui significava
+        // chiedere due volte la stessa cosa.
 
         var nome = _nomeSicuro(a.nome || 'documento.txt');
         var esistenti = [];
@@ -403,7 +413,14 @@
         await w.close();
         return { scritto: nome, cartella: _cartella.name, byte: testo.length };
       } catch (e) {
-        if (e && e.name === 'AbortError') return { errore: 'nessuna cartella scelta' };
+        if (e && (e.name === 'AbortError' || e.annullato))
+          /* ANNULLATO E' UNA RISPOSTA, NON UN GUASTO.
+             Restituendo un errore semplice il modello lo leggeva come
+             "riprova": richiedeva lo strumento, si riapriva il selettore,
+             l'utente annullava di nuovo, e si andava avanti fino al tetto
+             dei giri. Questo marchio ferma il ciclo: chi ha chiuso la
+             finestra ha gia' detto quello che voleva dire. */
+          return { errore: 'nessuna cartella scelta', ferma: true };
         return { errore: 'non sono riuscito a scrivere: ' + (e && e.message) };
       }
     }
@@ -510,26 +527,99 @@
     return null;
   }
 
+  /* ====== LA CARTELLA SI CHIEDE UNA VOLTA SOLA, NON A OGNI AVVIO =========
+     _cartella stava solo in memoria. Bastava ricaricare la pagina e spariva,
+     quindi il selettore tornava a chiedere la stessa cartella di ieri, e di
+     stamattina, e di dieci minuti fa. Da fuori sembra che non impari niente.
+     Un FileSystemDirectoryHandle si puo' SALVARE in IndexedDB: non e' una
+     copia del percorso, e' proprio l'autorizzazione, e sopravvive alla
+     chiusura del browser. Al ritorno si chiede al browser se vale ancora:
+     se dice 'granted' si usa e basta; se dice 'prompt' serve un solo permesso
+     - una riga sola, non il selettore - e siamo dentro il clic di conferma,
+     quindi il momento e' quello giusto.
+     Il selettore torna solo se l'autorizzazione e' stata revocata o se serve
+     un'altra cartella. */
+  var _IDB = 'aegis_cartelle', _CHIAVE = 'ultima';
+  function _idb() {
+    return new Promise(function (ok, ko) {
+      var r = indexedDB.open(_IDB, 1);
+      r.onupgradeneeded = function () {
+        if (!r.result.objectStoreNames.contains('h')) r.result.createObjectStore('h');
+      };
+      r.onsuccess = function () { ok(r.result); };
+      r.onerror = function () { ko(r.error); };
+    });
+  }
+  function _ricorda(h) {
+    return _idb().then(function (db) {
+      return new Promise(function (ok) {
+        try {
+          var t = db.transaction('h', 'readwrite');
+          t.objectStore('h').put(h, _CHIAVE);
+          t.oncomplete = function () { ok(true); };
+          t.onerror = function () { ok(false); };
+        } catch (e) { ok(false); }
+      });
+    }).catch(function () { return false; });
+  }
+  function _ricordata() {
+    return _idb().then(function (db) {
+      return new Promise(function (ok) {
+        try {
+          var q = db.transaction('h', 'readonly').objectStore('h').get(_CHIAVE);
+          q.onsuccess = function () { ok(q.result || null); };
+          q.onerror = function () { ok(null); };
+        } catch (e) { ok(null); }
+      });
+    }).catch(function () { return null; });
+  }
+  function _dimentica() {
+    return _idb().then(function (db) {
+      try { db.transaction('h', 'readwrite').objectStore('h').delete(_CHIAVE); } catch (e) {}
+    }).catch(function () {});
+  }
+
   async function _apriCartella(suggerimento) {
     if (!root.showDirectoryPicker) throw new Error('Servono Chrome o Edge per aprire una cartella.');
+
+    // 1) Quella di questa sessione.
+    if (_cartella && await _valida(_cartella)) return _cartella;
+
+    // 2) Quella salvata dalle volte scorse: niente selettore, al massimo un
+    //    permesso da riconfermare.
     if (!_cartella) {
-      var opz = { mode: 'readwrite', id: 'aegis-cartelle' };
-      var r = _radiceDa(suggerimento);
-      if (r) opz.startIn = r;
-      try { _cartella = await root.showDirectoryPicker(opz); }
-      catch (e) {
-        // startIn e id sono recenti: su un browser che non li conosce si
-        // riprova senza, invece di far fallire tutta l'operazione.
-        if (e && e.name === 'AbortError') throw e;
-        _cartella = await root.showDirectoryPicker({ mode: 'readwrite' });
+      var salvata = await _ricordata();
+      if (salvata && await _valida(salvata)) { _cartella = salvata; return _cartella; }
+      if (salvata) await _dimentica();       // revocata: non serve piu' a niente
+    }
+
+    // 3) Solo adesso si disturba l'utente.
+    var opz = { mode: 'readwrite', id: 'aegis-cartelle' };
+    var r = _radiceDa(suggerimento);
+    if (r) opz.startIn = r;
+    try { _cartella = await root.showDirectoryPicker(opz); }
+    catch (e) {
+      if (e && e.name === 'AbortError') { e.annullato = true; throw e; }
+      try { _cartella = await root.showDirectoryPicker({ mode: 'readwrite' }); }
+      catch (e2) {
+        if (e2 && e2.name === 'AbortError') e2.annullato = true;
+        throw e2;
       }
     }
-    var p = await _cartella.queryPermission({ mode: 'readwrite' });
-    if (p !== 'granted') {
-      p = await _cartella.requestPermission({ mode: 'readwrite' });
-      if (p !== 'granted') throw new Error('permesso negato sulla cartella');
-    }
+    if (!await _valida(_cartella)) throw new Error('permesso negato sulla cartella');
+    await _ricorda(_cartella);               // la prossima volta non si chiede
     return _cartella;
+  }
+
+  // Vale ancora? Prima si guarda, poi semmai si chiede: chiedere quando e'
+  // gia' concesso fa comparire una riga inutile.
+  async function _valida(h) {
+    try {
+      var p = await h.queryPermission({ mode: 'readwrite' });
+      if (p === 'granted') return true;
+      p = await h.requestPermission({ mode: 'readwrite' });
+      return p === 'granted';
+    } catch (e) { return false; }
   }
 
   /* SCENDERE IN UN SOTTOPERCORSO, UN SEGMENTO ALLA VOLTA.
@@ -543,19 +633,78 @@
      l'utente ha scelto. Se non c'e' corrispondenza si resta nella cartella
      scelta, che e' l'unica davvero autorizzata. */
   async function _scendi(dir, percorso) {
+    var pezzi = _segmenti(dir, percorso);
+    if (!pezzi.length) return dir;
+    // 1) La strada dritta: segmento per segmento, come sta scritto.
+    var d = dir, ok = true;
+    for (var k = 0; k < pezzi.length; k++) {
+      try { d = await d.getDirectoryHandle(pezzi[k]); }
+      catch (e) { ok = false; break; }
+    }
+    if (ok) return d;
+
+    /* 2) LA STRADA VERA, quando la prima non porta da nessuna parte.
+       Il percorso e' scritto nella lingua di Windows, la cartella si chiama
+       come la vede l'utente: su un sistema in spagnolo il percorso dice
+       "Desktop" ma la cartella scelta si chiama "Escritorio". Nessun taglio
+       per nome puo' funzionare, e il risultato era che si scendeva a vuoto e
+       si finiva per elencare la cartella sbagliata.
+       Quindi si smette di seguire il percorso alla lettera e si cerca cio'
+       che conta davvero: l'ULTIMO segmento, il nome della cartella di
+       destinazione, fra i discendenti di quella autorizzata. "AEGIS PII" si
+       trova subito sotto Escritorio, e non importa come Windows chiami il
+       resto della strada. */
+    var bersaglio = pezzi[pezzi.length - 1];
+    var trovata = await _cerca(dir, bersaglio, 3);
+    if (trovata) return trovata;
+    throw new Error('dentro "' + dir.name + '" non c\u2019e\u2019 nessuna cartella "' + bersaglio + '"');
+  }
+
+  /* I segmenti utili di un percorso, tolta l'unita' e tolta la parte che
+     precede la cartella gia' aperta (quando si riesce a riconoscerla, anche
+     tradotta). */
+  var _ALIAS = {
+    desktop: ['desktop', 'escritorio', 'scrivania', 'bureau', 'schreibtisch'],
+    documents: ['documents', 'documenti', 'documentos', 'dokumente'],
+    downloads: ['downloads', 'download', 'descargas', 'scaricati', 'telechargements']
+  };
+  function _stessoNome(a, b) {
+    a = String(a || '').toLowerCase(); b = String(b || '').toLowerCase();
+    if (a === b) return true;
+    for (var k in _ALIAS) {
+      if (_ALIAS[k].indexOf(a) !== -1 && _ALIAS[k].indexOf(b) !== -1) return true;
+    }
+    return false;
+  }
+  function _segmenti(dir, percorso) {
     var p = String(percorso || '').trim();
-    if (!p) return dir;
+    if (!p) return [];
     p = p.replace(/^[a-zA-Z]:/, '');                 // via la lettera di unita'
     var pezzi = p.split(/[\\/]+/).filter(function (x) { return x && x !== '.'; });
-    // Se il percorso nomina la cartella gia' aperta, si riparte da subito
-    // dopo: con "AEGIS PII" gia' scelta non si cerca "AEGIS PII" dentro se'.
-    var i = pezzi.lastIndexOf(dir.name);
-    if (i !== -1) pezzi = pezzi.slice(i + 1);
-    for (var k = 0; k < pezzi.length; k++) {
-      try { dir = await dir.getDirectoryHandle(pezzi[k]); }
-      catch (e) { throw new Error('dentro "' + dir.name + '" non c\u2019e\u2019 nessuna cartella "' + pezzi[k] + '"'); }
+    // Il confronto e' per ALIAS, non per stringa: "Desktop" nel percorso e
+    // "Escritorio" come nome della cartella sono la stessa cosa.
+    for (var i = pezzi.length - 1; i >= 0; i--) {
+      if (_stessoNome(pezzi[i], dir.name)) { pezzi = pezzi.slice(i + 1); break; }
     }
-    return dir;
+    return pezzi;
+  }
+
+  /* Cerca una cartella per nome fra i discendenti, in ampiezza. In ampiezza e
+     non in profondita' perche' quella giusta e' quasi sempre vicina: cosi' la
+     si trova al primo livello invece di infilarsi in un ramo lungo. */
+  async function _cerca(dir, nome, dentro) {
+    var coda = [{ h: dir, d: 0 }], visti = 0;
+    while (coda.length) {
+      var n = coda.shift();
+      if (n.d > dentro) continue;
+      for await (var v of n.h.values()) {
+        if (v.kind !== 'directory') continue;
+        if (_stessoNome(v.name, nome)) return v;
+        if (++visti > 600) return null;      // un tetto, per non frugare tutto il disco
+        if (n.d < dentro) coda.push({ h: v, d: n.d + 1 });
+      }
+    }
+    return null;
   }
 
   /* Enumera in profondita'. Chi chiede "cosa c'e' dentro" intende dentro
@@ -620,7 +769,7 @@
               try { dir = await _scendi(dir, a.sottocartella); }
               catch (e2) { avviso = String(e2.message || e2) + ' Elenco la cartella che hai scelto.'; }
             } catch (e3) {
-              if (e3 && e3.name === 'AbortError') return { errore: 'nessuna cartella scelta' };
+              if (e3 && (e3.name === 'AbortError' || e3.annullato)) return { errore: 'nessuna cartella scelta', ferma: true };
               throw e3;
             }
           }
@@ -642,7 +791,14 @@
         if (note.length) out.nota = note.join(' ');
         return out;
       } catch (e) {
-        if (e && e.name === 'AbortError') return { errore: 'nessuna cartella scelta' };
+        if (e && (e.name === 'AbortError' || e.annullato))
+          /* ANNULLATO E' UNA RISPOSTA, NON UN GUASTO.
+             Restituendo un errore semplice il modello lo leggeva come
+             "riprova": richiedeva lo strumento, si riapriva il selettore,
+             l'utente annullava di nuovo, e si andava avanti fino al tetto
+             dei giri. Questo marchio ferma il ciclo: chi ha chiuso la
+             finestra ha gia' detto quello che voleva dire. */
+          return { errore: 'nessuna cartella scelta', ferma: true };
         return { errore: String(e && e.message || e) };
       }
     }
@@ -673,7 +829,14 @@
         return { file: a.nome, caratteri: grezzo.length, testo_mascherato: m.slice(0, 12000) };
       } catch (e) {
         if (e && e.name === 'NotFoundError') return { errore: 'file non trovato: ' + a.nome };
-        if (e && e.name === 'AbortError') return { errore: 'nessuna cartella scelta' };
+        if (e && (e.name === 'AbortError' || e.annullato))
+          /* ANNULLATO E' UNA RISPOSTA, NON UN GUASTO.
+             Restituendo un errore semplice il modello lo leggeva come
+             "riprova": richiedeva lo strumento, si riapriva il selettore,
+             l'utente annullava di nuovo, e si andava avanti fino al tetto
+             dei giri. Questo marchio ferma il ciclo: chi ha chiuso la
+             finestra ha gia' detto quello che voleva dire. */
+          return { errore: 'nessuna cartella scelta', ferma: true };
         return { errore: String(e && e.message || e) };
       }
     }
