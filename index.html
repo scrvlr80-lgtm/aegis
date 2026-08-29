@@ -15012,7 +15012,21 @@ if (recognition) {
     return t || 'Conversazione';
   }
 
+  /* IL RIPRISTINO NON DEVE RISCRIVERE QUELLO CHE STA LEGGENDO.
+     aggancia() avvolge aegisUtente e aegisModello per salvare ogni turno sul
+     dispositivo. Ma carica() chiama proprio quelle due funzioni per rimettere
+     in piedi lo specchio: ogni ricaricamento risalvava in coda tutti i
+     messaggi che aveva appena letto, e la conversazione raddoppiava. Al
+     ricaricamento dopo, quadruplicava.
+     E' anche il motivo per cui la stessa domanda ricompariva da sola dopo un
+     reload, senza che nessuno l'avesse rimandata: non era un doppio invio,
+     era la cronologia che si era gonfiata da sé.
+     Questa bandiera dice a salvaTurno che quello che sta passando non e' un
+     turno nuovo, e' un turno vecchio che sta tornando a casa. */
+  var _inRipristino = false;
+
   function salvaTurno(ruolo, testo) {
+    if (_inRipristino) return;
     if (!testo || !String(testo).trim()) return;
     var lista = leggi();
     var i = -1, k;
@@ -15219,12 +15233,21 @@ if (recognition) {
       daRimascherare.push(m);
     });
     setTimeout(function () {
-      daRimascherare.forEach(function (m) {
-        try {
-          if (m.role === 'user' && window.aegisUtente) window.aegisUtente(m.content);
-          else if (window.aegisModello) window.aegisModello(m.content);
-        } catch (e) {}
-      });
+      // Lo specchio si ricostruisce passando dalle stesse porte della chat,
+      // ed e' giusto: sono quelle che sanno mascherare e congelare il verbale.
+      // Ma quelle porte salvano anche, e qui NON si deve salvare niente:
+      // questi messaggi vengono dall'archivio, non ci stanno tornando dentro.
+      _inRipristino = true;
+      try {
+        daRimascherare.forEach(function (m) {
+          try {
+            if (m.role === 'user' && window.aegisUtente) window.aegisUtente(m.content);
+            else if (window.aegisModello) window.aegisModello(m.content);
+          } catch (e) {}
+        });
+      } finally {
+        _inRipristino = false;
+      }
     }, 30);
     setTimeout(function () {
       var cm = document.getElementById('chat-messages');
