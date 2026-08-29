@@ -1987,6 +1987,30 @@ body {
        specchio - perche' non e' un turno della conversazione: e' il rumore
        del lavoro in corso. Sparisce di significato appena arriva la
        risposta, e va bene cosi'. */
+    /* ====== L'ETICHETTA DELLA LINGUA SE NE VA, COMUNQUE SIA SCRITTA ======
+       Il modello mette in testa alla risposta un'etichetta con la lingua
+       rilevata, e il frontend la toglie prima di mostrarla. Era scritto con
+       la stessa espressione regolare copiata in OTTO punti, e tutte e otto
+       cercavano esattamente la parola LANG. Il modello ha scritto LAT, e
+       nessuna delle otto l'ha presa: l'etichetta e' comparsa in faccia
+       all'utente.
+       Il difetto vero non e' la parola sbagliata - i modelli sbagliano, e' il
+       loro mestiere - ma otto copie della stessa regola, che nessuno puo'
+       correggere tutte insieme. Adesso e' una sola, e accetta le varianti che
+       i modelli producono davvero. La regione e' facoltativa: "it" vale
+       quanto "it-IT". */
+    const RX_ETICHETTA_LINGUA = /\[\s*(?:LANG|LANGUAGE|LANGUAGES|LAT|LNG|IDIOMA|LINGUA|LANGUE|SPRACHE)\s*[:=\-]?\s*([a-zA-Z]{2,3}(?:[-_][a-zA-Z]{2,4})?)\s*\]/i;
+    window.aegisTogliLingua = function (testo) {
+        var t = String(testo || '');
+        var m = t.match(RX_ETICHETTA_LINGUA);
+        if (!m) return { testo: t, lingua: null };
+        // Si toglie ovunque compaia, non solo la prima: capita che il modello
+        // la ripeta a meta' risposta quando cambia argomento.
+        var pulito = t.replace(new RegExp(RX_ETICHETTA_LINGUA.source, 'gi'), '').trim();
+        return { testo: pulito, lingua: String(m[1] || '').replace('_', '-') };
+    };
+    window.aegisPuliscoLingua = function (testo) { return window.aegisTogliLingua(testo).testo; };
+
     window.aegisPassoChat = function (testo) {
         try {
             var cm = document.getElementById('chat-messages');
@@ -2603,13 +2627,13 @@ body {
             if (histData.history && histData.history.length > 0) {
                 const firstMsg = histData.history[0];
                 let firstText = firstMsg.message;
-                if (firstMsg.role === 'assistant') firstText = firstText.replace(/\[LANG:\s*([a-zA-Z]{2,3}-[a-zA-Z]{2,4})\]/i, '').trim();
+                if (firstMsg.role === 'assistant') firstText = window.aegisPuliscoLingua(firstText);
                 transformTypingIntoMessage(loadingEl, firstText, firstMsg.role === 'assistant', firstMsg.role === 'user');
                 conversationHistory.push({ role: firstMsg.role, content: firstMsg.message });
                 for (let i = 1; i < histData.history.length; i++) {
                     const msg = histData.history[i];
                     let messageText = msg.message;
-                    if (msg.role === 'assistant') messageText = messageText.replace(/\[LANG:\s*([a-zA-Z]{2,3}-[a-zA-Z]{2,4})\]/i, '').trim();
+                    if (msg.role === 'assistant') messageText = window.aegisPuliscoLingua(messageText);
                     addMessageToChat(messageText, msg.role === 'user' ? 'user-message' : 'bot-message', msg.role === 'assistant', false);
                     conversationHistory.push({ role: msg.role, content: msg.message });
                 }
@@ -2661,7 +2685,7 @@ body {
             const d = await r.json();
             const txt = (d.history || []).map(m => {
                 let t = m.message;
-                if (m.role === 'assistant') t = t.replace(/\[LANG:\s*([a-zA-Z]{2,3}-[a-zA-Z]{2,4})\]/i, '').trim();
+                if (m.role === 'assistant') t = window.aegisPuliscoLingua(t);
                 return (m.role === 'user' ? '👤 ' : '🤖 ') + t;
             }).join('\n\n');
             await navigator.clipboard.writeText(txt);
@@ -2931,9 +2955,9 @@ body {
             if (!response.ok) throw new Error("Error");
             const data = await response.json();
             let botReplyText = data.choices[0].message.content || "Error.";
-            const langTagRegex = /\[LANG:\s*([a-zA-Z]{2,3}-[a-zA-Z]{2,4})\]/i;
-            const match = botReplyText.match(langTagRegex);
-            if (match) { const dl = match[1]; botReplyText = botReplyText.replace(langTagRegex, '').trim(); applyGlobalLanguage(dl, false); activeLanguageCode = dl; chipsRetired = true; if (typeof hideChips === 'function') hideChips(); }
+            const _et = window.aegisTogliLingua(botReplyText);
+            botReplyText = _et.testo;
+            if (_et.lingua) { const dl = _et.lingua; applyGlobalLanguage(dl, false); activeLanguageCode = dl; chipsRetired = true; if (typeof hideChips === 'function') hideChips(); }
             if (window.aegisModello) botReplyText = window.aegisModello(botReplyText);
             conversationHistory.push({ role: "assistant", content: botReplyText });
             transformTypingIntoMessage(typingIndicator, botReplyText, true, false);
@@ -2977,13 +3001,13 @@ body {
                 historyRetrieved = true;
                 const firstMsg = historyData.history[0];
                 let firstText = firstMsg.message;
-                if (firstMsg.role === 'assistant') firstText = firstText.replace(/\[LANG:\s*([a-zA-Z]{2,3}-[a-zA-Z]{2,4})\]/i, '').trim();
+                if (firstMsg.role === 'assistant') firstText = window.aegisPuliscoLingua(firstText);
                 transformTypingIntoMessage(loadingIndicator, firstText, firstMsg.role === 'assistant', firstMsg.role === 'user');
                 loadingIndicator = null;
                 for (let i = 1; i < historyData.history.length; i++) {
                     const msg = historyData.history[i];
                     let messageText = msg.message;
-                    if (msg.role === 'assistant') messageText = messageText.replace(/\[LANG:\s*([a-zA-Z]{2,3}-[a-zA-Z]{2,4})\]/i, '').trim();
+                    if (msg.role === 'assistant') messageText = window.aegisPuliscoLingua(messageText);
                     addMessageToChat(messageText, msg.role === 'user' ? 'user-message' : 'bot-message', msg.role === 'assistant', false);
                 }
                 conversationHistory = []; if(window.aegisReset) window.aegisReset();
@@ -4376,9 +4400,9 @@ body {
             if (!response.ok) throw new Error("Error");
             const data = await response.json();
             let botReplyText = data.choices[0].message.content || "Error.";
-            const langTagRegex = /\[LANG:\s*([a-zA-Z]{2,3}-[a-zA-Z]{2,4})\]/i;
-            const match = botReplyText.match(langTagRegex);
-            if (match) { const dl = match[1]; botReplyText = botReplyText.replace(langTagRegex, '').trim(); applyGlobalLanguage(dl, false); activeLanguageCode = dl; chipsRetired = true; if (typeof hideChips === 'function') hideChips(); }
+            const _et = window.aegisTogliLingua(botReplyText);
+            botReplyText = _et.testo;
+            if (_et.lingua) { const dl = _et.lingua; applyGlobalLanguage(dl, false); activeLanguageCode = dl; chipsRetired = true; if (typeof hideChips === 'function') hideChips(); }
 
             /* ====== IL MODELLO HA CHIESTO UNO STRUMENTO ==================
                Qui si decide se questo turno e' una conversazione o un lavoro.
@@ -4816,9 +4840,9 @@ body {
             if (!response.ok) throw new Error("Error");
             const data = await response.json();
             let botReplyText = (data && data.reply) ? data.reply : 'No he podido analizar la imagen.';
-            const langTagRegex = /\[LANG:\s*([a-zA-Z]{2,3}-[a-zA-Z]{2,4})\]/i;
-            const match = botReplyText.match(langTagRegex);
-            if (match) { const dl = match[1]; botReplyText = botReplyText.replace(langTagRegex, '').trim(); applyGlobalLanguage(dl, false); activeLanguageCode = dl; chipsRetired = true; if (typeof hideChips === 'function') hideChips(); }
+            const _et = window.aegisTogliLingua(botReplyText);
+            botReplyText = _et.testo;
+            if (_et.lingua) { const dl = _et.lingua; applyGlobalLanguage(dl, false); activeLanguageCode = dl; chipsRetired = true; if (typeof hideChips === 'function') hideChips(); }
             if (window.aegisModello) botReplyText = window.aegisModello(botReplyText);
             conversationHistory.push({ role: "assistant", content: botReplyText });
             transformTypingIntoMessage(typingIndicator, botReplyText, true, false);
@@ -16740,6 +16764,23 @@ if (recognition) {
       dx: document.getElementById('chat-messages')
     };
   }
+  /* LE DUE COPPIE SONO DUE, E NON SI MESCOLANO.
+     Le colonne che si ancorano sono la conversazione e il suo specchio.
+     Ma sotto ciascuna c'e' anche un box di scrittura: #user-input a destra,
+     #ag-anteprima al centro. Quelli sono l'uno lo specchio dell'altro - il
+     testo che scrivi e lo stesso testo coperto - e devono scorrere insieme
+     FRA LORO.
+     Prima non era cosi': latoDi() dava 'sx' a qualunque cosa stesse dentro il
+     pannello dello specchio, anteprima compresa, quindi scorrendo l'anteprima
+     si muoveva la CONVERSAZIONE. Due cose che non hanno niente a che vedere
+     legate insieme, e il testo coperto che restava fermo mentre saltava la
+     chat. */
+  function boxPrompt() {
+    return {
+      sx: document.getElementById('ag-anteprima'),
+      dx: document.getElementById('user-input')
+    };
+  }
   function quotaDi(el) {
     var corsa = el.scrollHeight - el.clientHeight;
     return corsa > 0 ? (el.scrollTop / corsa) : 0;
@@ -16782,11 +16823,15 @@ if (recognition) {
 
   /* A quale delle due colonne appartiene l'elemento che ha scorso. Serve
      perche' dentro una colonna puo' scorrere un contenitore diverso da
-     quello che ci aspettiamo (l'anteprima invece dell'elenco, per esempio):
-     invece di non fare niente, si muove comunque l'altra colonna. */
+     quello che ci aspettiamo: invece di non fare niente, si muove comunque
+     l'altra colonna.
+     I box di scrittura sono esclusi apposta: hanno la loro coppia, e finche'
+     stavano qui dentro scorrere l'anteprima faceva saltare la conversazione. */
   function latoDi(el) {
     if (!el || !el.closest) return null;
     try {
+      if (el.closest('#ag-anteprima') || el.closest('#ag-basso') ||
+          el.closest('#chat-input-wrapper') || el.id === 'user-input') return null;
       if (el.closest('#ag-pannello-specchio')) return 'sx';
       if (el.closest('.ag-chat') || el.closest('.chat-container')) return 'dx';
     } catch (e) {}
@@ -16815,6 +16860,8 @@ if (recognition) {
     if (_ancoraAttiva) {
       var c = colonne();
       if (c.sx && c.dx) segui(c.sx, c.dx);
+      var p = boxPrompt();
+      if (p.sx && p.dx) segui(p.dx, p.sx);   // il coperto segue quello che scrivi
     }
   }
 
@@ -16871,6 +16918,14 @@ if (recognition) {
         if (!_ancoraAttiva) return;
         var t = e.target;
         if (!t || t.nodeType !== 1) return;      // lo scorrimento della pagina non ci riguarda
+
+        // PRIMA i box di scrittura: si legano fra loro e la cosa finisce li'.
+        var p = boxPrompt();
+        if (p.sx && p.dx) {
+          if (t === p.sx) { segui(p.sx, p.dx); return; }
+          if (t === p.dx) { segui(p.dx, p.sx); return; }
+        }
+
         var q = colonne();
         if (!q.sx || !q.dx) return;
         if (t === q.sx) { segui(q.sx, q.dx); return; }
