@@ -10588,6 +10588,30 @@ if (recognition) {
         'white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;color:transparent;' +
         'z-index:0;margin:0;font-family:SF Mono,ui-monospace,Menlo,monospace;font-size:12.5px;' +
         'line-height:1.85;padding:14px;box-sizing:border-box}' +
+      /* ====== I COLORI ERANO GIA' SCRITTI, MA NON ARRIVAVANO QUI ==========
+         skDisegnaOmbra() marca ogni dato con la sua classe - ag-om-per,
+         ag-om-city e cosi' via - e le regole di colore esistono da sempre,
+         ma sotto il selettore ".ag-ombra", che e' il contenitore della chat.
+         Il pannello Skills usa ".ag-sk-ombra": altro nome, altro contenitore,
+         nessuna regola che lo raggiunga. Restava il giallo predefinito che i
+         browser danno a <mark>, uguale per tutte le categorie: la colonna di
+         sinistra distingueva nomi, luoghi e contatti con dodici colori, e
+         quella di destra li impastava tutti insieme.
+         Stessi valori della chat, non altri: due tabelle di colori per la
+         stessa cosa divergono al primo ritocco. */
+      '.ag-sk-ombra mark.ag-om{color:transparent;border-radius:3px;padding:0;background:transparent}' +
+      '.ag-sk-ombra mark.ag-om-per{background:rgba(229,72,77,.26)}' +
+      '.ag-sk-ombra mark.ag-om-addr{background:rgba(48,164,108,.26)}' +
+      '.ag-sk-ombra mark.ag-om-city{background:rgba(0,145,255,.24)}' +
+      '.ag-sk-ombra mark.ag-om-date{background:rgba(245,165,36,.30)}' +
+      '.ag-sk-ombra mark.ag-om-bank{background:rgba(142,78,198,.26)}' +
+      '.ag-sk-ombra mark.ag-om-mail{background:rgba(0,162,199,.26)}' +
+      '.ag-sk-ombra mark.ag-om-id{background:rgba(214,64,159,.26)}' +
+      '.ag-sk-ombra mark.ag-om-tech{background:rgba(91,98,112,.26)}' +
+      '.ag-sk-ombra mark.ag-om-med{background:rgba(233,61,130,.26)}' +
+      '.ag-sk-ombra mark.ag-om-org{background:rgba(139,94,60,.26)}' +
+      '.ag-sk-ombra mark.ag-om-altri{background:rgba(110,110,115,.24)}' +
+      '.ag-sk-ombra mark.ag-om-mano{background:rgba(61,61,66,.24)}' +
       '.ag-sk-dx textarea{flex:1 1 auto;min-height:0;border:none;outline:none;resize:none;' +
         'background:transparent;color:var(--text-main);font-family:SF Mono,ui-monospace,Menlo,monospace;' +
         'font-size:12.5px;line-height:1.85;padding:14px;width:100%;box-sizing:border-box}' +
@@ -12625,8 +12649,19 @@ if (recognition) {
     var fuori = '', cursore = 0;
     punti.forEach(function (m) {
       if (m.start < cursore) return;
+      var g = colore(m.token) || 'per';
+      /* LE DUE COLONNE DEVONO DIRE LA STESSA COSA.
+         Spegnendo una categoria dalla legenda, a sinistra il dato torna in
+         chiaro - e' il senso del gesto: far vedere quanto contesto si perde
+         a coprirlo. A destra pero' restava evidenziato, quindi le due colonne
+         raccontavano due stati diversi dello stesso documento e non si
+         capiva piu' che cosa fosse acceso.
+         Un gruppo spento qui non si colora: il testo resta, semplicemente
+         non e' marcato. Nessuna copia del filtro, si legge lo stesso
+         gruppiSpenti della chat. */
+      if (gruppiSpenti[g]) { fuori += esc(testo.slice(cursore, m.end)); cursore = m.end; return; }
       fuori += esc(testo.slice(cursore, m.start));
-      fuori += '<mark class="ag-om ag-om-' + (colore(m.token) || 'per') + '">' +
+      fuori += '<mark class="ag-om ag-om-' + g + '">' +
                esc(testo.slice(m.start, m.end)) + '</mark>';
       cursore = m.end;
     });
