@@ -3065,7 +3065,19 @@ body {
             if (response.status === 402) { conversationHistory.pop(); await gestisci402(response, typingIndicator); return; }
             if (!response.ok) throw new Error("Error");
             const data = await response.json();
-            let botReplyText = data.choices[0].message.content || "Error.";
+            /* "Error." NON DICE NIENTE A NESSUNO.
+               Quando il provider restituisce un contenuto vuoto - un rifiuto
+               silenzioso, una quota finita, un guasto a monte - qui usciva la parola
+               "Error." e basta, indistinguibile da un errore del frontend. Il
+               messaggio all'utente resta comprensibile, ma in console si scrive che
+               cosa e' arrivato davvero, cosi' la prossima volta non si tira a
+               indovinare fra rete, modello e codice. */
+            let botReplyText = (data && data.choices && data.choices[0] && data.choices[0].message)
+                ? data.choices[0].message.content : '';
+            if (!botReplyText) {
+                console.error('[Aegis] il modello ha risposto senza contenuto:', data);
+                botReplyText = 'Non ho ricevuto una risposta dal modello. Riprova, oppure prova un altro modello dal selettore.';
+            }
             const _et = window.aegisTogliLingua(botReplyText);
             botReplyText = _et.testo;
             if (_et.lingua) { const dl = _et.lingua; applyGlobalLanguage(dl, false); activeLanguageCode = dl; chipsRetired = true; if (typeof hideChips === 'function') hideChips(); }
@@ -4581,7 +4593,19 @@ body {
             if (response.status === 402) { conversationHistory.pop(); await gestisci402(response, typingIndicator); return; }
             if (!response.ok) throw new Error("Error");
             const data = await response.json();
-            let botReplyText = data.choices[0].message.content || "Error.";
+            /* "Error." NON DICE NIENTE A NESSUNO.
+               Quando il provider restituisce un contenuto vuoto - un rifiuto
+               silenzioso, una quota finita, un guasto a monte - qui usciva la parola
+               "Error." e basta, indistinguibile da un errore del frontend. Il
+               messaggio all'utente resta comprensibile, ma in console si scrive che
+               cosa e' arrivato davvero, cosi' la prossima volta non si tira a
+               indovinare fra rete, modello e codice. */
+            let botReplyText = (data && data.choices && data.choices[0] && data.choices[0].message)
+                ? data.choices[0].message.content : '';
+            if (!botReplyText) {
+                console.error('[Aegis] il modello ha risposto senza contenuto:', data);
+                botReplyText = 'Non ho ricevuto una risposta dal modello. Riprova, oppure prova un altro modello dal selettore.';
+            }
             const _et = window.aegisTogliLingua(botReplyText);
             botReplyText = _et.testo;
             if (_et.lingua) { const dl = _et.lingua; applyGlobalLanguage(dl, false); activeLanguageCode = dl; chipsRetired = true; if (typeof hideChips === 'function') hideChips(); }
@@ -16316,30 +16340,46 @@ if (recognition) {
      La risposta torna PROTETTA: chi chiama la passa ad aegisModello() come
      sempre, cosi' esiste un solo punto in cui una risposta diventa leggibile
      e finisce nello specchio. Due punti sarebbero due modi di sbagliare. */
-  /* Quello che l'utente legge mentre l'agente lavora. Una frase per
-     strumento e per momento: prima di partire dice che cosa sta per fare,
-     dopo dice com'e' andata. Niente JSON, niente nomi di funzioni - quelli
-     restano nell'audit, che e' il posto giusto per loro. */
+  /* Quello che l'utente legge mentre l'agente lavora. Tre momenti, non due:
+     quando si prepara, quando sta effettivamente lavorando, e quando ha
+     finito. La fase di mezzo esiste perche' e' quella lunga - la scrittura su
+     disco, la conferma da dare - ed e' proprio li' che senza una parola
+     sembra che tutto si sia bloccato.
+     Niente JSON, niente nomi di funzioni: quelli restano nell'audit. */
   var FRASI = {
     'documenti.crea_pdf': { pre: 'Sto preparando il documento...',
-                            post: 'PDF creato.' },
-    'cartelle.scrivi':    { pre: 'Sto scrivendo il file...',
+                            fare: 'Sto scrivendo il contenuto nel PDF...',
+                            post: 'Documento PDF creato.' },
+    'cartelle.scrivi':    { pre: 'Sto preparando il file...',
+                            fare: 'Sto scrivendo il contenuto sul disco...',
                             post: 'File salvato.' },
-    'cartelle.elenca':    { pre: 'Sto leggendo la cartella...',
+    'cartelle.elenca':    { pre: 'Sto aprendo la cartella...',
+                            fare: 'Sto leggendo i file contenuti...',
                             post: 'Cartella letta.' },
     'cartelle.apri':      { pre: 'Sto aprendo il file...',
+                            fare: 'Sto leggendo il contenuto...',
                             post: 'File letto.' },
     'cartelle.cerca':     { pre: 'Sto cercando fra i tuoi documenti...',
-                            post: 'Ricerca finita.' },
-    'documenti.leggi':    { pre: 'Sto leggendo il documento...',
+                            fare: 'Sto confrontando i risultati...',
+                            post: 'Ricerca completata.' },
+    'documenti.leggi':    { pre: 'Sto aprendo il documento...',
+                            fare: 'Sto estraendo il testo...',
                             post: 'Documento letto.' },
-    'codice.esegui':      { pre: 'Sto facendo il calcolo...',
-                            post: 'Calcolo finito.' }
+    'codice.esegui':      { pre: 'Sto preparando il calcolo...',
+                            fare: 'Sto eseguendo...',
+                            post: 'Calcolo completato.' }
   };
   function frase(nome, quando) {
     var f = FRASI[nome];
-    if (f) return f[quando];
-    return quando === 'pre' ? 'Un momento...' : 'Fatto.';
+    if (f && f[quando]) return f[quando];
+    if (quando === 'pre') return 'Un momento...';
+    if (quando === 'fare') return 'Sto lavorando...';
+    return 'Operazione completata.';
+  }
+  // Comodita': dice la frase e basta, senza che chi chiama debba ricordarsi
+  // di controllare che la porta esista.
+  function dillo(nome, quando) {
+    try { if (window.aegisPassoChat) window.aegisPassoChat(frase(nome, quando)); } catch (e) {}
   }
   /* Un risultato puo' contenere un file appena nato. Solo in quel caso
      compare qualcosa in piu' sullo schermo: i due pulsanti per raggiungerlo.
@@ -16371,7 +16411,7 @@ if (recognition) {
        succedendo qualcosa senza cambiare schermo. */
     window.AEGIS_AGENTE_ONLOG = function (v) {
       if (v.tipo === 'lettura' && window.aegisPassoChat) {
-        window.aegisPassoChat(frase(v.strumento, 'pre'));
+        dillo(v.strumento, 'pre');
       }
     };
 
@@ -16392,6 +16432,12 @@ if (recognition) {
          idea e chiedere un'altra cosa. Si esegue quella, si mette il
          risultato nella storia, e il ciclo riprende da li'. */
       if (richiesta && richiesta.strumento) {
+        /* LA PRIMA FRASE VA DETTA QUI, NON DALL'ASCOLTATORE.
+           L'ascoltatore degli eventi reagisce solo alle letture: uno
+           strumento che AGISCE - il PDF, la scrittura - non emette nessun
+           evento di lettura, quindi per quelli non partiva mai una parola e
+           lo schermo restava su "Elaborazione" per tutto il tempo. */
+        dillo(richiesta.strumento, 'pre');
         var primo = await window.AEGIS_AGENTE.invoca(richiesta.strumento, richiesta.args, {});
         if (primo && primo.attende_approvazione) {
           var vai = await window.aegisApprovazione(primo.anteprima);
@@ -16400,6 +16446,9 @@ if (recognition) {
             window.AEGIS_AGENTE_ONLOG = null;
             return { risposta: T('agRifiutato') };
           }
+          // Fra la conferma e il file scritto passa il tempo piu' lungo:
+          // e' proprio qui che serve dire che si sta lavorando.
+          dillo(richiesta.strumento, 'fare');
           var f0 = await window.AEGIS_AGENTE.approva();
           if (f0 && f0.risultato) {
             window.aegisPassoChat(frase(richiesta.strumento, 'post'));
