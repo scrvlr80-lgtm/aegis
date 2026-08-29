@@ -700,6 +700,16 @@ body {
 .ag-ag-passo.att { color:#8b8b90; font-style:italic; padding:3px 4px; }
 .ag-ag-passo.lui { background:#fff; border:1px solid rgba(0,0,0,.1); color:#1d1d1f; }
 .ag-ag-passo.err { background:rgba(176,48,48,.07); color:#b03030; }
+/* Le due righe che portano l'interruttore diventano una colonnina: il testo
+   sopra, il pulsante sotto a destra. Il testo tiene gli a capo, perche' una
+   risposta dell'agente arriva gia' impaginata e senza questo si appiattiva
+   tutta su una riga sola. */
+.ag-ag-passo.io, .ag-ag-passo.lui { display:flex; flex-direction:column; gap:8px; }
+.ag-ag-passo .ag-ag-testo { white-space:pre-wrap; }
+.ag-ag-passo .ag-ag-hl { align-self:flex-end; margin-left:0; flex:none;
+  width:auto; min-width:0; height:22px; padding:0 10px; font-size:9.5px; }
+.ag-ag-passo .ag-ag-hl .ag-lbl { flex:none; }
+.ag-ag-passo .ag-ag-hl .ag-dot { display:none; }
 .ag-ag-appr { border:1px solid rgba(200,140,20,.45); background:rgba(200,140,20,.07);
   border-radius:11px; padding:12px 14px; }
 .ag-ag-appr.ok { border-color:rgba(47,106,82,.45); background:rgba(47,106,82,.07); }
@@ -13506,6 +13516,13 @@ if (recognition) {
   };
   var ETICHETTE={ it:['Evidenzia: on','Evidenzia: off'],
     es:['Resaltado: on','Resaltado: off'], en:['Highlight: on','Highlight: off'] };
+  /* L'etichetta serve anche fuori da questo blocco: il diario dell'agente e'
+     un'altra superficie e costruisce interruttori suoi. Meglio una porta che
+     una quarta copia della stessa tabella, che poi resta indietro di una
+     lingua e nessuno se ne accorge. */
+  window.aegisEtichettaHL = function (acceso) {
+    try { return ETICHETTE[lingua()][acceso ? 0 : 1]; } catch (e) { return ''; }
+  };
   /* Qui c'era una SECONDA function lingua(). Essendo dichiarata nello stesso
      blocco della prima, la sovrascriveva per tutto il file: ogni T() finiva a
      leggere document.documentElement.lang, che nel documento e' fisso a "es" e
@@ -13538,7 +13555,12 @@ if (recognition) {
     window.aegisEvidenzia(div);
   }
   window.aegisToggleHL=function(btn){
-    var msg=btn.closest('.message');
+    /* IL DIARIO E' UNA BOLLA COME LE ALTRE.
+       Qui c'era solo closest('.message'): in modalita' agente la conversazione
+       non sta in .message ma nelle righe del diario, quindi il pulsante non
+       trovava nulla, usciva subito e sembrava rotto. Una classe in piu' nella
+       ricerca e lo stesso interruttore vale per tutte e due le superfici. */
+    var msg=btn.closest('.message, .ag-ag-passo');
     if(!msg) return;
     var on=!btn.classList.contains('on');
     btn.classList.toggle('on', on);
@@ -13550,8 +13572,8 @@ if (recognition) {
   };
   // Ridipinge solo i messaggi con interruttore acceso (fine scrittura, restore).
   window.aegisRiapplica=function(){
-    document.querySelectorAll('.message .ag-toggle.on').forEach(function(b){
-      var msg=b.closest('.message');
+    document.querySelectorAll('.message .ag-toggle.on, .ag-ag-passo .ag-toggle.on').forEach(function(b){
+      var msg=b.closest('.message, .ag-ag-passo');
       if(msg) bersagliDi(msg).forEach(ridipingi);
     });
   };
@@ -15656,6 +15678,48 @@ if (recognition) {
     var v = d.querySelector('.ag-ag-vuoto, .ag-ag-benvenuto'); if (v) v.remove();
     var r = document.createElement('div');
     r.className = 'ag-ag-passo ' + classe;
+
+    /* L'EVIDENZIATORE VALE ANCHE QUI.
+       In modalita' agente #chat-messages e' nascosta, e con lei spariscono le
+       bolle della chat: il pulsante Resaltado stava dentro l'ultima di quelle,
+       quindi spariva anche lui, e con lui i colori sui dati ripristinati. Non
+       era un guasto dell'evidenziatore - era che il diario e' un'altra
+       superficie e nessuno gliel'aveva dato.
+       Lo ricevono solo le due righe che sono davvero conversazione: il compito
+       dell'utente e la risposta. I passi degli strumenti e le attese non
+       contengono dati della persona e un interruttore su ognuna sarebbe solo
+       rumore.
+       Nasce ACCESO, al contrario di quello della chat: li' il messaggio arriva
+       scritto a macchina e i colori si posano alla fine, qui il testo compare
+       tutto insieme e il motivo per cui si guarda il diario e' proprio vedere
+       che cosa e' stato coperto. */
+    if (classe === 'io' || classe === 'lui') {
+      var corpo = document.createElement('div');
+      corpo.className = 'ag-ag-testo';
+      corpo.textContent = testo;
+      r.appendChild(corpo);
+
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'ag-toggle ag-ag-hl on';
+      var etichetta = '';
+      try { if (window.aegisEtichettaHL) etichetta = window.aegisEtichettaHL(true); } catch (e) {}
+      b.innerHTML = '<span class="ag-dot"></span><span class="ag-lbl"></span>';
+      var lbl = b.querySelector('.ag-lbl');
+      if (lbl && etichetta) lbl.textContent = etichetta;
+      b.addEventListener('click', function (e) {
+        e.stopPropagation();
+        try { if (window.aegisToggleHL) window.aegisToggleHL(b); } catch (err) {}
+      });
+      r.appendChild(b);
+
+      d.appendChild(r); d.scrollTop = d.scrollHeight;
+      // Dopo l'inserimento: aegisEvidenzia lavora sui nodi di testo gia' nel
+      // documento, e salta da se' quelli dentro il pulsante.
+      try { if (window.aegisEvidenzia) window.aegisEvidenzia(r); } catch (e) {}
+      return r;
+    }
+
     r.textContent = testo;
     d.appendChild(r); d.scrollTop = d.scrollHeight;
     return r;
