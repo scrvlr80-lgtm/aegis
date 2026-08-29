@@ -4303,8 +4303,15 @@ body {
         handleSendMessage = function() {
             const campo = document.getElementById('user-input');
             const aveTesto = campo && campo.value.trim() !== '';
-            _origHandleSendMessage();
+            /* LA PROMESSA VA RESTITUITA. Prima si chiamava e basta: la
+               funzione dentro e' async, quindi tornava subito e chi stava
+               sopra credeva che il turno fosse finito quando era appena
+               cominciato. Con un lucchetto sull'invio questo lo avrebbe
+               aperto un istante dopo averlo chiuso, cioe' non avrebbe
+               protetto niente. */
+            const p = _origHandleSendMessage();
             if (aveTesto) { chipsRetired = true; hideChips(); }
+            return p;
         };
 
         const _origStartNewChat = startNewChat;
@@ -4324,8 +4331,58 @@ body {
 
     let currentAbortController = null;
 
+    /* ====== UN TURNO ALLA VOLTA ==========================================
+       L'invio non e' una funzione sola: e' una catena. Il punto d'ingresso
+       vero e' l'ultimo avvolgimento - quello dei controlli pre-invio - e
+       prima di arrivare a spedire attende cose lunghe: il parere del modello
+       locale, il controllo dell'ortografia, l'avviso sui sospetti, e adesso
+       anche la revisione dei surrogati. Sono tutti dialoghi aperti sullo
+       schermo, e in quel tempo il campo e' ancora pieno e il pulsante ancora
+       vivo: un secondo clic, o un Invio dato mentre si guarda il dialogo,
+       fa partire un turno intero in parallelo. Da qui i messaggi doppi.
+       Il lucchetto sta qui, fuori da tutti gli avvolgimenti, cosi' non
+       importa quanti ce ne siano ne' in che ordine si aggancino. Lo prende
+       il primo che passa e lo rilascia lo stesso, in finally.
+       NON e' un confronto sul testo: due messaggi identici mandati in due
+       momenti diversi devono passare tutti e due. Qui si blocca solo la
+       seconda chiamata mentre la prima e' ancora in corso. */
+    window.aegisInvio = (function () {
+        var attivo = false, passaggio = false;
+        return {
+            // Lo prende chi apre il turno dall'esterno.
+            prova: function () { if (attivo) return false; attivo = true; return true; },
+            // "Sto scendendo io": lo dice chi ha gia' il lucchetto, un attimo
+            // prima di chiamare l'anello successivo della catena. Senza questo
+            // l'anello sotto non saprebbe distinguere il proprio passaggio -
+            // legittimo - da una seconda chiamata arrivata da fuori, che va
+            // invece fermata.
+            passa: function () { passaggio = true; },
+            entra: function () {
+                if (passaggio) { passaggio = false; return 'ospite'; }
+                if (attivo) return null;
+                attivo = true; return 'padrone';
+            },
+            fine: function () { attivo = false; passaggio = false; },
+            inCorso: function () { return attivo; }
+        };
+    })();
+
     async function handleSendMessage() {
         if (!userInput) return;
+        /* Se l'avvolgimento esterno e' agganciato, il lucchetto ce l'ha gia'
+           lui e qui si passa come ospiti. Se non lo e' - si aggancia solo
+           quando il pannello e' pronto - lo si prende qui. In tutti e due i
+           casi una seconda chiamata concorrente trova la porta chiusa, e chi
+           apre e' anche chi chiude. */
+        var _ruolo = window.aegisInvio ? window.aegisInvio.entra() : 'padrone';
+        if (!_ruolo) return;
+        try {
+            return await _invioVero();
+        } finally {
+            if (_ruolo === 'padrone' && window.aegisInvio) window.aegisInvio.fine();
+        }
+    }
+    async function _invioVero() {
         // QUI si chiede chi sei, non prima. Il testo scritto resta dov'e': se
         // l'utente entra, il messaggio parte da solo; se cambia idea, non ha
         // perso niente.
@@ -11742,6 +11799,16 @@ if (recognition) {
         '<div class="ag-avviso">' +
           '<h3>' + T('ortTitolo', { n: elenco.length }) + '</h3>' +
           '<p>' + T('ortTesto') + '</p>' +
+          /* GLI STESSI DUE PULSANTI DELL'ALTRO AVVISO. C'erano di la' e non
+             qui, ed e' la stessa identica azione: su un elenco di dieci
+             correzioni, spuntarle o toglierle una per una e' lavoro inutile.
+             Stesse etichette, stessa classe, stesso comportamento: due
+             pannelli che chiedono la stessa cosa devono chiederla allo
+             stesso modo. */
+          '<div class="ag-av-strumenti">' +
+            '<button type="button" class="ag-av-mini" data-a="tutte">' + T('avvTutte') + '</button>' +
+            '<button type="button" class="ag-av-mini" data-a="nessuna">' + T('avvNessuna') + '</button>' +
+          '</div>' +
           '<div class="ag-av-lista">' + righe + '</div>' +
           '<label class="ag-av-spunta"><input type="checkbox" id="ag-ort-mai"> ' + T('avvMai') + '</label>' +
           '<div class="ag-av-bottoni">' +
@@ -11761,6 +11828,19 @@ if (recognition) {
         }
         var b = e.target.closest('button'); if (!b) return;
         var a = b.getAttribute('data-a');
+        /* Questi due non chiudono niente: cambiano le spunte e basta. Senza
+           questa uscita anticipata finivano in fondo, dove ogni pulsante
+           risolve la promessa, e premere "tutte" avrebbe inviato. */
+        if (a === 'tutte' || a === 'nessuna') {
+          var acceso = (a === 'tutte');
+          elenco.forEach(function (x, i) {
+            if (!x.proposta) return;             // le righe senza proposta non si spuntano
+            scelte[i] = acceso;
+            var r = ov.querySelector('.ag-av-riga[data-i="' + i + '"]');
+            if (r) r.classList.toggle('sel', acceso);
+          });
+          return;
+        }
         if (document.getElementById('ag-ort-mai').checked) spegniAvviso('ortografia', true);
         ov.remove();
         risolvi({ scelta: a, quali: elenco.filter(function(x, i){ return scelte[i] && x.proposta; }) });
@@ -11880,6 +11960,17 @@ if (recognition) {
     agganciaAvviso._fatto = true;
     var originale = window.handleSendMessage;
     window.handleSendMessage = async function(){
+      /* IL LUCCHETTO SI PRENDE QUI, PRIMA DI QUALSIASI ATTESA.
+         Questo e' il punto d'ingresso vero dell'invio, ed e' anche quello che
+         apre i dialoghi: il parere del modello, l'ortografia, i sospetti, la
+         revisione dei surrogati. Ognuno di quelli e' un momento in cui
+         l'utente puo' premere Invio o cliccare di nuovo, e senza il lucchetto
+         partiva un secondo turno completo accanto al primo. */
+      if (!window.aegisInvio || !window.aegisInvio.prova()) return;
+      // Il pulsante si spegne subito, non alla fine dei controlli: vederlo
+      // ancora acceso mentre un dialogo e' aperto e' un invito a ricliccare.
+      var _sb = document.getElementById('send-btn');
+      if (_sb) _sb.disabled = true;
       try {
         var campo = document.getElementById('user-input');
         var testo = campo ? campo.value.trim() : '';
@@ -11923,7 +12014,17 @@ if (recognition) {
           }
         }
       } catch (e) { console.error('[Aegis] avviso pre-invio:', e && e.message); }
-      return originale.apply(this, arguments);
+      /* Si ASPETTA il turno vero prima di rilasciare. Senza await il
+         lucchetto si aprirebbe mentre la richiesta e' ancora in volo, che e'
+         esattamente il momento in cui non deve aprirsi. */
+      try {
+        window.aegisInvio.passa();
+        return await originale.apply(this, arguments);
+      } finally {
+        window.aegisInvio.fine();
+        var sb2 = document.getElementById('send-btn');
+        if (sb2 && sb2.style.display !== 'none') sb2.disabled = false;
+      }
     };
   }
 
