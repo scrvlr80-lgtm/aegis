@@ -1944,6 +1944,37 @@ body {
     // cosi' il selettore del pannello sparisce solo dopo una scelta reale.
     let userLangPicked = (safeStorage.getSession('bistro_session_lang') ? true : false);
     let conversationHistory = []; if(window.aegisReset) window.aegisReset();
+
+    /* ====== LA MEMORIA DELLA CONVERSAZIONE, UNA SOLA ======================
+       conversationHistory e' cio' che la chat manda davvero al modello: passa
+       da aegisMaskHistory e diventa il campo `messages` di /api/chat. Non e'
+       una copia dello specchio ed e' meglio dello specchio per questo scopo,
+       perche' lo specchio conserva la forma [[TIPO_NN]] mentre cio' che ESCE
+       passa anche da surrogaUscita e diventa @pe01@. Sono due vocabolari: se
+       l'agente ne usasse uno e la chat l'altro, nella stessa conversazione il
+       modello si troverebbe davanti due sistemi di codici per le stesse
+       persone, e il ripristino al ritorno diventerebbe un terno al lotto.
+       Il difetto era solo che questa lista e' `let` di blocco: da qui non
+       usciva, e la modalita' agente - che vive in un altro blocco - non
+       poteva vederla. Due porte, in lettura e in scrittura, e la memoria
+       resta una sola per tutte e due le superfici.
+       Esce SEMPRE mascherata: il vault non passa di qui. */
+    window.aegisMemoriaChat = function (quanti) {
+        try {
+            var n = Number(quanti) > 0 ? Number(quanti) : 8;
+            var fetta = conversationHistory.slice(-n);
+            return window.aegisMaskHistory ? window.aegisMaskHistory(fetta) : fetta;
+        } catch (e) { return []; }
+    };
+    window.aegisMemoriaAggiungi = function (ruolo, testo) {
+        try {
+            var t = String(testo || '');
+            if (!t.trim()) return false;
+            conversationHistory.push({ role: ruolo === 'assistant' ? 'assistant' : 'user', content: t });
+            return true;
+        } catch (e) { return false; }
+    };
+
     let currentTypingMsg = '';
     let activeTypingIntervals = [];
     let isInitializing = false;
@@ -13341,37 +13372,17 @@ if (recognition) {
   };
   window.aegisDecodifica=decodifica;
 
-  /* ============ LO SPECCHIO E' LA MEMORIA ===============================
-     `righe` non e' un elenco per il disegno: e' la conversazione, gia'
-     protetta, turno per turno, e ripristina() la rimette in piedi anche dopo
-     un ricaricamento. Fuori da questo blocco non esiste, e per questo la
-     modalita' agente non la vedeva: partiva dal solo compito, e chi aveva
-     appena incollato un documento si sentiva rispondere che non era stato
-     fornito alcun testo.
-     Questa e' la porta, e da' quello che deve dare: SOLO il coperto. Il vault
-     resta dov'e'. Non c'e' niente da recuperare in chiaro, niente da salvare
-     sul server, nessuna deroga al noLog: cio' che esce di qui e' gia' cio'
-     che l'utente ha visto partire.
-     Il tetto e' in caratteri, non in messaggi: un solo documento incollato
-     puo' pesare piu' di venti scambi, e a contare i messaggi si taglierebbe
-     proprio la cosa da ricordare. Si tengono i turni piu' recenti. */
-  window.aegisSpecchioStoria = function (tettoCaratteri) {
-    try {
-      var tetto = Number(tettoCaratteri) > 0 ? Number(tettoCaratteri) : 24000;
-      var fuori = [], spesi = 0;
-      for (var i = righe.length - 1; i >= 0; i--) {
-        var t = String((righe[i] && righe[i].testo) || '');
-        if (!t) continue;
-        if (spesi && spesi + t.length > tetto) break;
-        // Un unico messaggio piu' lungo del tetto si accorcia invece di
-        // sparire: meta' documento e' memoria, nessun documento e' il bug.
-        if (t.length > tetto) t = t.slice(0, tetto);
-        fuori.unshift({ ruolo: righe[i].ruolo === 'bot' ? 'modello' : 'utente', testo: t });
-        spesi += t.length;
-      }
-      return fuori;
-    } catch (e) { return []; }
-  };
+  /* LA MEMORIA DELLA CONVERSAZIONE NON STA QUI.
+     Qui c'era aegisSpecchioStoria(), che apriva `righe` all'agente. Sembrava
+     giusta - lo specchio E' la conversazione protetta - ma dava il testo
+     nella forma [[TIPO_NN]], mentre cio' che esce verso il modello passa da
+     aegisMaskHistory e diventa @pe01@. Due vocabolari per le stesse persone
+     nella stessa conversazione: il modello non poteva collegarli, e il
+     ripristino al ritorno sarebbe stato un terno al lotto.
+     Rimossa apposta, e non va rimessa: una seconda porta sulla memoria e' una
+     seconda memoria, e prima o poi le due divergono. La memoria e' una sola,
+     conversationHistory, e si legge da aegisMemoriaChat(). Lo specchio resta
+     quello che e' sempre stato: cio' che l'utente VEDE partire. */
   window.aegisReset=function(){
     vault.clear(); colorDi.clear(); cortiUsati.clear(); contatore={}; righe=[];
     banditi.clear(); esclusi.clear(); suggeriti.clear(); vociAI.clear(); scorda();
@@ -15792,29 +15803,44 @@ if (recognition) {
     } catch (e) {}
     window.AEGIS_AGENTE._reset();
 
-    /* LA MEMORIA SI LEGGE PRIMA, NON DOPO.
-       Un attimo piu' avanti aegisUtente() aggiunge il compito allo specchio:
-       leggendo la memoria dopo, il compito arriverebbe all'agente due volte,
-       una come contesto e una come richiesta. Qui invece la fotografia e' di
-       come stava la conversazione un istante prima - il documento, i turni
-       precedenti - ed e' esattamente il contesto che mancava. */
+    /* LA MEMORIA SI LEGGE PRIMA, NON DOPO, ED E' QUELLA DELLA CHAT.
+       Il tentativo precedente leggeva lo specchio: sembrava la scelta giusta
+       perche' lo specchio E' la conversazione protetta, ma e' protetta in un
+       altro vocabolario. Lo specchio conserva [[TIPO_NN]]; cio' che esce
+       davvero verso il modello passa da aegisMaskHistory, che dopo la
+       mascheratura applica surrogaUscita e trasforma i codici in @pe01@. Il
+       modello si sarebbe trovato il documento scritto in un alfabeto e la
+       richiesta in un altro, sulle stesse persone.
+       aegisMemoriaChat() e' la stessa identica pipeline che alimenta il campo
+       `messages` di /api/chat nella chat normale: stessa fetta, stessa
+       mascheratura, stessi surrogati. Una memoria sola, due superfici.
+       Si legge PRIMA di consegnare il compito, altrimenti il compito
+       arriverebbe due volte: una come contesto e una come richiesta. */
     var memoria = [];
-    try { if (window.aegisSpecchioStoria) memoria = window.aegisSpecchioStoria(); } catch (e) {}
+    try { if (window.aegisMemoriaChat) memoria = window.aegisMemoriaChat(8); } catch (e) {}
 
-    /* LO SPECCHIO SI ALIMENTA DALLA PORTA DI SEMPRE.
-       Prima si usava mascheraTesto(), che restituisce la stringa coperta e
-       basta: non spinge niente nella cronologia dello specchio, non congela il
-       verbale, non ridisegna. Risultato: in modalita' agente la colonna
-       centrale restava sul testo di cortesia, come se il motore non avesse
-       lavorato - mentre invece aveva lavorato benissimo.
-       aegisUtente() fa le tre cose insieme e RESTITUISCE il testo protetto:
-       e' lo stesso ingresso della chat normale, quindi i codici sono quelli
-       del vault e i due riquadri non possono divergere. */
+    /* IL COMPITO NELLA STESSA FORMA DEL CONTESTO.
+       Passa dalla porta che usa la chat, non da mascheraTesto: cosi' i codici
+       che il modello legge nella richiesta sono gli stessi che ha appena letto
+       nel documento. */
     var compitoProtetto = '';
     try {
-      if (window.aegisUtente) compitoProtetto = String(window.aegisUtente(compito) || '');
+      if (window.aegisMaskHistory) {
+        var mm = window.aegisMaskHistory([{ role: 'user', content: compito }]);
+        compitoProtetto = String((mm && mm[0] && mm[0].content) || '');
+      }
     } catch (e) {}
     if (!compitoProtetto) compitoProtetto = mascheraTesto(compito) || compito;
+
+    /* LO SPECCHIO E LA CRONOLOGIA RESTANO ALIMENTATI DALLA PORTA DI SEMPRE.
+       aegisUtente() spinge il turno nello specchio, congela il verbale per
+       l'evidenziatore e - attraverso l'aggancio della cronologia - lo salva
+       sul dispositivo. Serve comunque, anche se il testo per il modello lo
+       prepara aegisMaskHistory: sono due lavori diversi sullo stesso turno. */
+    try { if (window.aegisUtente) window.aegisUtente(compito); } catch (e) {}
+    // E la memoria canonica, quella che il prossimo turno rileggera'.
+    try { if (window.aegisMemoriaAggiungi) window.aegisMemoriaAggiungi('user', compito); } catch (e) {}
+
     var testoIntero = compitoProtetto;
     // Nel diario si legge in chiaro: il diario e' cio' che sta facendo
     // l'utente, non cio' che attraversa il confine. Il coperto sta a sinistra.
@@ -15869,6 +15895,12 @@ if (recognition) {
           if (window.aegisModello) leggibile = String(window.aegisModello(grezza) || grezza);
           else leggibile = inChiaro(grezza);
         } catch (e) { leggibile = inChiaro(grezza); }
+        /* IL TURNO SI CHIUDE NELLA MEMORIA COMUNE.
+           Senza questa riga il turno dopo - "adesso fallo piu' breve" - non
+           troverebbe nessun antecedente: l'agente avrebbe parlato, ma per la
+           conversazione non sarebbe mai successo niente. E' anche cio' che
+           rende indifferente passare dalla chat all'agente e viceversa. */
+        try { if (window.aegisMemoriaAggiungi) window.aegisMemoriaAggiungi('assistant', leggibile); } catch (e) {}
         agenteScrivi('lui', leggibile);
         if (esito.senza_strumenti) agenteScrivi('err', T('agNiente'));
       } else if (esito && esito.stato === 'tetto') agenteScrivi('err', esito.messaggio);
