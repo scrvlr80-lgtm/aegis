@@ -428,6 +428,118 @@
 
   var _cartella = null;   // la cartella scelta dall'utente, per questa sessione
 
+  /* ============ UN PDF VERO, FATTO QUI DENTRO =============================
+     Chiedendo "creami un pdf" il modello proponeva codice Python, perche' non
+     aveva nessuno strumento per farlo: proponeva l'unica strada che conosceva,
+     e su un browser quella strada non esiste.
+     Il PDF si costruisce nella scheda, con jsPDF caricato solo quando serve -
+     come gia' fanno pdf.js e mammoth - e finisce sul disco dalla stessa porta
+     di cartelle.scrivi. Niente server: il contenuto di un documento personale
+     non ha nessun motivo di attraversare la rete per essere impaginato.
+     E' un PDF vero, con l'intestazione %PDF e il suo tipo: non un file di
+     testo con l'estensione cambiata, che si apre solo per sbaglio.
+     ==================================================================== */
+  var JSPDF = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js';
+
+  function _jsPDF() {
+    return (root.jspdf && root.jspdf.jsPDF) || root.jsPDF || null;
+  }
+
+  registra({
+    nome: 'documenti.crea_pdf',
+    agisce: true,
+    descrizione: 'Crea un vero file PDF sul dispositivo dell\u2019utente con il testo indicato e lo salva ' +
+      'in una cartella scelta da lui. Usalo ogni volta che ti viene chiesto di CREARE, GENERARE, ' +
+      'SCRIVERE o SALVARE un PDF: non proporre codice Python o altre librerie, il PDF lo fai con questo. ' +
+      'Richiede conferma.',
+    parametri: { nome: 'nome del file, con o senza .pdf',
+                 titolo: 'titolo facoltativo stampato in cima',
+                 contenuto: 'il testo del documento',
+                 cartella: 'facoltativa' },
+    prepara: async function (a) {
+      return { descrizione: 'Creare un PDF e salvarlo sul dispositivo',
+               cartella: _cartella ? _cartella.name : '(la sceglierai tu adesso)',
+               nome: _nomeSicuro(String(a.nome || 'documento').replace(/\.pdf$/i, '') + '.pdf'),
+               titolo: a.titolo || '\u2014',
+               anteprima_contenuto: String(a.contenuto || '').slice(0, 400) };
+    },
+    conferma: async function (ap, a) {
+      if (!root.showDirectoryPicker) {
+        return { errore: 'Questo browser non permette di salvare su cartelle. Servono Chrome o Edge.' };
+      }
+      try {
+        if (!_jsPDF()) { try { await _script(JSPDF); } catch (e) {} }
+        var JS = _jsPDF();
+        if (!JS) return { errore: 'non sono riuscito a caricare la libreria per i PDF (serve la rete)' };
+
+        await _apriCartella(a && a.cartella);
+
+        /* IL TESTO TORNA IN CHIARO PRIMA DI ENTRARE NEL PDF.
+           Il modello ha lavorato sui codici e quindi scrive [[PER_01]]. Ma
+           questo e' il TUO disco: un PDF pieno di codici non serve a niente.
+           Si passa dal ripristino - stessa funzione della chat, stesso vault -
+           e i nomi veri compaiono solo qui, sul dispositivo. Il modello non li
+           ha visti prima e non li vede adesso. */
+        var testo = String(a.contenuto || '');
+        var titolo = String(a.titolo || '');
+        try {
+          if (root.aegisDecodifica) {
+            testo = root.aegisDecodifica(testo);
+            titolo = root.aegisDecodifica(titolo);
+          }
+        } catch (e) {}
+        if (!testo.trim() && !titolo.trim()) return { errore: 'il documento sarebbe vuoto' };
+
+        var doc = new JS({ unit: 'mm', format: 'a4' });
+        var MARG = 20, LARG = 210 - MARG * 2, ALT = 297 - MARG, y = MARG;
+
+        if (titolo.trim()) {
+          doc.setFont('helvetica', 'bold'); doc.setFontSize(15);
+          doc.splitTextToSize(titolo.trim(), LARG).forEach(function (r) {
+            doc.text(r, MARG, y); y += 8;
+          });
+          y += 3;
+        }
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(11);
+        /* Gli a capo scritti dal modello sono parte del documento: si spezza
+           riga per riga e poi si manda a capo per larghezza. Passando tutto
+           il testo in blocco, i paragrafi si appiccicavano. */
+        testo.replace(/\r/g, '').split('\n').forEach(function (par) {
+          if (!par.trim()) { y += 5; return; }
+          doc.splitTextToSize(par, LARG).forEach(function (r) {
+            if (y > ALT) { doc.addPage(); y = MARG; }
+            doc.text(r, MARG, y); y += 6;
+          });
+        });
+
+        var byte = doc.output('arraybuffer');
+        // Controllo onesto: se non comincia con %PDF non e' un PDF, e non si
+        // scrive sul disco dell'utente un file che mente sulla sua estensione.
+        var testa = new Uint8Array(byte, 0, 4);
+        if (!(testa[0] === 0x25 && testa[1] === 0x50 && testa[2] === 0x44 && testa[3] === 0x46)) {
+          return { errore: 'il file generato non e\u2019 un PDF valido' };
+        }
+
+        var nome = _nomeSicuro(String(a.nome || 'documento').replace(/\.pdf$/i, '') + '.pdf');
+        var esistenti = [];
+        for await (var voce of _cartella.values()) esistenti.push(voce.name);
+        nome = _nomeLibero(nome, esistenti);   // non si sovrascrive mai
+
+        var f = await _cartella.getFileHandle(nome, { create: true });
+        var w = await f.createWritable();
+        await w.write(new Blob([byte], { type: 'application/pdf' }));
+        await w.close();
+        return { creato: nome, cartella: _cartella.name,
+                 pagine: doc.getNumberOfPages ? doc.getNumberOfPages() : 1,
+                 byte: byte.byteLength };
+      } catch (e) {
+        if (e && (e.name === 'AbortError' || e.annullato))
+          return { errore: 'nessuna cartella scelta', ferma: true };
+        return { errore: 'non sono riuscito a creare il PDF: ' + (e && e.message) };
+      }
+    }
+  });
+
   // Il nome del file lo propone il modello: va ripulito prima di usarlo.
   // Niente barre (uscirebbero dalla cartella), niente caratteri vietati.
   function _nomeSicuro(n) {
