@@ -649,6 +649,22 @@ body {
 .ag-arg-riga input { margin-top:3px; width:16px; height:16px; flex:none; cursor:pointer; }
 .ag-arg-l { font:700 11px 'Space Grotesk',sans-serif; color:#8b8b90; flex:none; margin-top:2px; }
 .ag-arg-c { display:flex; flex-direction:column; gap:3px; min-width:0; }
+/* La riga ora si apre: il contenuto e la matita portano all'editor, la
+   casella resta quello che era. Il cursore lo dice prima del clic. */
+.ag-arg-riga [data-apri] { cursor:pointer; }
+.ag-arg-c { flex:1 1 auto; }
+.ag-arg-m { flex:none; width:26px; height:26px; padding:0; border:1px solid rgba(0,0,0,.14);
+  border-radius:7px; background:#fff; cursor:pointer; font-size:13px; color:#8b8b90;
+  line-height:1; align-self:flex-start; }
+.ag-arg-m:hover { border-color:#8b8b92; color:#1d1d1f; }
+.ag-argx-t { width:100%; box-sizing:border-box; margin-top:14px; padding:9px 11px;
+  border:1px solid rgba(0,0,0,.16); border-radius:9px; font-size:13px; font-weight:600;
+  color:#1d1d1f; outline:none; }
+.ag-argx-c { width:100%; box-sizing:border-box; margin-top:9px; padding:11px;
+  border:1px solid rgba(0,0,0,.16); border-radius:9px; min-height:34vh; max-height:46vh;
+  resize:vertical; font:400 12.5px/1.6 ui-monospace,Menlo,Consolas,monospace;
+  color:#1d1d1f; outline:none; white-space:pre-wrap; }
+.ag-argx-t:focus, .ag-argx-c:focus { border-color:#8b8b92; }
 .ag-arg-c b { font-size:12.5px; font-weight:600; color:#1d1d1f; }
 .ag-arg-c i { font-style:normal; font-size:11.5px; color:#6e6e73; line-height:1.45; }
 .ag-arg-piede { display:flex; gap:9px; justify-content:flex-end; margin-top:16px; }
@@ -9496,6 +9512,10 @@ if (recognition) {
       argTitolo:'Che cosa vuoi portarti dietro?',
       argQuanti:'argomenti',
       argTutti:'Seleziona tutti',
+      argApri:'Apri e correggi',
+      argModifica:'Correggi prima di integrare',
+      argEditNota:'Qui il testo e\u0027 in chiaro perche\u0027 lo stai leggendo tu, sul tuo dispositivo. Quando premerai Integra verra\u0027 coperto: nell\u0027archivio finiscono solo i codici.',
+      argSalva:'Salva', argAnnulla:'Annulla',
       argIntegra:'Integra alla conversazione',
       argNota:'Gli argomenti scelti diventano una Skill: restano su questo dispositivo e il modello li consulta quando servono, senza rileggerli tutti ogni volta.',
       argFatto:'{n} argomenti integrati. Li trovi nel pannello Skills.',
@@ -9840,6 +9860,10 @@ if (recognition) {
       argTitolo:'¿Que quieres llevarte contigo?',
       argQuanti:'temas',
       argTutti:'Seleccionar todos',
+      argApri:'Abrir y corregir',
+      argModifica:'Corrige antes de integrar',
+      argEditNota:'Aqui el texto esta en claro porque lo estas leyendo tu, en tu dispositivo. Al pulsar Integrar se cubrira: en el archivo solo entran los codigos.',
+      argSalva:'Guardar', argAnnulla:'Cancelar',
       argIntegra:'Integrar a la conversacion',
       argNota:'Los temas elegidos se convierten en una Skill: se quedan en este dispositivo y el modelo los consulta cuando hacen falta, sin releerlos enteros cada vez.',
       argFatto:'{n} temas integrados. Los tienes en el panel Skills.',
@@ -10184,6 +10208,10 @@ if (recognition) {
       argTitolo:'What do you want to bring along?',
       argQuanti:'topics',
       argTutti:'Select all',
+      argApri:'Open and edit',
+      argModifica:'Edit before adding',
+      argEditNota:'The text is readable here because you are the one reading it, on your own device. When you press Add it will be masked: only codes go into the archive.',
+      argSalva:'Save', argAnnulla:'Cancel',
       argIntegra:'Add to this conversation',
       argNota:'The chosen topics become a Skill: they stay on this device and the model consults them when needed, without re-reading everything each time.',
       argFatto:'{n} topics added. You will find them in the Skills panel.',
@@ -15769,6 +15797,41 @@ if (recognition) {
       if (v) v.remove(); if (a) a.remove();
     })();
 
+    /* ====== DOVE PASSA IL CONFINE ========================================
+       Qui dentro convivono due rappresentazioni dello stesso testo, ed e'
+       importante non confonderle mai:
+
+         BOZZA   in chiaro, vive solo in questa variabile, per tutto il tempo
+                 in cui il pannello e' aperto. Serve a far LEGGERE e CORREGGERE
+                 all'utente quello che sta per integrare. Non viene scritta da
+                 nessuna parte: ne' in IndexedDB, ne' in localStorage, ne' nella
+                 cronologia, ne' in un payload. Quando il pannello si chiude,
+                 sparisce con lui.
+
+         RAG     mascherato. La trasformazione avviene in UN SOLO punto, al
+                 commit, ed e' scritta a chiare lettere piu' sotto.
+
+       Prima il preview mostrava la versione mascherata: si leggevano righe di
+       @pe04@ e @ct01@ e non si capiva piu' che cosa si stesse per integrare -
+       proprio nel momento in cui bisognava decidere. La correzione e' spostare
+       il confine, non spostare i dati: la UI legge in chiaro, il RAG continua a
+       ricevere soltanto codici.
+
+       La bozza parte dalla cronologia, che e' gia' in chiaro. inChiaro() serve
+       comunque per i turni che contengono codici - le risposte del modello
+       arrivano cosi' - e passa dal vault della sessione: nessuna mappa nuova,
+       nessun codice inventato per il solo rendering. */
+    function inChiaroUI(t) {
+      var s = String(t || '');
+      if (!s) return '';
+      try { if (window.aegisDecodifica) return String(window.aegisDecodifica(s) || s); } catch (e) {}
+      return s;
+    }
+    var bozza = {};
+    arg.forEach(function (a) {
+      bozza[a.lettera] = { titolo: inChiaroUI(a.titolo), testo: inChiaroUI(a.testo) };
+    });
+
     var velo = document.createElement('div');
     velo.className = 'ag-vt-velo'; velo.id = 'ag-arg-velo';
     document.body.appendChild(velo);
@@ -15776,21 +15839,26 @@ if (recognition) {
     var d = document.createElement('div');
     d.className = 'ag-vt'; d.id = 'ag-arg';
     d.style.width = 'min(680px,94vw)';
+
+    function riga(a) {
+      var b = bozza[a.lettera];
+      var est = String(b.testo).replace(/\s+/g, ' ').slice(0, 190);
+      return '<div class="ag-arg-riga" data-r="' + a.lettera + '">' +
+        '<input type="checkbox" data-i="' + a.lettera + '">' +
+        '<span class="ag-arg-l">' + a.lettera + '</span>' +
+        '<span class="ag-arg-c" data-apri="' + a.lettera + '"><b>' + escapeHtml(b.titolo) + '</b>' +
+        '<i>' + escapeHtml(est) + '\u2026</i></span>' +
+        '<button type="button" class="ag-arg-m" data-apri="' + a.lettera + '" ' +
+          'title="' + escapeHtml(T('argApri')) + '">\u270e</button>' +
+      '</div>';
+    }
+
     d.innerHTML =
       '<button type="button" class="ag-vt-x" id="ag-arg-x" aria-label="Chiudi">&times;</button>' +
       '<h3>' + T('argTitolo') + '</h3>' +
       '<p class="ag-vt-sub">' + codice + ' \u00b7 ' +
-        escapeHtml(mascheraTesto(chat.titolo || '')) + ' \u00b7 ' + arg.length + ' ' + T('argQuanti') + '</p>' +
-      '<div class="ag-arg-lista">' +
-        arg.map(function (a) {
-          var tit = mascheraTesto(a.titolo) || a.titolo;
-          var est = mascheraTesto(a.testo).replace(/\s+/g, ' ').slice(0, 190);
-          return '<label class="ag-arg-riga"><input type="checkbox" data-i="' + a.lettera + '">' +
-                 '<span class="ag-arg-l">' + a.lettera + '</span>' +
-                 '<span class="ag-arg-c"><b>' + escapeHtml(tit) + '</b>' +
-                 '<i>' + escapeHtml(est) + '\u2026</i></span></label>';
-        }).join('') +
-      '</div>' +
+        escapeHtml(inChiaroUI(chat.titolo || '')) + ' \u00b7 ' + arg.length + ' ' + T('argQuanti') + '</p>' +
+      '<div class="ag-arg-lista" id="ag-arg-lista">' + arg.map(riga).join('') + '</div>' +
       '<div class="ag-arg-piede">' +
         '<button type="button" class="leggero" id="ag-arg-tutti">' + T('argTutti') + '</button>' +
         '<button type="button" id="ag-arg-ok">' + T('argIntegra') + '</button>' +
@@ -15807,27 +15875,107 @@ if (recognition) {
       var acceso = Array.prototype.every.call(c, function (x) { return x.checked; });
       Array.prototype.forEach.call(c, function (x) { x.checked = !acceso; });
     };
+
+    // Ridisegna solo le righe, conservando le spunte: rifare l'HTML intero
+    // le azzererebbe, e chi ha appena scelto sei argomenti su dieci
+    // dovrebbe rifarlo da capo per aver corretto una virgola.
+    function ridisegna() {
+      var spunte = {};
+      Array.prototype.forEach.call(d.querySelectorAll('input[type=checkbox]'), function (x) {
+        spunte[x.getAttribute('data-i')] = x.checked;
+      });
+      var lista = d.querySelector('#ag-arg-lista');
+      if (lista) lista.innerHTML = arg.map(riga).join('');
+      Array.prototype.forEach.call(d.querySelectorAll('input[type=checkbox]'), function (x) {
+        x.checked = !!spunte[x.getAttribute('data-i')];
+      });
+    }
+
+    /* ====== L'EDITOR DI UN SINGOLO BOX ==================================
+       Sta SOPRA il pannello, non al suo posto: chiudendolo si torna alla
+       lista con le spunte come stavano. Salva scrive nella bozza e basta -
+       nessun commit, nessuna riga nel RAG, e soprattutto nessuna modifica
+       alla conversazione originale nella cronologia, che resta quella che e'
+       stata scritta davvero. Annulla non tocca niente. */
+    function apriBox(lettera) {
+      var b = bozza[lettera];
+      if (!b) return;
+      var vecchio = document.getElementById('ag-argx-velo');
+      if (vecchio) vecchio.remove();
+
+      var v2 = document.createElement('div');
+      v2.className = 'ag-vt-velo'; v2.id = 'ag-argx-velo';
+      var e = document.createElement('div');
+      e.className = 'ag-vt ag-argx'; e.id = 'ag-argx';
+      e.style.width = 'min(680px,94vw)';
+      e.innerHTML =
+        '<button type="button" class="ag-vt-x" data-a="no" aria-label="Chiudi">&times;</button>' +
+        '<h3>' + escapeHtml(lettera) + ' \u00b7 ' + T('argModifica') + '</h3>' +
+        '<p class="ag-vt-som">' + T('argEditNota') + '</p>' +
+        '<input type="text" class="ag-argx-t" id="ag-argx-t" value="' + escapeHtml(b.titolo) + '">' +
+        '<textarea class="ag-argx-c" id="ag-argx-c" spellcheck="false"></textarea>' +
+        '<div class="ag-arg-piede">' +
+          '<button type="button" class="leggero" data-a="no">' + T('argAnnulla') + '</button>' +
+          '<button type="button" data-a="si">' + T('argSalva') + '</button>' +
+        '</div>';
+      v2.appendChild(e);
+      document.body.appendChild(v2);
+      // Il testo si mette con .value e non nell'HTML: cosi' non c'e' modo che
+      // un documento con dentro un tag finisca interpretato invece che letto.
+      var ta = e.querySelector('#ag-argx-c');
+      ta.value = b.testo;
+      setTimeout(function () { try { ta.focus(); } catch (er) {} }, 30);
+
+      function via() { var x = document.getElementById('ag-argx-velo'); if (x) x.remove(); }
+      v2.addEventListener('click', function (ev) { if (ev.target === v2) via(); });
+      e.addEventListener('click', function (ev) {
+        var btn = ev.target.closest ? ev.target.closest('[data-a]') : null;
+        if (!btn) return;
+        if (btn.getAttribute('data-a') === 'si') {
+          // Solo la bozza in memoria. Il RAG non sa nemmeno che esistiamo.
+          bozza[lettera] = { titolo: e.querySelector('#ag-argx-t').value,
+                             testo: ta.value };
+          ridisegna();
+        }
+        via();
+      });
+    }
+
+    d.addEventListener('click', function (ev) {
+      var t = ev.target;
+      if (t && t.tagName === 'INPUT') return;          // la spunta fa il suo lavoro
+      var a = t.closest ? t.closest('[data-apri]') : null;
+      if (!a) return;
+      ev.preventDefault();
+      apriBox(a.getAttribute('data-apri'));
+    });
+
     d.querySelector('#ag-arg-ok').onclick = async function () {
       var scelte = [];
       Array.prototype.forEach.call(d.querySelectorAll('input[type=checkbox]'), function (x) {
         if (x.checked) {
-          var a = arg.filter(function (y) { return y.lettera === x.getAttribute('data-i'); })[0];
-          if (a) scelte.push(a);
+          var l = x.getAttribute('data-i');
+          if (bozza[l]) scelte.push({ lettera: l, b: bozza[l] });
         }
       });
       if (!scelte.length) { chiudi(); return; }
-      // ============ IL TESTO CHE SI SALVA E' QUELLO MASCHERATO ============
-      // La cronologia locale conserva la conversazione IN CHIARO: quello che
-      // hai scritto tu e la risposta gia' ricostruita con i nomi veri. Se si
-      // travasasse cosi' com'e' dentro le Skill, si creerebbe un secondo
-      // archivio di dati in chiaro che il modello consulta a ogni domanda -
-      // esattamente cio' che questa applicazione promette di non fare.
-      // Si maschera qui, con la stessa funzione della chat e sullo stesso
-      // vault: "Pietro Rossi" diventa [[PER_07]] e resta [[PER_07]] anche
-      // nella conversazione di adesso, senza niente da riconciliare.
-      var testo = scelte.map(function (a) {
-        return '### ' + mascheraTesto(a.titolo) + '\n' + mascheraTesto(a.testo);
+
+      /* ============ QUI, E SOLO QUI, SI PASSA DAL CHIARO AL COPERTO ======
+         E' l'unico punto di tutta la procedura in cui un testo esce dalla UI
+         per entrare in un archivio, ed e' scritto in modo che si veda: la
+         bozza e' in chiaro, mascheraTesto() la copre, e solo il risultato
+         viene consegnato al RAG. Il valore in chiaro non compare in nessuna
+         delle righe qui sotto, e non deve mai comparirci.
+         La mascheratura passa dalla stessa funzione della chat e dallo stesso
+         vault: "Pietro Rossi" diventa [[PER_07]] qui come nella conversazione
+         di adesso, senza niente da riconciliare. Se il modello ha scritto un
+         codice che l'utente non ha toccato, ritrova il suo stesso codice.
+         I vettori, quando sono accesi, si costruiscono da cio' che sta nel
+         RAG: essendo coperto quello, sono coperti anche loro. */
+      var testo = scelte.map(function (s) {
+        return '### ' + mascheraTesto(s.b.titolo) + '\n' + mascheraTesto(s.b.testo);
       }).join('\n\n---\n\n');
+
       try {
         await caricaRag();
         var nome = codice + ' \u00b7 ' + (mascheraTesto(chat.titolo || '') || 'conversazione');
