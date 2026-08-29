@@ -1342,6 +1342,19 @@
   /* -------------------------------------------------------------- superficie */
   root.AEGIS_AGENTE = {
     creaCervello: creaCervello,
+    /* Rilegge un file dalla cartella gia' autorizzata e ne restituisce un
+       indirizzo temporaneo, buono per aprirlo in una scheda. Non serve altro
+       permesso: la cartella l'utente l'ha gia' concessa, e il file l'ha
+       appena creato lui. Non si tiene nessuna copia: l'indirizzo vale per
+       questa scheda e per questa sessione. */
+    apriFile: async function (nome) {
+      try {
+        if (!_cartella) return null;
+        var h = await _cartella.getFileHandle(String(nome));
+        var f = await h.getFile();
+        return URL.createObjectURL(f);
+      } catch (e) { return null; }
+    },
     offerta: offerta,
     leggiStrumento: leggiStrumento,
     estraiTesto: estraiTesto,
