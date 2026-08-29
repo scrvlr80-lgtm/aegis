@@ -16410,9 +16410,26 @@ if (recognition) {
             window.AEGIS_AGENTE_ONLOG = null;
             return { risposta: String(f0.risultato.errore || 'operazione annullata') };
           }
+          /* QUI FINIVA IL LAVORO E COMINCIAVA IL DANNO.
+             Il PDF era gia' sul disco, e si tornava dal modello con lo stesso
+             compito: una chiamata in piu', pagata, e la stessa richiesta
+             sottoposta una seconda volta. Se la seconda volta rispondeva di
+             no - e su un testo al limite capita, e' una moneta lanciata -
+             l'utente si ritrovava il file nella cartella E la frase "non
+             posso farlo". Due cose vere insieme, ed e' il modo peggiore di
+             sbagliare. Quando lo strumento ha gia' prodotto la risposta, si
+             chiude qui. */
+          if (window.AEGIS_AGENTE.terminale(richiesta.strumento, f0 && f0.risultato)) {
+            window.AEGIS_AGENTE_ONLOG = null;
+            return { risposta: window.AEGIS_AGENTE.riepilogo(richiesta.strumento, f0.risultato) };
+          }
         } else if (primo) {
           window.aegisPassoChat(frase(richiesta.strumento, 'post'));
           seFile(primo.risultato);
+          if (window.AEGIS_AGENTE.terminale(richiesta.strumento, primo.risultato)) {
+            window.AEGIS_AGENTE_ONLOG = null;
+            return { risposta: window.AEGIS_AGENTE.riepilogo(richiesta.strumento, primo.risultato) };
+          }
         }
         opz.riprendi = false;
       }
