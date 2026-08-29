@@ -13330,6 +13330,38 @@ if (recognition) {
     return mostrato;
   };
   window.aegisDecodifica=decodifica;
+
+  /* ============ LO SPECCHIO E' LA MEMORIA ===============================
+     `righe` non e' un elenco per il disegno: e' la conversazione, gia'
+     protetta, turno per turno, e ripristina() la rimette in piedi anche dopo
+     un ricaricamento. Fuori da questo blocco non esiste, e per questo la
+     modalita' agente non la vedeva: partiva dal solo compito, e chi aveva
+     appena incollato un documento si sentiva rispondere che non era stato
+     fornito alcun testo.
+     Questa e' la porta, e da' quello che deve dare: SOLO il coperto. Il vault
+     resta dov'e'. Non c'e' niente da recuperare in chiaro, niente da salvare
+     sul server, nessuna deroga al noLog: cio' che esce di qui e' gia' cio'
+     che l'utente ha visto partire.
+     Il tetto e' in caratteri, non in messaggi: un solo documento incollato
+     puo' pesare piu' di venti scambi, e a contare i messaggi si taglierebbe
+     proprio la cosa da ricordare. Si tengono i turni piu' recenti. */
+  window.aegisSpecchioStoria = function (tettoCaratteri) {
+    try {
+      var tetto = Number(tettoCaratteri) > 0 ? Number(tettoCaratteri) : 24000;
+      var fuori = [], spesi = 0;
+      for (var i = righe.length - 1; i >= 0; i--) {
+        var t = String((righe[i] && righe[i].testo) || '');
+        if (!t) continue;
+        if (spesi && spesi + t.length > tetto) break;
+        // Un unico messaggio piu' lungo del tetto si accorcia invece di
+        // sparire: meta' documento e' memoria, nessun documento e' il bug.
+        if (t.length > tetto) t = t.slice(0, tetto);
+        fuori.unshift({ ruolo: righe[i].ruolo === 'bot' ? 'modello' : 'utente', testo: t });
+        spesi += t.length;
+      }
+      return fuori;
+    } catch (e) { return []; }
+  };
   window.aegisReset=function(){
     vault.clear(); colorDi.clear(); cortiUsati.clear(); contatore={}; righe=[];
     banditi.clear(); esclusi.clear(); suggeriti.clear(); vociAI.clear(); scorda();
@@ -15696,6 +15728,15 @@ if (recognition) {
     } catch (e) {}
     window.AEGIS_AGENTE._reset();
 
+    /* LA MEMORIA SI LEGGE PRIMA, NON DOPO.
+       Un attimo piu' avanti aegisUtente() aggiunge il compito allo specchio:
+       leggendo la memoria dopo, il compito arriverebbe all'agente due volte,
+       una come contesto e una come richiesta. Qui invece la fotografia e' di
+       come stava la conversazione un istante prima - il documento, i turni
+       precedenti - ed e' esattamente il contesto che mancava. */
+    var memoria = [];
+    try { if (window.aegisSpecchioStoria) memoria = window.aegisSpecchioStoria(); } catch (e) {}
+
     /* LO SPECCHIO SI ALIMENTA DALLA PORTA DI SEMPRE.
        Prima si usava mascheraTesto(), che restituisce la stringa coperta e
        basta: non spinge niente nella cronologia dello specchio, non congela il
@@ -15731,7 +15772,8 @@ if (recognition) {
     var attesa = agenteScrivi('att', T('agPenso'));
 
     try {
-      var esito = await window.AEGIS_AGENTE.esegui(testoIntero, { chiedi: chiedi, giriMax: 15 });
+      var esito = await window.AEGIS_AGENTE.esegui(testoIntero,
+        { chiedi: chiedi, giriMax: 15, memoria: memoria });
       while (esito && esito.stato === 'attende_approvazione') {
         if (attesa) attesa.remove();
         var ok = await agenteApprovazione(esito.anteprima);
@@ -15740,7 +15782,12 @@ if (recognition) {
         if (fatto && fatto.risultato && fatto.risultato.errore) agenteScrivi('err', String(fatto.risultato.errore));
         else if (fatto && fatto.risultato) agenteScrivi('str', '\u2713 ' + inChiaro(JSON.stringify(fatto.risultato)).slice(0, 200));
         attesa = agenteScrivi('att', T('agPenso'));
-        esito = await window.AEGIS_AGENTE.esegui(testoIntero, { chiedi: chiedi, giriMax: 15 });
+        /* SI RIPRENDE, NON SI RICOMINCIA. Senza riprendi:true la storia si
+           ricostruiva da capo e il modello, non trovando piu' il risultato
+           dell'azione appena approvata, la richiedeva di nuovo: l'utente
+           doveva confermare due volte la stessa scrittura. */
+        esito = await window.AEGIS_AGENTE.esegui(testoIntero,
+          { chiedi: chiedi, giriMax: 15, memoria: memoria, riprendi: true });
       }
       if (attesa) attesa.remove();
       if (esito && esito.stato === 'finito') {
