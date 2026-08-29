@@ -61,8 +61,40 @@
     return Object.keys(_strumenti).map(function (k) {
       var s = _strumenti[k];
       return { nome: s.nome, agisce: !!s.agisce, descrizione: s.descrizione || '',
-               parametri: s.parametri || {} };
+               parametri: s.parametri || {}, terminale: !!s.terminale };
     });
+  }
+
+  /* ====== STRUMENTI TERMINALI: QUANDO IL LAVORO E' GIA' FINITO ==========
+     Il ciclo dell'agente e' fatto per incatenare passi: fa una cosa, torna dal
+     modello, gli chiede cosa fare dopo. Giusto quando il passo serve a
+     raccogliere materiale - letto un file, si decide che farne.
+     Ma per uno strumento che PRODUCE il risultato chiesto, quel giro in piu'
+     non serve e fa danno. Chi chiede "crea un pdf con questa storia" ha finito
+     nel momento in cui il file e' sul disco: tornare dal modello significa
+     sottoporgli una seconda volta lo stesso testo, pagare una seconda
+     chiamata, e - come si e' visto - ricevere talvolta un rifiuto per un
+     documento gia' scritto. L'utente si trova il PDF nella cartella e una
+     risposta che dice di non averlo potuto fare: due cose vere insieme, ed e'
+     il modo peggiore di sbagliare.
+     Chi e' terminale lo dichiara. Gli altri continuano a passare dal modello
+     come prima: leggere una cartella NON e' una risposta, e' materiale. */
+  function riepilogo(nome, r) {
+    if (!r || typeof r !== 'object') return 'Fatto.';
+    if (r.creato) {
+      return 'Ho creato ' + r.creato + (r.cartella ? ' in ' + r.cartella : '') +
+             (r.pagine ? ' (' + r.pagine + (r.pagine === 1 ? ' pagina' : ' pagine') + ')' : '') + '.';
+    }
+    if (r.scritto) return 'Ho salvato ' + r.scritto + (r.cartella ? ' in ' + r.cartella : '') + '.';
+    return 'Fatto.';
+  }
+  function terminale(nome, r) {
+    var s = _strumenti[nome];
+    if (!s || !s.terminale) return false;
+    if (!r || typeof r !== 'object') return false;
+    // Un errore NON e' terminale: li' il modello serve, per spiegare o
+    // ritentare per un'altra strada.
+    return !r.errore;
   }
 
   /* --------------------------------------------------------- registro audit
@@ -303,6 +335,18 @@
           return { stato: 'attende_approvazione', anteprima: esito.anteprima, giri: _giri };
         }
         storia.push({ ruolo: 'strumento', nome: risposta.strumento, testo: JSON.stringify(esito.risultato || esito.errore) });
+        /* IL LAVORO E' FINITO: NON SI TORNA DAL MODELLO.
+           Se lo strumento ha prodotto cio' che era stato chiesto - un file
+           scritto, un PDF creato - un altro giro non aggiunge niente e puo'
+           togliere: al modello si riproporrebbe lo stesso testo, e una
+           risposta diversa dalla prima farebbe sembrare non fatto qualcosa
+           che invece e' sul disco. */
+        if (terminale(risposta.strumento, esito.risultato)) {
+          annota({ tipo: 'fine', giri: _giri, terminale: risposta.strumento });
+          var chiuso = riepilogo(risposta.strumento, esito.risultato);
+          storia.push({ ruolo: 'modello', testo: chiuso });
+          return { stato: 'finito', risposta: chiuso, giri: _giri };
+        }
         /* SE L'UTENTE HA CHIUSO LA PORTA, IL GIRO FINISCE.
            Un risultato marcato `ferma` non e' un guasto da cui riprendersi:
            e' una scelta della persona - ha annullato il selettore, ha detto di
@@ -361,6 +405,8 @@
   registra({
     nome: 'cartelle.scrivi',
     agisce: true,
+    // Terminale come il PDF: il file scritto E' la risposta.
+    terminale: true,
     descrizione: 'Salva un file in una cartella del dispositivo. Richiede conferma.',
     parametri: { cartella: 'testo', nome: 'testo', contenuto: 'testo' },
     prepara: async function (a) {
@@ -553,6 +599,8 @@
   registra({
     nome: 'documenti.crea_pdf',
     agisce: true,
+    // Terminale: quando il PDF e' sul disco, la richiesta e' soddisfatta.
+    terminale: true,
     descrizione: 'Crea un vero file PDF sul dispositivo dell\u2019utente con il testo indicato e lo salva ' +
       'in una cartella scelta da lui. Usalo ogni volta che ti viene chiesto di CREARE, GENERARE, ' +
       'SCRIVERE o SALVARE un PDF: non proporre codice Python o altre librerie, il PDF lo fai con questo. ' +
@@ -1356,6 +1404,8 @@
       } catch (e) { return null; }
     },
     offerta: offerta,
+    terminale: terminale,
+    riepilogo: riepilogo,
     leggiStrumento: leggiStrumento,
     estraiTesto: estraiTesto,
     eseguiIsolato: eseguiIsolato,
