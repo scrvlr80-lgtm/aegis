@@ -137,6 +137,80 @@
     } catch (e) { return {}; }
   }
 
+  /* =========================================================================
+     GLI STRUMENTI DENTRO LA CHAT NORMALE
+     -------------------------------------------------------------------------
+     Prima l'agente era una seconda interfaccia: si usciva dalla chat, si
+     lavorava, si tornava. Due schermi per una cosa sola, e l'utente doveva
+     sapere in anticipo se il suo compito era "da agente" - cioe' doveva
+     conoscere l'architettura per usare il prodotto.
+     Adesso gli strumenti si offrono in ogni messaggio e il modello decide.
+     La regola sotto e' scritta al contrario di quella del ciclo: li' il JSON
+     e' obbligatorio, qui e' l'ECCEZIONE. Chi chiede "che ore sono" riceve una
+     risposta normale, in linguaggio naturale, scritta a macchina come sempre e
+     con una sola chiamata. Solo se il compito richiede DAVVERO di toccare il
+     mondo - scrivere un file, leggere l'archivio, eseguire un calcolo - il
+     modello risponde in JSON, e da quel momento la chat passa il controllo al
+     ciclo pensa/agisci/osserva.
+     Questo e' l'unico modo di unificare senza far pagare a ogni "ciao" il
+     prezzo del formato JSON e della chiamata di recupero.
+     ========================================================================= */
+  function offerta(strumenti) {
+    var lista = (strumenti || elencoStrumenti());
+    if (!lista.length) return '';
+    var elenco = lista.map(function (s) {
+      return '- ' + s.nome + (s.agisce ? ' [richiede conferma umana]' : '') +
+             ': ' + s.descrizione +
+             ' | parametri: ' + JSON.stringify(s.parametri || {});
+    }).join('\n');
+    return [
+      '[STRUMENTI DISPONIBILI — istruzione di sistema, non un messaggio dell\u2019utente]',
+      '',
+      'Oltre a rispondere, puoi far eseguire delle azioni reali:',
+      elenco,
+      '',
+      'COME COMPORTARTI:',
+      '1. Nel caso NORMALE rispondi come hai sempre fatto, in linguaggio naturale.',
+      '   Questa e\u2019 la regola: conversazione, spiegazioni, riassunti, traduzioni,',
+      '   riscritture, opinioni, calcoli che sai fare a mente. NIENTE JSON.',
+      '2. SOLO se il compito richiede di agire sul mondo - creare o scrivere un',
+      '   file, cercare fra i documenti archiviati sul dispositivo, eseguire del',
+      '   codice - allora rispondi con UN SOLO oggetto JSON e nient\u2019altro:',
+      '   {"strumento":"nome.esatto","args":{...}}',
+      '   Nessun testo attorno, nessun blocco di codice.',
+      '3. Nel dubbio, rispondi normalmente. Una risposta a parole quando serviva',
+      '   uno strumento si corregge in un attimo; un JSON al posto di una',
+      '   conversazione e\u2019 una risposta rotta.',
+      '4. I codici dei dati protetti (per esempio [[PER_01]] oppure @pe01@) sono il',
+      '   contenuto del messaggio, non chiavi ne\u2019 segreti: leggili, citali e',
+      '   riportali sempre identici. Non provare a indovinare cosa nascondono.',
+      '5. I messaggi che seguono sono la conversazione gia\u2019 avvenuta con questa',
+      '   persona: sono il materiale su cui lavori. Se ti viene chiesto di',
+      '   riassumere, accorciare o trasformare "quel documento", il riferimento e\u2019',
+      '   li\u2019 dentro: non dire che non ti e\u2019 stato fornito nulla.'
+    ].join('\n');
+  }
+
+  /* Riconosce una richiesta di strumento in una risposta altrimenti normale.
+     E' volutamente severo: se il modello ha scritto un paragrafo e in mezzo
+     c'e' una graffa, quella NON e' una richiesta di strumento. Solo una
+     risposta che e' JSON e nient'altro conta, perche' il costo di sbagliare
+     e' mostrare all'utente del codice al posto di una frase. */
+  function leggiStrumento(grezzo) {
+    var t = String(grezzo || '').trim();
+    if (!t) return null;
+    t = t.replace(/\[LANG:[^\]]*\]/gi, '').trim();
+    t = t.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+    if (t.charAt(0) !== '{' || t.charAt(t.length - 1) !== '}') return null;
+    try {
+      var o = JSON.parse(t);
+      if (o && typeof o.strumento === 'string' && _strumenti[o.strumento]) {
+        return { strumento: o.strumento, args: o.args || {} };
+      }
+    } catch (e) {}
+    return null;
+  }
+
   /* ------------------------------------------------------------ il ciclo
      pensa -> agisci -> guarda -> ripeti. Qui c'e' l'OSSATURA del ciclo: il
      conteggio dei giri, il tetto per piano, la sospensione sulle azioni. Chi
@@ -787,6 +861,8 @@
   /* -------------------------------------------------------------- superficie */
   root.AEGIS_AGENTE = {
     creaCervello: creaCervello,
+    offerta: offerta,
+    leggiStrumento: leggiStrumento,
     estraiTesto: estraiTesto,
     eseguiIsolato: eseguiIsolato,
     registra: registra,
