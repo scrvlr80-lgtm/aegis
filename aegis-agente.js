@@ -375,7 +375,9 @@
         return { errore: 'Questo browser non permette di scrivere su cartelle. Servono Chrome o Edge.' };
       }
       try {
-        if (!_cartella) _cartella = await root.showDirectoryPicker({ mode: 'readwrite' });
+        // Passa dalla stessa porta di tutti: cosi' vale anche qui il
+        // ricordo dell'ultima cartella, invece di ripartire da Documenti.
+        await _apriCartella(a && a.cartella);
         var permesso = await _cartella.queryPermission({ mode: 'readwrite' });
         if (permesso !== 'granted') {
           permesso = await _cartella.requestPermission({ mode: 'readwrite' });
@@ -486,9 +488,42 @@
   /* Scegliere la cartella una volta sola. Il selettore del browser si apre
      solo dopo un gesto umano: e' per questo che sta dentro conferma(), che
      parte dal clic sul pulsante. */
-  async function _apriCartella() {
+  /* DOVE SI APRE IL SELETTORE, E PERCHE' NON SEMPRE SU DOCUMENTI.
+     showDirectoryPicker non accetta un percorso: non esiste modo di dirgli
+     "apri C:\Users\Mario\Desktop\AEGIS PII", ed e' una scelta del browser,
+     non una mancanza. Ma due cose si possono fare, e non venivano fatte.
+     La prima e' `id`: dando un identificativo il browser RICORDA l'ultima
+     cartella scelta con quell'id e riparte da li'. Senza, ricomincia ogni
+     volta dalla cartella predefinita - Documenti - e da fuori sembra che
+     ignori quello che gli chiedi.
+     La seconda e' `startIn`: se il percorso che l'utente ha nominato dice
+     Desktop, o Download, si parte da quella radice invece che da Documenti.
+     Non e' la cartella esatta, ma e' un clic invece di cinque. */
+  function _radiceDa(percorso) {
+    var p = String(percorso || '').toLowerCase();
+    if (/desktop|escritorio|scrivania/.test(p)) return 'desktop';
+    if (/download|descargas|scaricat/.test(p)) return 'downloads';
+    if (/document|documenti|documentos/.test(p)) return 'documents';
+    if (/pictures|imagenes|immagini|foto/.test(p)) return 'pictures';
+    if (/music|musica/.test(p)) return 'music';
+    if (/video/.test(p)) return 'videos';
+    return null;
+  }
+
+  async function _apriCartella(suggerimento) {
     if (!root.showDirectoryPicker) throw new Error('Servono Chrome o Edge per aprire una cartella.');
-    if (!_cartella) _cartella = await root.showDirectoryPicker({ mode: 'readwrite' });
+    if (!_cartella) {
+      var opz = { mode: 'readwrite', id: 'aegis-cartelle' };
+      var r = _radiceDa(suggerimento);
+      if (r) opz.startIn = r;
+      try { _cartella = await root.showDirectoryPicker(opz); }
+      catch (e) {
+        // startIn e id sono recenti: su un browser che non li conosce si
+        // riprova senza, invece di far fallire tutta l'operazione.
+        if (e && e.name === 'AbortError') throw e;
+        _cartella = await root.showDirectoryPicker({ mode: 'readwrite' });
+      }
+    }
     var p = await _cartella.queryPermission({ mode: 'readwrite' });
     if (p !== 'granted') {
       p = await _cartella.requestPermission({ mode: 'readwrite' });
@@ -563,17 +598,31 @@
     },
     conferma: async function (ap, a) {
       try {
-        var dir = await _apriCartella();
+        // Il percorso che l'utente ha nominato serve almeno a scegliere da
+        // quale radice aprire il selettore.
+        var dir = await _apriCartella(a.sottocartella);
         var avviso = '';
         if (a.sottocartella) {
           try { dir = await _scendi(dir, a.sottocartella); }
           catch (e) {
-            /* Non e' un motivo per fallire. La cartella che l'utente ha
-               appena scelto e' quella giusta comunque, e vale piu' del
-               percorso che il modello si era immaginato: prima si rispondeva
-               con un errore e l'utente restava senza l'elenco che aveva
-               chiesto, dopo aver pure autorizzato la cartella. */
-            avviso = String(e.message || e) + '. Elenco la cartella che hai scelto.';
+            /* LA CARTELLA RICORDATA PUO' ESSERE QUELLA SBAGLIATA.
+               _cartella resta in memoria per non richiedere il permesso a
+               ogni domanda, ed e' giusto. Ma se l'utente chiede un'altra
+               cartella, quella memorizzata non c'entra piu' niente: prima ci
+               si rassegnava a elencare la vecchia, e da fuori sembrava che
+               il selettore ignorasse la richiesta. Si riapre una volta sola -
+               siamo ancora dentro il clic di conferma, quindi il browser lo
+               permette - e se anche la seconda non contiene il percorso, si
+               elenca quella e lo si dice. */
+            _cartella = null;
+            try {
+              dir = await _apriCartella(a.sottocartella);
+              try { dir = await _scendi(dir, a.sottocartella); }
+              catch (e2) { avviso = String(e2.message || e2) + ' Elenco la cartella che hai scelto.'; }
+            } catch (e3) {
+              if (e3 && e3.name === 'AbortError') return { errore: 'nessuna cartella scelta' };
+              throw e3;
+            }
           }
         }
         var quota = { n: 0, troncato: false };
