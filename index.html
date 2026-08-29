@@ -727,6 +727,21 @@ body {
   padding:3px 4px; }
 .ag-ag-passo.att { color:#8b8b90; font-style:italic; padding:3px 4px; }
 .ag-ag-passo.lui { background:#fff; border:1px solid rgba(0,0,0,.1); color:#1d1d1f; }
+/* Il file appena creato: una riga sobria con due modi di raggiungerlo.
+   Non e' una bolla della conversazione e non deve sembrarlo. */
+.ag-file-fatto { display:flex; align-items:center; gap:10px; align-self:flex-start;
+  max-width:100%; margin:6px 0; padding:9px 12px; border:1px solid rgba(0,0,0,.12);
+  border-radius:11px; background:rgba(0,0,0,.02); font-size:12px; }
+.ag-ff-i { flex:none; font:600 9px 'Space Grotesk',sans-serif; letter-spacing:.06em;
+  padding:3px 6px; border-radius:5px; background:#1d1d1f; color:#fff; }
+.ag-ff-n { font-weight:600; color:#1d1d1f; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap; }
+.ag-ff-c { flex:1 1 auto; min-width:0; color:#8b8b90; font-size:10.5px;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ag-ff-b { flex:none; padding:5px 11px; border:1px solid rgba(0,0,0,.16);
+  border-radius:7px; background:#fff; cursor:pointer; font-size:11px; color:#1d1d1f; }
+.ag-ff-b:hover { background:rgba(0,0,0,.05); border-color:#8b8b92; }
+
 .ag-ag-passo.err { background:rgba(176,48,48,.07); color:#b03030; }
 /* La riga di lavoro dentro la conversazione: discreta, monospaziata, non e'
    una bolla e non deve sembrarlo. */
@@ -2008,34 +2023,89 @@ body {
         } catch (e) { return false; }
     };
 
-    /* I PASSI DEL LAVORO, DENTRO LA CONVERSAZIONE.
-       Quando il modello usa uno strumento non deve sembrare che si sia
-       bloccato: una riga leggera dice cosa sta facendo. Non e' una bolla -
-       non ha interruttore, non entra nella memoria, non finisce nello
-       specchio - perche' non e' un turno della conversazione: e' il rumore
-       del lavoro in corso. Sparisce di significato appena arriva la
-       risposta, e va bene cosi'. */
-    /* ====== L'ETICHETTA DELLA LINGUA SE NE VA, COMUNQUE SIA SCRITTA ======
-       Il modello mette in testa alla risposta un'etichetta con la lingua
-       rilevata, e il frontend la toglie prima di mostrarla. Era scritto con
-       la stessa espressione regolare copiata in OTTO punti, e tutte e otto
-       cercavano esattamente la parola LANG. Il modello ha scritto LAT, e
-       nessuna delle otto l'ha presa: l'etichetta e' comparsa in faccia
-       all'utente.
-       Il difetto vero non e' la parola sbagliata - i modelli sbagliano, e' il
-       loro mestiere - ma otto copie della stessa regola, che nessuno puo'
-       correggere tutte insieme. Adesso e' una sola, e accetta le varianti che
-       i modelli producono davvero. La regione e' facoltativa: "it" vale
-       quanto "it-IT". */
-    const RX_ETICHETTA_LINGUA = /\[\s*(?:LANG|LANGUAGE|LANGUAGES|LAT|LNG|IDIOMA|LINGUA|LANGUE|SPRACHE)\s*[:=\-]?\s*([a-zA-Z]{2,3}(?:[-_][a-zA-Z]{2,4})?)\s*\]/i;
-    window.aegisTogliLingua = function (testo) {
-        var t = String(testo || '');
-        var m = t.match(RX_ETICHETTA_LINGUA);
-        if (!m) return { testo: t, lingua: null };
-        // Si toglie ovunque compaia, non solo la prima: capita che il modello
-        // la ripeta a meta' risposta quando cambia argomento.
-        var pulito = t.replace(new RegExp(RX_ETICHETTA_LINGUA.source, 'gi'), '').trim();
-        return { testo: pulito, lingua: String(m[1] || '').replace('_', '-') };
+    /* ====== CHE COSA STA FACENDO, DETTO A PAROLE ==========================
+       Prima ogni passo dell'agente compariva come una riga di JSON con un
+       segno di spunta: roba da registro tecnico, in mezzo a una
+       conversazione. Chi legge non ha nessun motivo di vedere
+       {"creato":"ciao.pdf","byte":810} - quello serve a chi debugga, e infatti
+       resta dov'e' sempre stato, nell'audit dell'agente.
+       Al suo posto cambia la scritta che gia' c'e': "Elaborazione in corso"
+       diventa "Sto preparando il documento", poi "Sto scrivendo il
+       contenuto", con la stessa animazione della macchina da scrivere -
+       cancella e riscrive - e lo stesso colore che scorre. Non si aggiunge
+       niente allo schermo: si dice meglio quello che c'era gia'. */
+    window.aegisPassoChat = function (testo) {
+        try {
+            var cm = document.getElementById('chat-messages');
+            if (!cm) return null;
+            var ind = cm.querySelector('.typing-indicator');
+            if (!ind) return null;
+            var span = ind.querySelector('.message-text');
+            if (!span) return null;
+            var nuovo = String(testo || '').trim();
+            if (!nuovo || span.innerText === nuovo) return ind;
+
+            // Una animazione alla volta su questo indicatore: due che si
+            // rincorrono si mangiano le lettere a vicenda.
+            if (ind._passo) { clearInterval(ind._passo); ind._passo = null; }
+            var corrente = span.innerText;
+            ind._passo = setInterval(function () {
+                if (!ind.isConnected) { clearInterval(ind._passo); ind._passo = null; return; }
+                if (corrente.length > 0) {
+                    corrente = corrente.slice(0, -1);
+                    span.innerText = corrente;
+                } else {
+                    clearInterval(ind._passo);
+                    var i = 0;
+                    ind._passo = setInterval(function () {
+                        if (!ind.isConnected) { clearInterval(ind._passo); ind._passo = null; return; }
+                        if (i < nuovo.length) span.innerText = nuovo.slice(0, ++i);
+                        else { clearInterval(ind._passo); ind._passo = null; }
+                    }, 22);
+                }
+            }, 12);
+            return ind;
+        } catch (e) { return null; }
+    };
+
+    /* Il file appena creato, con due modi di raggiungerlo.
+       "Apri" funziona davvero: si rilegge il file dalla cartella autorizzata
+       e si apre in una scheda. Il secondo copia il percorso, perche' aprire
+       Esplora risorse da una pagina web non e' possibile - e mettere un
+       pulsante che finge di farlo sarebbe peggio che non metterlo. */
+    window.aegisEsitoFile = function (info) {
+        try {
+            var cm = document.getElementById('chat-messages');
+            if (!cm || !info || !info.creato) return;
+            var d = document.createElement('div');
+            d.className = 'ag-file-fatto';
+            d.innerHTML =
+                '<span class="ag-ff-i">PDF</span>' +
+                '<span class="ag-ff-n">' + sanitizeHTML(info.creato) + '</span>' +
+                '<span class="ag-ff-c">' + sanitizeHTML(info.cartella || '') + '</span>' +
+                '<button type="button" class="ag-ff-b" data-a="apri">Apri</button>' +
+                '<button type="button" class="ag-ff-b" data-a="dove">Copia percorso</button>';
+            var ind = cm.querySelector('.typing-indicator');
+            if (ind && ind.parentNode === cm) cm.insertBefore(d, ind); else cm.appendChild(d);
+            d.addEventListener('click', async function (e) {
+                var b = e.target.closest ? e.target.closest('[data-a]') : null;
+                if (!b) return;
+                if (b.getAttribute('data-a') === 'dove') {
+                    try {
+                        await navigator.clipboard.writeText((info.cartella || '') + '\\' + info.creato);
+                        b.textContent = 'Copiato';
+                    } catch (err) { b.textContent = 'non riesco'; }
+                    return;
+                }
+                var eti = b.textContent; b.textContent = 'apro...';
+                try {
+                    var url = await window.AEGIS_AGENTE.apriFile(info.creato);
+                    if (url) { window.open(url, '_blank'); b.textContent = eti; }
+                    else b.textContent = 'non trovato';
+                } catch (err) { b.textContent = 'non riesco'; }
+            });
+            try { autoScroll(cm); } catch (e) {}
+        } catch (e) {}
     };
     window.aegisPuliscoLingua = function (testo) { return window.aegisTogliLingua(testo).testo; };
 
@@ -16222,6 +16292,38 @@ if (recognition) {
      La risposta torna PROTETTA: chi chiama la passa ad aegisModello() come
      sempre, cosi' esiste un solo punto in cui una risposta diventa leggibile
      e finisce nello specchio. Due punti sarebbero due modi di sbagliare. */
+  /* Quello che l'utente legge mentre l'agente lavora. Una frase per
+     strumento e per momento: prima di partire dice che cosa sta per fare,
+     dopo dice com'e' andata. Niente JSON, niente nomi di funzioni - quelli
+     restano nell'audit, che e' il posto giusto per loro. */
+  var FRASI = {
+    'documenti.crea_pdf': { pre: 'Sto preparando il documento...',
+                            post: 'PDF creato.' },
+    'cartelle.scrivi':    { pre: 'Sto scrivendo il file...',
+                            post: 'File salvato.' },
+    'cartelle.elenca':    { pre: 'Sto leggendo la cartella...',
+                            post: 'Cartella letta.' },
+    'cartelle.apri':      { pre: 'Sto aprendo il file...',
+                            post: 'File letto.' },
+    'cartelle.cerca':     { pre: 'Sto cercando fra i tuoi documenti...',
+                            post: 'Ricerca finita.' },
+    'documenti.leggi':    { pre: 'Sto leggendo il documento...',
+                            post: 'Documento letto.' },
+    'codice.esegui':      { pre: 'Sto facendo il calcolo...',
+                            post: 'Calcolo finito.' }
+  };
+  function frase(nome, quando) {
+    var f = FRASI[nome];
+    if (f) return f[quando];
+    return quando === 'pre' ? 'Un momento...' : 'Fatto.';
+  }
+  /* Un risultato puo' contenere un file appena nato. Solo in quel caso
+     compare qualcosa in piu' sullo schermo: i due pulsanti per raggiungerlo.
+     Tutto il resto del risultato resta dov'e'. */
+  function seFile(r) {
+    try { if (r && r.creato) window.aegisEsitoFile(r); } catch (e) {}
+  }
+
   window.aegisAgenteInChat = async function (compito, richiesta, memoria) {
     var T = window.aegisT || function (k) { return k; };
     if (!window.AEGIS_AGENTE) return { errore: 'motore non caricato' };
@@ -16245,7 +16347,7 @@ if (recognition) {
        succedendo qualcosa senza cambiare schermo. */
     window.AEGIS_AGENTE_ONLOG = function (v) {
       if (v.tipo === 'lettura' && window.aegisPassoChat) {
-        window.aegisPassoChat('\u2192 ' + v.strumento);
+        window.aegisPassoChat(frase(v.strumento, 'pre'));
       }
     };
 
@@ -16275,11 +16377,18 @@ if (recognition) {
             return { risposta: T('agRifiutato') };
           }
           var f0 = await window.AEGIS_AGENTE.approva();
-          if (window.aegisPassoChat && f0 && f0.risultato) {
-            window.aegisPassoChat('\u2713 ' + inChiaro(JSON.stringify(f0.risultato)).slice(0, 200));
+          if (f0 && f0.risultato) {
+            window.aegisPassoChat(frase(richiesta.strumento, 'post'));
+            seFile(f0.risultato);
           }
-        } else if (window.aegisPassoChat && primo) {
-          window.aegisPassoChat('\u2713 ' + inChiaro(JSON.stringify(primo.risultato || primo.errore)).slice(0, 200));
+          // Chiusa la finestra, chiuso il discorso: non si riprova.
+          if (f0 && f0.risultato && f0.risultato.ferma) {
+            window.AEGIS_AGENTE_ONLOG = null;
+            return { risposta: String(f0.risultato.errore || 'operazione annullata') };
+          }
+        } else if (primo) {
+          window.aegisPassoChat(frase(richiesta.strumento, 'post'));
+          seFile(primo.risultato);
         }
         opz.riprendi = false;
       }
@@ -16289,12 +16398,15 @@ if (recognition) {
         var ok = await window.aegisApprovazione(esito.anteprima);
         if (!ok) { window.AEGIS_AGENTE.rifiuta(); break; }
         var fatto = await window.AEGIS_AGENTE.approva();
-        if (window.aegisPassoChat) {
-          if (fatto && fatto.risultato && fatto.risultato.errore) {
-            window.aegisPassoChat('\u26a0 ' + String(fatto.risultato.errore));
-          } else if (fatto && fatto.risultato) {
-            window.aegisPassoChat('\u2713 ' + inChiaro(JSON.stringify(fatto.risultato)).slice(0, 200));
-          }
+        if (fatto && fatto.risultato && fatto.risultato.errore) {
+          window.aegisPassoChat(String(fatto.risultato.errore));
+        } else if (fatto && fatto.risultato) {
+          window.aegisPassoChat('Fatto.');
+          seFile(fatto.risultato);
+        }
+        if (fatto && fatto.risultato && fatto.risultato.ferma) {
+          window.AEGIS_AGENTE_ONLOG = null;
+          return { risposta: String(fatto.risultato.errore || 'operazione annullata') };
         }
         /* SI RIPRENDE, NON SI RICOMINCIA: la storia conserva i risultati gia'
            ottenuti, altrimenti il modello richiede l'azione appena approvata
@@ -16315,13 +16427,12 @@ if (recognition) {
   /* ====== LA CONFERMA STA SOPRA LA BARRA, NON NELLA CONVERSAZIONE =======
      Come bolla sarebbe stata piu' semplice da fare, e sbagliata: una bolla
      scorre via. Questa e' la richiesta di scrivere sul disco dell'utente, e
-     deve restare davanti agli occhi finche' non riceve una risposta. Sta
-     appena sopra il campo, dove la mano e' gia'. */
-  window.aegisApprovazione = function (anteprima) {
-    var T = window.aegisT || function (k) { return k; };
-    return new Promise(function (risolvi) {
-      var wrap = document.getElementById('chat-input-wrapper');
-      if (!wrap || !wrap.parentNode) { risolvi(false); return; }
+        if (fatto && fatto.risultato && fatto.risultato.errore) {
+          window.aegisPassoChat(String(fatto.risultato.errore));
+        } else if (fatto && fatto.risultato) {
+          window.aegisPassoChat('Fatto.');
+          seFile(fatto.risultato);
+        }
       var vecchio = document.getElementById('ag-appr-chat');
       if (vecchio) vecchio.remove();
 
