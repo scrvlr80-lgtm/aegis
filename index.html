@@ -673,6 +673,34 @@ body {
   cursor:pointer; font:500 12.5px Inter,sans-serif; color:#1d1d1f; padding:0;
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .ag-mem-n:hover { text-decoration:underline; }
+
+/* ---- revisione prima dei surrogati ---- */
+.ag-rev { max-width:520px; }
+.ag-rev-lista { display:flex; flex-direction:column; gap:2px; margin-top:14px;
+  max-height:46vh; overflow-y:auto; }
+.ag-rev-riga { display:flex; align-items:center; gap:10px; padding:7px 9px;
+  border-radius:8px; }
+.ag-rev-riga:hover { background:rgba(0,0,0,.035); }
+.ag-rev-riga.cambiata { background:rgba(0,0,0,.05); }
+.ag-rev-q { flex:none; width:26px; height:26px; padding:0; border:1px solid rgba(0,0,0,.14);
+  border-radius:7px; background:#fff; cursor:pointer; display:flex; align-items:center;
+  justify-content:center; }
+.ag-rev-q:hover { border-color:#8b8b92; }
+.ag-rev-q i { width:11px; height:11px; border-radius:3px; display:block; }
+.ag-rev-v { flex:1 1 auto; min-width:0; font-size:12.5px; color:#1d1d1f;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ag-rev-c { flex:none; font-size:10.5px; color:#8b8b90; }
+.ag-rev-b { display:flex; gap:9px; justify-content:flex-end; margin-top:16px; }
+.ag-rev-tendina { position:fixed; z-index:100000; background:#fff;
+  border:1px solid rgba(0,0,0,.14); border-radius:10px; padding:5px;
+  box-shadow:0 10px 34px rgba(0,0,0,.16); display:flex; flex-direction:column;
+  max-height:60vh; overflow-y:auto; min-width:172px; }
+.ag-rev-tendina button { display:flex; align-items:center; gap:9px; width:100%;
+  padding:7px 10px; border:0; background:transparent; cursor:pointer;
+  font-size:12px; color:#1d1d1f; text-align:left; border-radius:7px; }
+.ag-rev-tendina button:hover { background:rgba(0,0,0,.05); }
+.ag-rev-tendina button.ora { font-weight:600; }
+.ag-rev-tendina i { width:11px; height:11px; border-radius:3px; flex:none; }
 .ag-mv-t { width:100%; min-height:46vh; margin-top:12px; resize:vertical; box-sizing:border-box;
   border:1px solid rgba(0,0,0,.16); border-radius:10px; padding:12px 13px;
   font:400 12.5px/1.6 ui-monospace,Menlo,Consolas,monospace; color:#1d1d1f; background:#fff; outline:none; }
@@ -4326,6 +4354,19 @@ body {
         // Se c'e' un'immagine selezionata, usiamo il flusso Vision (testo opzionale).
         if (selectedImageDataUrl) { await sendImageMessage(text); return; }
         if (text === '') return;
+
+        /* REVISIONE DEI SURROGATI. Sta QUI e non piu' avanti perche' deve
+           poter fermare l'invio: dopo addMessageToChat il messaggio e' gia'
+           nella conversazione e annullare vorrebbe dire toglierlo, cioe' una
+           toppa. Se l'utente annulla, il testo resta nel campo dov'era.
+           Fuori dalla modalita' surrogati la funzione esce subito e non si
+           accorge nemmeno di essere stata chiamata. */
+        try {
+          if (window.aegisRevisioneSurrogati) {
+            var _ok = await window.aegisRevisioneSurrogati(text);
+            if (!_ok) return;
+          }
+        } catch (e) {}
         resetScrollControl();
         addMessageToChat(text, 'user-message');
         userInput.value = '';
@@ -9250,6 +9291,9 @@ if (recognition) {
       catNomi:'nomi', catIndirizzi:'indirizzi', catLuoghi:'luoghi', catDate:'date',
       catBancari:'bancari', catContatti:'contatti', catDocumenti:'documenti',
       catTecnici:'tecnici', catSanitari:'sanitari', catAziende:'aziende', catAltri:'altri dati', catMano:'coperti a mano',
+      revTitolo:'Controlla prima di inviare',
+      revNota:'La modalit\u00e0 surrogati restituisce un output ad alta precisione e coerenza con il testo originale. \u00c8 tuttavia indispensabile verificare che gli elementi coperti appartengano realmente alla categoria indicata: un nome deve essere un nome di persona, un luogo deve essere un luogo, una data deve essere una data, ecc.',
+      revCambia:'Cambia categoria', revAnnulla:'Annulla', revInvia:'Invia',
       avvTitolo:'Queste {n} parole partirebbero in chiaro',
       avvTesto:'Il sistema non le riconosce come dati protetti, ma potrebbero esserlo. Clicca le righe per scegliere quali coprire: quelle spente partono come sono.',
       avvTutte:'Seleziona tutte', avvNessuna:'Nessuna',
@@ -9591,6 +9635,9 @@ if (recognition) {
       catNomi:'nombres', catIndirizzi:'direcciones', catLuoghi:'lugares', catDate:'fechas',
       catBancari:'bancarios', catContatti:'contactos', catDocumenti:'documentos',
       catTecnici:'t\u00e9cnicos', catSanitari:'sanitarios', catAziende:'empresas', catAltri:'otros datos', catMano:'ocultos a mano',
+      revTitolo:'Comprueba antes de enviar',
+      revNota:'El modo sustitutos devuelve un resultado de alta precisi\u00f3n y coherente con el texto original. Aun as\u00ed es imprescindible verificar que los elementos ocultados pertenezcan realmente a la categor\u00eda indicada: un nombre debe ser un nombre de persona, un lugar debe ser un lugar, una fecha debe ser una fecha, etc.',
+      revCambia:'Cambiar categor\u00eda', revAnnulla:'Cancelar', revInvia:'Enviar',
       avvTitolo:'Estas {n} palabras se enviarian sin proteger',
       avvTesto:'El sistema no las reconoce como datos protegidos, pero podrian serlo. Haz clic en las filas para elegir cuales ocultar: las apagadas se envian tal cual.',
       avvTutte:'Seleccionar todas', avvNessuna:'Ninguna',
@@ -9932,6 +9979,9 @@ if (recognition) {
       catNomi:'names', catIndirizzi:'addresses', catLuoghi:'places', catDate:'dates',
       catBancari:'banking', catContatti:'contacts', catDocumenti:'documents',
       catTecnici:'technical', catSanitari:'health', catAziende:'companies', catAltri:'other data', catMano:'hidden by you',
+      revTitolo:'Check before sending',
+      revNota:'Surrogate mode returns output that is highly accurate and consistent with the original text. Even so, it is essential to check that the covered items really belong to the category shown: a name must be a person\u2019s name, a place must be a place, a date must be a date, and so on.',
+      revCambia:'Change category', revAnnulla:'Cancel', revInvia:'Send',
       avvTitolo:'These {n} words would be sent in the clear',
       avvTesto:'The system does not recognise them as protected data, but they might be. Click the rows to choose which to mask: the ones switched off are sent as they are.',
       avvTutte:'Select all', avvNessuna:'None',
@@ -13509,6 +13559,193 @@ if (recognition) {
      seconda memoria, e prima o poi le due divergono. La memoria e' una sola,
      conversationHistory, e si legge da aegisMemoriaChat(). Lo specchio resta
      quello che e' sempre stato: cio' che l'utente VEDE partire. */
+  /* ====== REVISIONE PRIMA DEI SURROGATI ================================
+     Un codice sbagliato e' brutto, un surrogato sbagliato e' peggio. Se
+     "Mannaia" finisce fra i nomi e diventa "Luca Bianchi", il modello non
+     vede un errore: vede una persona, e ci ragiona sopra. La risposta esce
+     coerente e completamente falsa, e chi legge non ha modo di accorgersene
+     perche' a schermo il nome vero e' tornato al suo posto.
+     Da qui l'elenco di cio' che sta per essere coperto, con la sua categoria,
+     mostrato prima che il testo parta.
+     Non c'e' nessuna tassonomia nuova: le categorie sono quelle di colore(),
+     i colori quelli della legenda, e riclassificare passa dalla stessa strada
+     del pennello. */
+  window.aegisRilevati = function (testo) {
+    try {
+      var r = maschera(String(testo || ''), false);   // false: e' un'anteprima
+      var visti = Object.create(null), fuori = [];
+      (r.valori || []).forEach(function (v) {
+        var val = String(v.valore || '').trim();
+        if (!val) return;
+        var k = val.toLowerCase();
+        if (visti[k]) return;
+        visti[k] = 1;
+        fuori.push({ valore: val, cat: v.col || 'per' });
+      });
+      return fuori;
+    } catch (e) { return []; }
+  };
+
+  /* Cambiare categoria a un valore gia' trovato.
+     Non basta cambiargli il colore: il surrogato si sceglie sulla SIGLA del
+     codice, non sulla tinta. Finche' il codice resta PER_01 il modulo dei
+     surrogati continua a produrre un nome, qualunque colore abbia il
+     quadratino. Quindi il valore si toglie al motore - esclusi - e si
+     ricopre a mano nella categoria scelta, che e' esattamente cio' che fa il
+     pennello: da li' nasce un codice nuovo con la sigla giusta. */
+  window.aegisRiclassifica = function (valore, cat) {
+    var t = String(valore || '').trim();
+    if (!t || !cat) return false;
+    try {
+      esclusi.add(t);                       // il motore non lo tocca piu'
+      var v = banditi.get(t) || {};
+      if (v.tok) { colorDi.delete(v.tok); }
+      v.tok = null;                         // codice nuovo con la sigla nuova
+      v.cat = cat;
+      banditi.set(t, v);
+      // I resti della vecchia lettura: senza questo il valore riappariva
+      // nella categoria di prima al carattere successivo.
+      var basso = t.toLowerCase();
+      try {
+        suggeriti.forEach(function (x, k) { if (String(k).trim().toLowerCase() === basso) suggeriti.delete(k); });
+        vociAI.forEach(function (x, k) { if (String(k).trim().toLowerCase() === basso) vociAI.delete(k); });
+      } catch (e) {}
+      aggiorna();
+      return true;
+    } catch (e) { return false; }
+  };
+
+  // Le categorie disponibili, prese dove sono gia' scritte una volta sola.
+  window.aegisCategorie = function () {
+    return [
+      { g: 'per',   n: T('catNomi') },      { g: 'addr', n: T('catIndirizzi') },
+      { g: 'city',  n: T('catLuoghi') },    { g: 'date', n: T('catDate') },
+      { g: 'bank',  n: T('catBancari') },   { g: 'mail', n: T('catContatti') },
+      { g: 'id',    n: T('catDocumenti') }, { g: 'tech', n: T('catTecnici') },
+      { g: 'med',   n: T('catSanitari') },  { g: 'org',  n: T('catAziende') },
+      { g: 'altri', n: T('catAltri') },     { g: 'mano', n: T('catMano') }
+    ];
+  };
+
+  /* ====== IL PANNELLO DI REVISIONE =====================================
+     Compare solo in modalita' surrogati, solo se c'e' qualcosa da rivedere,
+     e solo prima dell'invio: dopo non servirebbe piu' a niente, il testo e'
+     gia' partito. Non tocca lo specchio, non tocca l'evidenziazione, non
+     tocca la memoria: legge cio' che il motore ha trovato e, se l'utente
+     corregge, passa dalla stessa strada del pennello.
+     Restituisce una promessa: true si procede, false si annulla e il
+     messaggio resta nel campo. */
+  window.aegisRevisioneSurrogati = function (testo) {
+    return new Promise(function (risolvi) {
+      var S = window.AEGIS_SURROGATI;
+      if (!S || !S.attivo()) { risolvi(true); return; }        // non e' il momento
+      var voci = window.aegisRilevati(testo);
+      if (!voci.length) { risolvi(true); return; }             // niente da rivedere
+
+      var vecchio = document.getElementById('ag-rev-velo');
+      if (vecchio) vecchio.remove();
+
+      var velo = document.createElement('div');
+      velo.className = 'ag-vt-velo'; velo.id = 'ag-rev-velo';
+      var d = document.createElement('div');
+      d.className = 'ag-vt ag-rev'; d.id = 'ag-rev';
+
+      function riga(v, i) {
+        return '<div class="ag-rev-riga" data-i="' + i + '">' +
+          '<button type="button" class="ag-rev-q" data-q="' + i + '" ' +
+            'title="' + esc(T('revCambia')) + '"><i class="ag-' + esc(v.cat) + '"></i></button>' +
+          '<span class="ag-rev-v">' + esc(v.valore) + '</span>' +
+          '<span class="ag-rev-c" data-c="' + i + '">' + esc(nomeCat(v.cat)) + '</span>' +
+        '</div>';
+      }
+      function nomeCat(g) {
+        var l = window.aegisCategorie();
+        for (var i = 0; i < l.length; i++) if (l[i].g === g) return l[i].n;
+        return g;
+      }
+
+      d.innerHTML =
+        '<button type="button" class="ag-vt-x" id="ag-rev-x" aria-label="Chiudi">&times;</button>' +
+        '<h3>' + esc(T('revTitolo')) + '</h3>' +
+        '<p class="ag-vt-som">' + esc(T('revNota')) + '</p>' +
+        '<div class="ag-rev-lista">' + voci.map(riga).join('') + '</div>' +
+        '<div class="ag-rev-b">' +
+          '<button type="button" class="ag-ia" id="ag-rev-no">' + esc(T('revAnnulla')) + '</button>' +
+          '<button type="button" class="ag-ia ag-pronto" id="ag-rev-si">' + esc(T('revInvia')) + '</button>' +
+        '</div>';
+
+      velo.appendChild(d);
+      document.body.appendChild(velo);
+
+      function chiudi(esito) {
+        var t = document.getElementById('ag-rev-tendina');
+        if (t) t.remove();
+        velo.remove();
+        risolvi(esito);
+      }
+      d.querySelector('#ag-rev-x').onclick = function () { chiudi(false); };
+      d.querySelector('#ag-rev-no').onclick = function () { chiudi(false); };
+      d.querySelector('#ag-rev-si').onclick = function () { chiudi(true); };
+      velo.addEventListener('click', function (e) { if (e.target === velo) chiudi(false); });
+
+      d.addEventListener('click', function (e) {
+        var b = e.target.closest ? e.target.closest('.ag-rev-q') : null;
+        if (!b) {
+          var t0 = document.getElementById('ag-rev-tendina');
+          if (t0) t0.remove();
+          return;
+        }
+        e.stopPropagation();
+        var i = Number(b.getAttribute('data-q'));
+        var v = voci[i];
+        if (!v) return;
+        var vecchia = document.getElementById('ag-rev-tendina');
+        if (vecchia) { vecchia.remove(); if (vecchia.getAttribute('data-i') === String(i)) return; }
+
+        var men = document.createElement('div');
+        men.className = 'ag-rev-tendina'; men.id = 'ag-rev-tendina';
+        men.setAttribute('data-i', String(i));
+        men.innerHTML = window.aegisCategorie().map(function (c) {
+          return '<button type="button" data-g="' + c.g + '"' +
+            (c.g === v.cat ? ' class="ora"' : '') +
+            '><i class="ag-' + c.g + '"></i>' + esc(c.n) + '</button>';
+        }).join('');
+        // Ancorato al quadratino: il menu deve nascere dove hai cliccato,
+        // altrimenti su un elenco lungo si apre fuori vista.
+        var r = b.getBoundingClientRect();
+        men.style.left = Math.round(r.left) + 'px';
+        men.style.top = Math.round(r.bottom + 4) + 'px';
+        document.body.appendChild(men);
+        // Se sfora in basso, si apre verso l'alto.
+        var mr = men.getBoundingClientRect();
+        if (mr.bottom > window.innerHeight - 8) {
+          men.style.top = Math.max(8, Math.round(r.top - mr.height - 4)) + 'px';
+        }
+
+        men.addEventListener('click', function (ev) {
+          var s = ev.target.closest ? ev.target.closest('[data-g]') : null;
+          if (!s) return;
+          ev.stopPropagation();
+          var nuova = s.getAttribute('data-g');
+          men.remove();
+          if (nuova === v.cat) return;
+          if (!window.aegisRiclassifica(v.valore, nuova)) return;
+          v.cat = nuova;
+          // Si ridisegna solo questa riga: rifare l'elenco intero
+          // ricalcolerebbe la mascheratura e farebbe saltare la posizione.
+          var riga = d.querySelector('.ag-rev-riga[data-i="' + i + '"]');
+          if (riga) {
+            var q = riga.querySelector('.ag-rev-q i');
+            if (q) q.className = 'ag-' + nuova;
+            var et = riga.querySelector('.ag-rev-c');
+            if (et) et.textContent = nomeCat(nuova);
+            riga.classList.add('cambiata');
+          }
+        });
+      });
+    });
+  };
+
   window.aegisReset=function(){
     vault.clear(); colorDi.clear(); cortiUsati.clear(); contatore={}; righe=[];
     banditi.clear(); esclusi.clear(); suggeriti.clear(); vociAI.clear(); scorda();
