@@ -173,10 +173,18 @@
       _storia = [];
       if (Array.isArray(opzioni.memoria)) {
         opzioni.memoria.forEach(function (m) {
-          var t = String((m && m.testo) || '');
+          if (!m) return;
+          /* DUE FORME, UNA SOLA STORIA. La chat parla in {role, content} -
+             e' il formato che va a /api/chat - mentre qui dentro si e' sempre
+             usato {ruolo, testo}. Si accettano tutte e due invece di obbligare
+             il chiamante a tradurre: una traduzione in piu' e' un punto in piu'
+             dove la memoria puo' arrivare vuota senza che nessuno se ne
+             accorga. */
+          var t = String(m.testo || m.content || '');
           if (!t) return;
-          var r = (m && m.ruolo) || 'utente';
-          var mio = (r === 'modello' || r === 'bot' || r === 'assistente') ? 'modello' : 'utente';
+          var r = m.ruolo || m.role || 'utente';
+          var mio = (r === 'modello' || r === 'bot' || r === 'assistant' || r === 'assistente')
+            ? 'modello' : 'utente';
           _storia.push({ ruolo: mio, testo: t });
         });
       }
@@ -643,7 +651,7 @@
         '5. I codici fra doppie parentesi quadre (per esempio [[PER_01]]) sono dati protetti.',
         '   Non provare a indovinare cosa nascondono, non chiederlo, e riportali sempre identici.',
         '6. Se non ti serve nessuno strumento, rispondi subito con {"testo":"..."}.',
-        '7. I messaggi che precedono sono la conversazione gia\\u2019 avvenuta con questa',
+        '7. I messaggi che seguono sono la conversazione gia\\u2019 avvenuta con questa',
         '   persona, nella stessa forma protetta. Sono il MATERIALE su cui lavori: se il',
         '   compito dice "riassumilo", "fallo piu\\u2019 breve" o "mettilo in cinque punti",',
         '   il riferimento e\\u2019 li\\u2019 dentro. Non chiedere di rimandarti un testo che hai',
@@ -683,7 +691,25 @@
     }
 
     return async function chiedi(storia, strumenti) {
-      var messaggi = [{ role: 'system', content: istruzioni(strumenti) }];
+      /* ====== PERCHE' LE ISTRUZIONI NON SONO UN MESSAGGIO system ==========
+         Erano {role:'system'}, ed e' la cosa ovvia da fare. Ma /api/chat non
+         le consegnava MAI al modello: il core filtra i messaggi in arrivo
+         tenendo solo i ruoli user e assistant, e subito dopo antepone il
+         proprio system prompt, quello del tenant. Il system dell'agente
+         spariva per strada, senza un errore e senza una riga di log.
+         Da qui tutto il resto: un modello che non ha mai visto l'elenco degli
+         strumenti non li usa, e uno che non ha mai visto la regola del JSON
+         risponde a parole. La "seconda e ultima chiamata" qui sotto nasce come
+         rimedio a questo, e curava il sintomo.
+         Il ruolo user passa. Quindi le istruzioni vanno come primo turno
+         dell'utente, con una risposta breve dell'assistente subito dopo per
+         fissare il patto: da li' in poi il modello sa gia' di aver accettato
+         di rispondere in JSON. Il server non e' stato toccato - non va toccato,
+         serve sei tenant - e il contratto di /api/chat resta quello di prima. */
+      var messaggi = [
+        { role: 'user', content: istruzioni(strumenti) },
+        { role: 'assistant', content: '{"testo":"Ho capito. Rispondero\\u2019 sempre e solo con un oggetto JSON."}' }
+      ];
       storia.forEach(function (m) {
         if (m.ruolo === 'utente') messaggi.push({ role: 'user', content: m.testo });
         else if (m.ruolo === 'strumento') {
@@ -692,16 +718,16 @@
         } else messaggi.push({ role: 'assistant', content: m.testo });
       });
 
-      /* LA FINESTRA SI TAGLIA IN CODA, MAI IN TESTA.
+      /* LA FINESTRA SI TAGLIA IN MEZZO, MAI IN TESTA.
          Prima era messaggi.slice(-24) e basta. Con una conversazione corta non
-         si notava; adesso che l'agente eredita lo specchio, superati i 24
-         messaggi il taglio si mangiava il PRIMO, cioe' le istruzioni di
-         sistema: il modello perdeva l'elenco degli strumenti e il formato
-         JSON, e da quel momento rispondeva a parole. Le istruzioni si tengono
-         sempre, si accorcia solo la conversazione. */
+         si notava; adesso che l'agente eredita la memoria della chat, superata
+         la soglia il taglio si mangiava le prime due righe, cioe' proprio le
+         istruzioni e il patto. Quelle si tengono sempre, si accorcia solo la
+         conversazione. Il tetto sta sotto i 30 messaggi che il core accetta:
+         oltre quel numero /api/chat rifiuta l'intera richiesta. */
       function finestra(tutti) {
         if (tutti.length <= 24) return tutti;
-        return [tutti[0]].concat(tutti.slice(1).slice(-23));
+        return tutti.slice(0, 2).concat(tutti.slice(2).slice(-22));
       }
 
       var risposta = await chiamata('/api/chat', {
