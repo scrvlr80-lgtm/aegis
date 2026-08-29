@@ -202,13 +202,28 @@
     t = t.replace(/\[LANG:[^\]]*\]/gi, '').trim();
     t = t.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
     if (t.charAt(0) !== '{' || t.charAt(t.length - 1) !== '}') return null;
-    try {
-      var o = JSON.parse(t);
-      if (o && typeof o.strumento === 'string' && _strumenti[o.strumento]) {
-        return { strumento: o.strumento, args: o.args || {} };
-      }
-    } catch (e) {}
+
+    var o = _provaJson(t);
+    if (!o) {
+      /* I PERCORSI DI WINDOWS NON SONO JSON VALIDO.
+         Il modello scrive C:\Users\Mario\Desktop, e in JSON \U e \D non sono
+         sequenze di escape: JSON.parse lancia, leggiStrumento restituiva null
+         e la richiesta di strumento finiva stampata in chat come testo. Da
+         fuori sembrava che il modello si fosse messo a rispondere in codice,
+         mentre stava chiedendo esattamente la cosa giusta.
+         Si raddoppiano solo i backslash che NON aprono un escape valido, cosi'
+         un \n scritto apposta resta un a capo e un \Users diventa un carattere
+         di percorso. */
+      o = _provaJson(t.replace(/\\(?!["\\/bfnrtu])/g, '\\\\'));
+    }
+    if (o && typeof o.strumento === 'string' && _strumenti[o.strumento]) {
+      return { strumento: o.strumento, args: o.args || {} };
+    }
     return null;
+  }
+  function _provaJson(t) {
+    try { var o = JSON.parse(t); return (o && typeof o === 'object') ? o : null; }
+    catch (e) { return null; }
   }
 
   /* ------------------------------------------------------------ il ciclo
@@ -482,38 +497,101 @@
     return _cartella;
   }
 
+  /* SCENDERE IN UN SOTTOPERCORSO, UN SEGMENTO ALLA VOLTA.
+     getDirectoryHandle accetta UN nome, non un percorso: passandogli
+     "Desktop/AEGIS PII" fallisce sempre, ed e' il motivo per cui ogni
+     richiesta con un percorso dentro finiva in "sottocartella non trovata".
+     Un percorso assoluto di Windows - C:\Users\Mario\... - il browser non lo
+     puo' aprire per nessun motivo: e' fuori da cio' che gli e' permesso, e
+     nessuna astuzia lo cambia.
+     Quindi dell'assoluto si tiene solo la coda che sta DENTRO la cartella che
+     l'utente ha scelto. Se non c'e' corrispondenza si resta nella cartella
+     scelta, che e' l'unica davvero autorizzata. */
+  async function _scendi(dir, percorso) {
+    var p = String(percorso || '').trim();
+    if (!p) return dir;
+    p = p.replace(/^[a-zA-Z]:/, '');                 // via la lettera di unita'
+    var pezzi = p.split(/[\\/]+/).filter(function (x) { return x && x !== '.'; });
+    // Se il percorso nomina la cartella gia' aperta, si riparte da subito
+    // dopo: con "AEGIS PII" gia' scelta non si cerca "AEGIS PII" dentro se'.
+    var i = pezzi.lastIndexOf(dir.name);
+    if (i !== -1) pezzi = pezzi.slice(i + 1);
+    for (var k = 0; k < pezzi.length; k++) {
+      try { dir = await dir.getDirectoryHandle(pezzi[k]); }
+      catch (e) { throw new Error('dentro "' + dir.name + '" non c\u2019e\u2019 nessuna cartella "' + pezzi[k] + '"'); }
+    }
+    return dir;
+  }
+
+  /* Enumera in profondita'. Chi chiede "cosa c'e' dentro" intende dentro
+     davvero, non solo il primo livello. Due tetti - profondita' e numero di
+     voci - perche' una cartella puo' contenere un progetto intero e nessuno
+     vuole aspettare mezzo minuto per una domanda del genere. */
+  async function _enumera(dir, prefisso, dentro, quota) {
+    var righe = [];
+    for await (var v of dir.values()) {
+      if (quota.n >= 400) { quota.troncato = true; break; }
+      quota.n++;
+      var nome = prefisso + v.name;
+      if (v.kind === 'directory') {
+        righe.push(nome + '/');
+        if (dentro > 0) {
+          try { righe = righe.concat(await _enumera(v, nome + '/', dentro - 1, quota)); }
+          catch (e) {}
+        }
+      } else {
+        righe.push(nome);
+      }
+    }
+    return righe;
+  }
+
   registra({
     nome: 'cartelle.elenca',
     agisce: true,
-    descrizione: 'Elenca i file di una cartella del computer. La prima volta chiede di scegliere la cartella.',
-    parametri: { sottocartella: 'facoltativa' },
+    descrizione: 'Elenca file e sottocartelle di una cartella del computer, in profondita\u2019. ' +
+      'Usalo quando ti viene chiesto che cosa c\u2019e\u2019 dentro una cartella. ' +
+      'Il browser non puo\u2019 aprire un percorso scritto a mano: la cartella la sceglie l\u2019utente ' +
+      'con una finestra di selezione, e quella scelta e\u2019 solo l\u2019autorizzazione, NON il risultato ' +
+      'dell\u2019operazione. Se l\u2019utente ha nominato un percorso passalo in "sottocartella" com\u2019e\u2019: ' +
+      'serve a scendere dentro la cartella autorizzata quando corrisponde.',
+    parametri: { sottocartella: 'facoltativa: percorso o nome di una sottocartella' },
     prepara: async function (a) {
-      return { descrizione: 'Aprire una cartella e leggerne l\u2019elenco dei file',
+      return { descrizione: 'Aprire una cartella e leggerne il contenuto',
                cartella: _cartella ? _cartella.name : '(la sceglierai tu adesso)',
                sottocartella: a.sottocartella || '\u2014' };
     },
     conferma: async function (ap, a) {
       try {
         var dir = await _apriCartella();
+        var avviso = '';
         if (a.sottocartella) {
-          try { dir = await dir.getDirectoryHandle(String(a.sottocartella)); }
-          catch (e) { return { errore: 'sottocartella non trovata: ' + a.sottocartella }; }
+          try { dir = await _scendi(dir, a.sottocartella); }
+          catch (e) {
+            /* Non e' un motivo per fallire. La cartella che l'utente ha
+               appena scelto e' quella giusta comunque, e vale piu' del
+               percorso che il modello si era immaginato: prima si rispondeva
+               con un errore e l'utente restava senza l'elenco che aveva
+               chiesto, dopo aver pure autorizzato la cartella. */
+            avviso = String(e.message || e) + '. Elenco la cartella che hai scelto.';
+          }
         }
-        var file = [], cartelle = [];
-        for await (var v of dir.values()) {
-          if (v.kind === 'directory') cartelle.push(v.name);
-          else file.push(v.name);
-          if (file.length + cartelle.length > 400) break;
-        }
+        var quota = { n: 0, troncato: false };
+        var righe = await _enumera(dir, '', 2, quota);
         // I NOMI DEI FILE SONO DATI. "Contratto Bianchi 2024.pdf" contiene un
         // cognome quanto il documento dentro. Passano dal mascheratore come
         // qualunque altro testo prima di arrivare al modello.
-        return {
-          cartella: dir.name,
-          cartelle: cartelle.map(function (n) { return _mascheraSicura(n) || n; }),
-          file: file.map(function (n) { return _mascheraSicura(n) || n; }),
-          quanti: file.length
+        var out = {
+          cartella: _mascheraSicura(dir.name) || dir.name,
+          contenuto: righe.map(function (n) { return _mascheraSicura(n) || n; }),
+          quanti: righe.length
         };
+        var note = [];
+        if (avviso) note.push(_mascheraSicura(avviso) || avviso);
+        if (quota.troncato) note.push('Elenco troncato a 400 voci.');
+        if (!righe.length) note.push('La cartella e\u2019 vuota.');
+        if (note.length) out.nota = note.join(' ');
+        return out;
       } catch (e) {
         if (e && e.name === 'AbortError') return { errore: 'nessuna cartella scelta' };
         return { errore: String(e && e.message || e) };
