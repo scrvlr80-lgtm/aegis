@@ -432,17 +432,122 @@
      Chiedendo "creami un pdf" il modello proponeva codice Python, perche' non
      aveva nessuno strumento per farlo: proponeva l'unica strada che conosceva,
      e su un browser quella strada non esiste.
-     Il PDF si costruisce nella scheda, con jsPDF caricato solo quando serve -
-     come gia' fanno pdf.js e mammoth - e finisce sul disco dalla stessa porta
-     di cartelle.scrivi. Niente server: il contenuto di un documento personale
-     non ha nessun motivo di attraversare la rete per essere impaginato.
-     E' un PDF vero, con l'intestazione %PDF e il suo tipo: non un file di
-     testo con l'estensione cambiata, che si apre solo per sbaglio.
+     Il primo tentativo caricava jsPDF da un CDN. Non funziona, e la pagina ha
+     ragione a impedirlo: pdf.min.js e mammoth.min.js sono file del repo, non
+     roba presa da fuori a runtime. Un'applicazione che promette di non far
+     uscire i dati dal dispositivo non puo' andare a prendersi codice da un
+     dominio terzo ogni volta che deve impaginare un documento personale.
+     Quindi il PDF si scrive a mano. Sono un centinaio di righe perche' un PDF
+     di solo testo e' un formato semplice: oggetti numerati, un flusso di
+     comandi di disegno, una tabella di offset in fondo. Nessuna libreria,
+     nessuna rete, nessun file da aggiungere al repo, e funziona anche offline.
      ==================================================================== */
-  var JSPDF = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js';
 
-  function _jsPDF() {
-    return (root.jspdf && root.jspdf.jsPDF) || root.jsPDF || null;
+  // Le parentesi e la barra rovesciata hanno un significato dentro un PDF:
+  // vanno protette, o il file si rompe alla prima parola fra parentesi.
+  function _pdfEsc(s) {
+    return String(s == null ? '' : s)
+      .replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+  }
+
+  /* I font base del PDF parlano WinAnsi, cioe' un byte per carattere. Gli
+     accenti passano; le virgolette curve, i trattini lunghi e i simboli che i
+     modelli usano di continuo no, e diventerebbero segni illeggibili. Si
+     traducono nei loro equivalenti diritti invece di lasciarli sporcare la
+     pagina. */
+  var _SOSTITUTI = {
+    '\u2018': "'", '\u2019': "'", '\u201a': "'", '\u201c': '"', '\u201d': '"',
+    '\u2013': '-', '\u2014': '-', '\u2026': '...', '\u2022': '-', '\u00a0': ' ',
+    '\u2192': '->', '\u2190': '<-', '\u2713': 'v', '\u26a0': '!', '\u20ac': 'EUR'
+  };
+  function _winAnsi(s) {
+    return String(s || '')
+      .replace(/[\u2018\u2019\u201a\u201c\u201d\u2013\u2014\u2026\u2022\u00a0\u2192\u2190\u2713\u26a0\u20ac]/g,
+        function (c) { return _SOSTITUTI[c]; })
+      .replace(/[^\x00-\xFF]/g, '?');
+  }
+
+  // Larghezza stimata: in Helvetica il carattere medio sta attorno a meta'
+  // del corpo. Basta per mandare a capo senza sforare il margine; le tabelle
+  // delle larghezze reali servirebbero per la giustificazione, che qui non c'e'.
+  function _spezzaRiga(t, dim, max) {
+    var out = [], parole = String(t).split(/\s+/), riga = '';
+    parole.forEach(function (p) {
+      var prova = riga ? riga + ' ' + p : p;
+      if (_winAnsi(prova).length * dim * 0.5 <= max || !riga) riga = prova;
+      else { out.push(riga); riga = p; }
+    });
+    if (riga) out.push(riga);
+    return out.length ? out : [''];
+  }
+
+  function _creaPdf(titolo, testo) {
+    var A = 595.28, H = 841.89, M = 56.7, LARG = A - M * 2, DIM = 11, INTER = 15.5;
+    var pagine = [], righe = [], y = H - M;
+    function chiudiPagina() { if (righe.length) pagine.push(righe); righe = []; y = H - M; }
+
+    if (String(titolo || '').trim()) {
+      _spezzaRiga(titolo.trim(), 15, LARG).forEach(function (r) {
+        righe.push({ t: r, y: y, d: 15, b: 1 }); y -= 21;
+      });
+      y -= 8;
+    }
+    // Gli a capo scritti dal modello sono parte del documento: si spezza riga
+    // per riga e poi si manda a capo per larghezza. Tutto in blocco, i
+    // paragrafi si appiccicavano.
+    String(testo || '').replace(/\r/g, '').split('\n').forEach(function (par) {
+      if (!par.trim()) { y -= INTER * 0.6; return; }
+      _spezzaRiga(par, DIM, LARG).forEach(function (r) {
+        if (y < M) chiudiPagina();
+        righe.push({ t: r, y: y, d: DIM, b: 0 }); y -= INTER;
+      });
+    });
+    chiudiPagina();
+    if (!pagine.length) pagine = [[]];
+
+    var flussi = pagine.map(function (p) {
+      var c = p.map(function (r) {
+        return 'BT /F' + (r.b ? '2' : '1') + ' ' + r.d + ' Tf 1 0 0 1 ' +
+               M.toFixed(2) + ' ' + r.y.toFixed(2) + ' Tm (' + _pdfEsc(_winAnsi(r.t)) + ') Tj ET';
+      }).join('\n');
+      return c || 'BT /F1 11 Tf 1 0 0 1 56 780 Tm () Tj ET';
+    });
+
+    var n = pagine.length, i;
+    var idPages = 2, idPag = [], idCon = [], idF1 = 3 + 2 * n, idF2 = idF1 + 1;
+    for (i = 0; i < n; i++) { idPag.push(3 + i); idCon.push(3 + n + i); }
+
+    var obj = [];
+    obj[0] = '<< /Type /Catalog /Pages ' + idPages + ' 0 R >>';
+    obj[1] = '<< /Type /Pages /Kids [' +
+      idPag.map(function (x) { return x + ' 0 R'; }).join(' ') + '] /Count ' + n + ' >>';
+    for (i = 0; i < n; i++) {
+      obj[idPag[i] - 1] = '<< /Type /Page /Parent ' + idPages + ' 0 R /MediaBox [0 0 ' +
+        A.toFixed(2) + ' ' + H.toFixed(2) + '] /Resources << /Font << /F1 ' + idF1 +
+        ' 0 R /F2 ' + idF2 + ' 0 R >> >> /Contents ' + idCon[i] + ' 0 R >>';
+      obj[idCon[i] - 1] = '<< /Length ' + flussi[i].length + ' >>\nstream\n' + flussi[i] + '\nendstream';
+    }
+    obj[idF1 - 1] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>';
+    obj[idF2 - 1] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>';
+
+    // La tabella finale deve dire a che byte comincia ogni oggetto: si tiene
+    // il conto mentre si scrive, perche' dopo non si puo' piu' ricostruire.
+    var out = '%PDF-1.4\n', off = [];
+    for (i = 0; i < obj.length; i++) {
+      off.push(out.length);
+      out += (i + 1) + ' 0 obj\n' + obj[i] + '\nendobj\n';
+    }
+    var xref = out.length;
+    out += 'xref\n0 ' + (obj.length + 1) + '\n0000000000 65535 f \n';
+    off.forEach(function (o) {
+      var s = String(o); while (s.length < 10) s = '0' + s;
+      out += s + ' 00000 n \n';
+    });
+    out += 'trailer\n<< /Size ' + (obj.length + 1) + ' /Root 1 0 R >>\nstartxref\n' + xref + '\n%%EOF';
+
+    var b = new Uint8Array(out.length);
+    for (i = 0; i < out.length; i++) b[i] = out.charCodeAt(i) & 0xFF;
+    return { byte: b.buffer, pagine: n };
   }
 
   registra({
@@ -468,10 +573,6 @@
         return { errore: 'Questo browser non permette di salvare su cartelle. Servono Chrome o Edge.' };
       }
       try {
-        if (!_jsPDF()) { try { await _script(JSPDF); } catch (e) {} }
-        var JS = _jsPDF();
-        if (!JS) return { errore: 'non sono riuscito a caricare la libreria per i PDF (serve la rete)' };
-
         await _apriCartella(a && a.cartella);
 
         /* IL TESTO TORNA IN CHIARO PRIMA DI ENTRARE NEL PDF.
@@ -490,32 +591,11 @@
         } catch (e) {}
         if (!testo.trim() && !titolo.trim()) return { errore: 'il documento sarebbe vuoto' };
 
-        var doc = new JS({ unit: 'mm', format: 'a4' });
-        var MARG = 20, LARG = 210 - MARG * 2, ALT = 297 - MARG, y = MARG;
+        var pdf = _creaPdf(titolo, testo);
 
-        if (titolo.trim()) {
-          doc.setFont('helvetica', 'bold'); doc.setFontSize(15);
-          doc.splitTextToSize(titolo.trim(), LARG).forEach(function (r) {
-            doc.text(r, MARG, y); y += 8;
-          });
-          y += 3;
-        }
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(11);
-        /* Gli a capo scritti dal modello sono parte del documento: si spezza
-           riga per riga e poi si manda a capo per larghezza. Passando tutto
-           il testo in blocco, i paragrafi si appiccicavano. */
-        testo.replace(/\r/g, '').split('\n').forEach(function (par) {
-          if (!par.trim()) { y += 5; return; }
-          doc.splitTextToSize(par, LARG).forEach(function (r) {
-            if (y > ALT) { doc.addPage(); y = MARG; }
-            doc.text(r, MARG, y); y += 6;
-          });
-        });
-
-        var byte = doc.output('arraybuffer');
         // Controllo onesto: se non comincia con %PDF non e' un PDF, e non si
         // scrive sul disco dell'utente un file che mente sulla sua estensione.
-        var testa = new Uint8Array(byte, 0, 4);
+        var testa = new Uint8Array(pdf.byte, 0, 4);
         if (!(testa[0] === 0x25 && testa[1] === 0x50 && testa[2] === 0x44 && testa[3] === 0x46)) {
           return { errore: 'il file generato non e\u2019 un PDF valido' };
         }
@@ -527,11 +607,10 @@
 
         var f = await _cartella.getFileHandle(nome, { create: true });
         var w = await f.createWritable();
-        await w.write(new Blob([byte], { type: 'application/pdf' }));
+        await w.write(new Blob([pdf.byte], { type: 'application/pdf' }));
         await w.close();
         return { creato: nome, cartella: _cartella.name,
-                 pagine: doc.getNumberOfPages ? doc.getNumberOfPages() : 1,
-                 byte: byte.byteLength };
+                 pagine: pdf.pagine, byte: pdf.byte.byteLength };
       } catch (e) {
         if (e && (e.name === 'AbortError' || e.annullato))
           return { errore: 'nessuna cartella scelta', ferma: true };
