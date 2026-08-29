@@ -2109,20 +2109,11 @@ body {
     };
     window.aegisPuliscoLingua = function (testo) { return window.aegisTogliLingua(testo).testo; };
 
-    window.aegisPassoChat = function (testo) {
-        try {
-            var cm = document.getElementById('chat-messages');
-            if (!cm) return null;
-            var r = document.createElement('div');
-            r.className = 'ag-passo-chat';
-            r.textContent = String(testo || '');
-            var ind = cm.querySelector('.typing-indicator');
-            if (ind && ind.parentNode === cm) cm.insertBefore(r, ind);
-            else cm.appendChild(r);
-            try { autoScroll(cm); } catch (e) { cm.scrollTop = cm.scrollHeight; }
-            return r;
-        } catch (e) { return null; }
-    };
+    /* Qui era rimasta una seconda aegisPassoChat, quella vecchia che
+       stampava una riga per ogni passo. Definita DOPO, vinceva lei: la
+       versione nuova veniva scritta e poi subito sovrascritta, e l'ultima
+       funzione dichiarata era anche l'unica che contava. Un doppione
+       silenzioso e' peggio di un errore: non si vede da nessuna parte. */
 
     let currentTypingMsg = '';
     let activeTypingIntervals = [];
@@ -16427,12 +16418,13 @@ if (recognition) {
   /* ====== LA CONFERMA STA SOPRA LA BARRA, NON NELLA CONVERSAZIONE =======
      Come bolla sarebbe stata piu' semplice da fare, e sbagliata: una bolla
      scorre via. Questa e' la richiesta di scrivere sul disco dell'utente, e
-        if (fatto && fatto.risultato && fatto.risultato.errore) {
-          window.aegisPassoChat(String(fatto.risultato.errore));
-        } else if (fatto && fatto.risultato) {
-          window.aegisPassoChat('Fatto.');
-          seFile(fatto.risultato);
-        }
+     deve restare davanti agli occhi finche' non riceve una risposta. Sta
+     appena sopra il campo, dove la mano e' gia'. */
+  window.aegisApprovazione = function (anteprima) {
+    var T = window.aegisT || function (k) { return k; };
+    return new Promise(function (risolvi) {
+      var wrap = document.getElementById('chat-input-wrapper');
+      if (!wrap || !wrap.parentNode) { risolvi(false); return; }
       var vecchio = document.getElementById('ag-appr-chat');
       if (vecchio) vecchio.remove();
 
