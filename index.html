@@ -16781,6 +16781,28 @@ if (recognition) {
       dx: document.getElementById('user-input')
     };
   }
+
+  /* PERCHE' LA COPPIA DEI PROMPT NON BASTAVA AGGANCIARLA ALLO SCROLL.
+     I due box hanno altezze governate da regole diverse: l'anteprima si ferma
+     a 34vh e da li' in poi scorre, mentre il campo di scrittura cresce -
+     altezzaCampo() lo lascia arrivare a occupare tutta la colonna - e finche'
+     ci sta dentro tutto il testo NON SCORRE AFFATTO. Un elemento che non
+     scorre non emette 'scroll': l'evento su cui era appeso l'allineamento non
+     arrivava mai, e i due box restavano uno in cima e l'altro in fondo.
+     Quindi la coppia si guida dal campo, che e' dove si scrive, e la si
+     riallinea anche quando il testo cambia o il campo cambia altezza - non
+     solo quando scorre. Se il campo mostra tutto dall'inizio, quota vale zero
+     e l'anteprima torna in cima: e' la risposta giusta, perche' a destra si
+     sta guardando l'inizio. */
+  function allineaPrompt(da) {
+    if (!_ancoraAttiva) return;
+    var p = boxPrompt();
+    if (!p.sx || !p.dx) return;
+    if (da === p.sx) segui(p.sx, p.dx);
+    else segui(p.dx, p.sx);
+  }
+  window.aegisAllineaPrompt = function () { allineaPrompt(null); };
+
   function quotaDi(el) {
     var corsa = el.scrollHeight - el.clientHeight;
     return corsa > 0 ? (el.scrollTop / corsa) : 0;
@@ -16803,21 +16825,26 @@ if (recognition) {
      nostro movimento e si scarta. Non dipende da nessun tempo, quindi non
      puo' sbagliare per lentezza della macchina o per un turno di disegno
      saltato. */
-  var _atteso = { el: null, top: 0 };
+  /* Si segna per ELEMENTO, non in una casella sola. Con due coppie da tenere
+     insieme, una casella unica veniva sovrascritta: muovendo i box di
+     scrittura si perdeva il segno lasciato dalle colonne, e il rimbalzo di
+     quelle non veniva piu' riconosciuto. Due coppie, due memorie. */
+  var _atteso = new WeakMap();
 
   function segui(da, a) {
     if (!_ancoraAttiva || !da || !a || da === a) return;
     // e' l'eco del movimento che ho provocato io su questa stessa colonna:
     // si ignora, e si dimentica, cosi' il prossimo scorrimento vero passa
-    if (_atteso.el === da && Math.abs(da.scrollTop - _atteso.top) <= 1) {
-      _atteso.el = null;
+    var segno = _atteso.get(da);
+    if (segno !== undefined && Math.abs(da.scrollTop - segno) <= 1) {
+      _atteso.delete(da);
       return;
     }
     var corsa = a.scrollHeight - a.clientHeight;
     if (corsa <= 0) return;              // l'altra colonna non ha da scorrere
     var top = Math.round(quotaDi(da) * corsa);
     if (Math.abs(a.scrollTop - top) <= 1) return;   // e' gia' li'
-    _atteso.el = a; _atteso.top = top;
+    _atteso.set(a, top);
     a.scrollTop = top;
   }
 
@@ -16860,8 +16887,7 @@ if (recognition) {
     if (_ancoraAttiva) {
       var c = colonne();
       if (c.sx && c.dx) segui(c.sx, c.dx);
-      var p = boxPrompt();
-      if (p.sx && p.dx) segui(p.dx, p.sx);   // il coperto segue quello che scrivi
+      allineaPrompt(null);   // il coperto si mette dove sta quello che scrivi
     }
   }
 
@@ -16934,6 +16960,22 @@ if (recognition) {
         if (lato === 'sx') segui(t, q.dx);
         else if (lato === 'dx') segui(t, q.sx);
       }, true);
+
+      /* IL CAMPO CHE NON SCORRE VA SENTITO LO STESSO.
+         Scrivendo, il campo cresce invece di scorrere: nessun evento 'scroll'
+         parte, e senza queste due righe l'anteprima resta ferma dov'era.
+         'input' copre la scrittura e l'incollaggio, il ridimensionamento della
+         finestra copre il caso in cui il campo si accorcia e comincia a
+         scorrere. Si aspetta un giro di disegno perche' l'altezza nuova
+         dev'essere gia' stata applicata quando si misura. */
+      var _rial = function () {
+        if (!_ancoraAttiva) return;
+        requestAnimationFrame(function () { allineaPrompt(null); });
+      };
+      document.addEventListener('input', function (e) {
+        if (e.target && e.target.id === 'user-input') _rial();
+      }, true);
+      window.addEventListener('resize', _rial);
     }
     return true;
   }
