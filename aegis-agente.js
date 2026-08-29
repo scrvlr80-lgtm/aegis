@@ -34,6 +34,14 @@
   var _MAX_DEFAULT = 15;      // tetto di sicurezza, sovrascrivibile dal piano
   var _log = [];              // registro delle azioni (audit)
   var _inAttesa = null;       // azione che aspetta l'approvazione umana
+  /* LA STORIA DEL COMPITO IN CORSO.
+     Stava dentro esegui(), come variabile locale. Sembrava innocuo e non lo
+     era: ogni ripresa dopo un'approvazione ricominciava da una storia nuova,
+     quindi il modello ritrovava il compito ma NON i risultati degli strumenti
+     che aveva gia' visto, e rifaceva da capo il passo appena approvato.
+     Qui invece la storia sopravvive alla sospensione, e approva()/rifiuta()
+     possono scriverci l'esito. _reset() la azzera insieme al resto. */
+  var _storia = [];
 
   /* --------------------------------------------------- registro strumenti */
   /* Uno strumento e':
@@ -100,12 +108,23 @@
     var esito = s.conferma ? await s.conferma(a.anteprima, a.args, a.contesto)
                            : (s.esegui ? await s.esegui(a.args, a.contesto) : { fatto: true });
     annota({ tipo: 'eseguito', strumento: a.nome, chi_approva: 'utente', esito: _sicuro(esito) });
+    /* L'ESITO ENTRA NELLA STORIA, non solo nell'audit. Senza questa riga il
+       modello, ripreso dopo l'approvazione, non sapeva se l'azione fosse
+       riuscita: la richiedeva di nuovo, e l'utente doveva confermare due
+       volte la stessa cosa. */
+    try { _storia.push({ ruolo: 'strumento', nome: a.nome, testo: JSON.stringify(esito) }); } catch (e) {
+      _storia.push({ ruolo: 'strumento', nome: a.nome, testo: 'eseguito' });
+    }
     return { risultato: esito };
   }
   function rifiuta() {
     if (!_inAttesa) return { errore: 'niente da rifiutare' };
     var n = _inAttesa.nome; _inAttesa = null;
     annota({ tipo: 'rifiutato', strumento: n, chi_approva: 'utente' });
+    // Anche il rifiuto e' un fatto della conversazione: se il ciclo riprende,
+    // il modello deve sapere che quella strada e' chiusa e cercarne un'altra.
+    _storia.push({ ruolo: 'strumento', nome: n,
+                   testo: 'L\u2019utente ha rifiutato questa azione. Non riproporla.' });
     return { rifiutato: true };
   }
   function inAttesa() { return _inAttesa ? { nome: _inAttesa.nome, anteprima: _inAttesa.anteprima } : null; }
@@ -131,8 +150,48 @@
     if (typeof chiedi !== 'function') return { errore: 'manca il collegamento al modello' };
 
     _giri = 0;
-    annota({ tipo: 'inizio', compito: _sicuro({ c: compito }) });
-    var storia = [{ ruolo: 'utente', testo: String(compito || '') }];
+
+    /* ====== DA DOVE VIENE LA MEMORIA =====================================
+       L'agente partiva da `[{utente: compito}]` e basta. Chi aveva appena
+       incollato un documento nella chat e scriveva "riassumilo" si sentiva
+       rispondere che non era stato fornito alcun testo: verissimo, dal punto
+       di vista dell'agente, perche' il documento non gli era mai arrivato.
+       La memoria non va costruita: c'e' gia'. E' lo SPECCHIO, la colonna
+       centrale, che conserva ogni turno nella sua forma protetta e sopravvive
+       anche alla chiusura della scheda. Il frontend la passa in opzioni.memoria
+       come elenco di {ruolo, testo}; qui diventa l'inizio della storia.
+       Due proprieta' che rendono questa scelta l'unica corretta per Aegis:
+       il contenuto e' gia' mascherato - non c'e' nessun testo in chiaro da
+       recuperare, nessun vault da attraversare - e non serve nessun archivio
+       nuovo, nessuna riga sul server, nessuna deroga al noLog.
+       ==================================================================== */
+    if (opzioni.riprendi && _storia.length) {
+      // Ripresa dopo un'approvazione: la storia e' quella di prima, coi
+      // risultati gia' dentro. Ricostruirla qui cancellerebbe il lavoro fatto.
+      annota({ tipo: 'ripresa', giri: _giri });
+    } else {
+      _storia = [];
+      if (Array.isArray(opzioni.memoria)) {
+        opzioni.memoria.forEach(function (m) {
+          var t = String((m && m.testo) || '');
+          if (!t) return;
+          var r = (m && m.ruolo) || 'utente';
+          var mio = (r === 'modello' || r === 'bot' || r === 'assistente') ? 'modello' : 'utente';
+          _storia.push({ ruolo: mio, testo: t });
+        });
+      }
+      /* Il compito puo' essere GIA' l'ultima riga della memoria: il frontend
+         lo consegna allo specchio prima di avviare l'agente, ed e' giusto che
+         lo faccia (e' cio' che parte davvero). Aggiungerlo di nuovo lo
+         manderebbe al modello due volte. Si guarda la coda, non si indovina. */
+      var coda = _storia.length ? _storia[_storia.length - 1] : null;
+      var testoCompito = String(compito || '');
+      if (!coda || coda.ruolo !== 'utente' || coda.testo !== testoCompito) {
+        _storia.push({ ruolo: 'utente', testo: testoCompito });
+      }
+      annota({ tipo: 'inizio', compito: _sicuro({ c: compito }), memoria: _storia.length - 1 });
+    }
+    var storia = _storia;
 
     while (_giri < tetto) {
       _giri++;
@@ -142,14 +201,19 @@
         var esito = await invoca(risposta.strumento, risposta.args, opzioni.contesto);
         if (esito.attende_approvazione) {
           // Si esce dal ciclo e si restituisce il controllo all'interfaccia:
-          // riprendera' con riprendi() dopo l'approvazione.
+          // riprendera' con esegui(..., {riprendi:true}) dopo l'approvazione,
+          // ritrovando questa stessa storia invece di ricominciare da zero.
           return { stato: 'attende_approvazione', anteprima: esito.anteprima, giri: _giri };
         }
         storia.push({ ruolo: 'strumento', nome: risposta.strumento, testo: JSON.stringify(esito.risultato || esito.errore) });
         continue;
       }
       annota({ tipo: 'fine', giri: _giri });
-      return { stato: 'finito', risposta: (risposta && risposta.testo) || '',
+      // La risposta finale resta nella storia: al turno dopo ("adesso fallo
+      // piu' breve") il modello deve sapere che cosa ha gia' prodotto.
+      var finale = (risposta && risposta.testo) || '';
+      if (finale) storia.push({ ruolo: 'modello', testo: finale });
+      return { stato: 'finito', risposta: finale,
                senza_strumenti: !!(risposta && risposta.senza_strumenti), giri: _giri };
     }
     annota({ tipo: 'tetto_raggiunto', giri: _giri });
@@ -579,6 +643,11 @@
         '5. I codici fra doppie parentesi quadre (per esempio [[PER_01]]) sono dati protetti.',
         '   Non provare a indovinare cosa nascondono, non chiederlo, e riportali sempre identici.',
         '6. Se non ti serve nessuno strumento, rispondi subito con {"testo":"..."}.',
+        '7. I messaggi che precedono sono la conversazione gia\\u2019 avvenuta con questa',
+        '   persona, nella stessa forma protetta. Sono il MATERIALE su cui lavori: se il',
+        '   compito dice "riassumilo", "fallo piu\\u2019 breve" o "mettilo in cinque punti",',
+        '   il riferimento e\\u2019 li\\u2019 dentro. Non chiedere di rimandarti un testo che hai',
+        '   gia\\u2019 davanti e non dire che non ti e\\u2019 stato fornito nulla.',
         '',
         'IMPORTANTE: non descrivere a parole cosa faresti. Se il compito richiede di',
         'scrivere un file, leggere una cartella o eseguire un calcolo, DEVI chiamare lo',
@@ -623,11 +692,23 @@
         } else messaggi.push({ role: 'assistant', content: m.testo });
       });
 
+      /* LA FINESTRA SI TAGLIA IN CODA, MAI IN TESTA.
+         Prima era messaggi.slice(-24) e basta. Con una conversazione corta non
+         si notava; adesso che l'agente eredita lo specchio, superati i 24
+         messaggi il taglio si mangiava il PRIMO, cioe' le istruzioni di
+         sistema: il modello perdeva l'elenco degli strumenti e il formato
+         JSON, e da quel momento rispondeva a parole. Le istruzioni si tengono
+         sempre, si accorcia solo la conversazione. */
+      function finestra(tutti) {
+        if (tutti.length <= 24) return tutti;
+        return [tutti[0]].concat(tutti.slice(1).slice(-23));
+      }
+
       var risposta = await chiamata('/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: cfg.modello, local_id: cfg.localId, language: cfg.lingua || 'it-IT',
-          messages: messaggi.slice(-24), temperature: 0.2,
+          messages: finestra(messaggi), temperature: 0.2,
           session_id: cfg.sessionId || null, user_email: cfg.email || null,
           access_password: cfg.password || ''
         })
@@ -658,7 +739,7 @@
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: cfg.modello, local_id: cfg.localId, language: cfg.lingua || 'it-IT',
-          messages: messaggi.slice(-24), temperature: 0,
+          messages: finestra(messaggi), temperature: 0,
           session_id: cfg.sessionId || null, user_email: cfg.email || null,
           access_password: cfg.password || ''
         })
@@ -691,6 +772,6 @@
     inAttesa: inAttesa,
     audit: registroAudit,
     // per i test: azzera lo stato fra un compito e l'altro
-    _reset: function () { _giri = 0; _log = []; _inAttesa = null; }
+    _reset: function () { _giri = 0; _log = []; _inAttesa = null; _storia = []; }
   };
 })(typeof window !== 'undefined' ? window : globalThis);
