@@ -9337,6 +9337,29 @@ if (recognition) {
         out=out.replace(new RegExp('[A-Za-z0-9]{0,40}'+rx(nudoDi(p.k,p.val))+'[A-Za-z0-9]{0,40}','g'), p.val);
       }catch(e){}
     });
+    /* ====== ANCHE IL RESIDUO IN FORMA [[TOK]] TORNA A CASA ==============
+       Il ciclo qui sopra cerca soltanto nudoDi(), cioe' '@pe01@'. Ma non e'
+       l'unica forma che esce davvero: copriPerForza() - la rete di sicurezza
+       di aegisMaskHistory quando la mascheratura non converge in sei giri -
+       copre i residui scrivendo '[['+tok+']]', la forma vecchia. Quel codice
+       arrivava al modello, tornava indietro identico, e qui non lo prendeva
+       nessuno: restava scritto nella risposta.
+       Nessuna mappa nuova e nessun codice nuovo: si legge il token dentro le
+       doppie parentesi e si rimette il valore che il vault ha gia'. Se il
+       vault non lo conosce non si tocca niente - un codice onesto e' meglio
+       di un ripristino inventato.
+       Le due sintassi sono disgiunte ('@..@' non e' '[[..]]'), quindi questo
+       passaggio non puo' ridecodificare cio' che il ciclo sopra ha gia'
+       ripristinato. */
+    try{
+      out = out.replace(/\[\[([A-Za-z0-9]+_\d+)\]\]/g, function(tutto, tok){
+        var v = vault.get(tok);
+        if (v === undefined) {
+          vault.forEach(function(val,k){ if (v === undefined && k.split('~')[0] === tok) v = val; });
+        }
+        return v === undefined ? tutto : v;
+      });
+    }catch(e){}
     return out;
   }
 
