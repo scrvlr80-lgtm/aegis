@@ -11321,10 +11321,14 @@ if (recognition) {
   // chiamata costa quasi zero e il disegno si rifa' sempre.
   function disegnaOmbra(testo) {
     if (!ombraEl) return;
-    // Lo stato e' uno solo: se c'e' l'interruttore centrale comanda lui.
-    // ombraAttiva resta come ripiego per l'ordine di caricamento, quando
-    // questo blocco gira prima che la porta esista.
-    var _acceso = window.aegisResaltadoStato ? window.aegisResaltadoStato() : ombraAttiva;
+    /* IL CAMPO DI SCRITTURA HA IL SUO STATO, ED E' ombraAttiva.
+       Qui si leggeva aegisResaltadoStato(), cioe' l'interruttore degli
+       evidenziatori della risposta: spegnendo EVIDENZIA a destra, i colori
+       sparivano anche sotto le parole che si stavano scrivendo - non subito,
+       ma alla battuta successiva, che e' il modo peggiore di sbagliare.
+       ombraAttiva e' comandato dal pulsante che sta sotto il campo
+       (#ag-ant-hl) e riguarda solo questa superficie. */
+    var _acceso = ombraAttiva;
     if (!_acceso || !testo) { ombraEl.innerHTML = ''; return; }
     let r;
     try { r = AEGIS.protect(String(testo), opzioni()); } catch (e) { ombraEl.innerHTML = ''; return; }
@@ -11554,12 +11558,16 @@ if (recognition) {
       hl.setAttribute('data-aiuto', T('aiutoEvidenzia'));
       hl.addEventListener('click', function (e) {
         e.stopPropagation();
-        /* UNA FUNZIONE SOLA. Questo pulsante aveva uno stato suo, ombraAttiva,
-           e comandava solo le parole DENTRO il campo di scrittura. Chi lo
-           spegneva vedeva sparire i colori qui e restare quelli a destra e
-           nello specchio: tre interruttori con lo stesso nome e tre esiti
-           diversi. Ora e' una vista sullo stesso stato. */
-        var acceso = window.aegisResaltado ? window.aegisResaltado() : !ombraAttiva;
+        /* QUESTO PULSANTE COMANDA IL CAMPO DI SCRITTURA, E BASTA.
+           Qui si chiamava aegisResaltado(), cioe' l'interruttore degli
+           evidenziatori della risposta: premendolo si spegnevano i colori a
+           destra, e premendo quello a destra si spegnevano i colori qui. Due
+           superfici diverse legate allo stesso filo, e nessuna delle due era
+           quella che l'utente stava guardando.
+           ombraAttiva e' lo stato di questa superficie ed e' sempre esistito:
+           si torna a usarlo. Nessun interruttore nuovo, nessun secondo
+           motore di evidenziazione - solo il filo di troppo, tolto. */
+        var acceso = !ombraAttiva;
         ombraAttiva = acceso;
         anteprimaColorata = acceso;
         hl.classList.toggle('on', acceso);
@@ -12661,11 +12669,50 @@ if (recognition) {
      Copia esatta vuol dire anche stesso scorrimento: senza, le evidenziazioni
      restano ferme mentre il testo scorre, ed e' il difetto che si notava nel
      campo della chat finche' non si dava una rotella. */
+  /* I DUE PULSANTI DEL PANNELLO SONO UNA VISTA SOLA SU skOmbra.
+     Il pannello ha due comandi con lo stesso nome: #ag-sk-hl nella testata e
+     #ag-sk-evid accanto al campo. Prima il primo passava da aegisResaltado -
+     l'interruttore della CHAT - e il secondo da skOmbra: due bottoni gemelli
+     che comandavano due superfici diverse, e uno dei due usciva dal pannello.
+     Adesso comandano tutti e due skOmbra, che e' lo stato locale di questa
+     ombra e non esce da qui. Nessuno stato nuovo, nessun secondo motore:
+     solo i due pulsanti tenuti allineati fra loro. */
+  function skAllineaEvid() {
+    ['ag-sk-hl', 'ag-sk-evid'].forEach(function (id) {
+      var b = document.getElementById(id);
+      if (!b) return;
+      b.classList.toggle('on', skOmbra);
+      var l = b.querySelector('.ag-lbl');
+      if (l) l.textContent = skOmbra ? T('evidOn') : T('evidOff');
+    });
+  }
+
+  /* L'OMBRA GIA' DISEGNATA SI RIUSA, NON SI RICALCOLA.
+     skDisegnaOmbra() chiama AEGIS.protect(): accettabile quando il testo
+     cambia davvero, inaccettabile per un ON/OFF visivo, che cosi' rimetteva
+     in moto il motore di protezione a ogni click.
+     Si tiene da parte l'ultimo disegno e il testo per cui e' stato fatto.
+     Spegnere svuota il riquadro; riaccendere rimette quello di prima, senza
+     toccare niente. Sono due variabili locali di questo pannello: nessuno
+     stato globale, nessuna mappa, nessun secondo motore.
+     skOmbraPer viene azzerato da rispecchia(), che e' il punto in cui il
+     pannello dichiara che qualcosa e' cambiato per davvero (testo caricato,
+     legenda, analisi profonda, pennello). */
+  var skOmbraHtml = '';
+  var skOmbraPer = null;
+
   function skDisegnaOmbra() {
     var om = document.getElementById('ag-sk-ombra');
     var campo = document.getElementById('ag-sk-testo');
     if (!om || !campo) return;
     if (!skOmbra || !campo.value) { om.innerHTML = ''; return; }
+    // Gia' calcolata per questo identico testo: si rimette e basta.
+    if (skOmbraPer === campo.value) {
+      om.innerHTML = skOmbraHtml;
+      om.scrollTop = campo.scrollTop;
+      om.scrollLeft = campo.scrollLeft;
+      return;
+    }
     var testo = campo.value, r;
     try { r = AEGIS.protect(testo, opzioni()); } catch (e) { om.innerHTML = ''; return; }
     var punti = (r.matches || []).slice().sort(function (a, b) { return a.start - b.start; });
@@ -12689,7 +12736,20 @@ if (recognition) {
       cursore = m.end;
     });
     fuori += esc(testo.slice(cursore)) + '<br>';
+    skOmbraHtml = fuori;
+    skOmbraPer = testo;
     om.innerHTML = fuori;
+    om.scrollTop = campo.scrollTop;
+    om.scrollLeft = campo.scrollLeft;
+  }
+
+  // Toggle PURAMENTE VISIVO: non richiama AEGIS.protect(), non modifica vault,
+  // masking, valoriPreview, RAG o testo. Riusa soltanto l'HTML gia' renderizzato.
+  function skMostraOmbraSoloVisiva() {
+    var om = document.getElementById('ag-sk-ombra');
+    var campo = document.getElementById('ag-sk-testo');
+    if (!om || !campo) return;
+    om.innerHTML = skOmbra ? skOmbraHtml : '';
     om.scrollTop = campo.scrollTop;
     om.scrollLeft = campo.scrollLeft;
   }
@@ -12952,9 +13012,9 @@ if (recognition) {
           '" id="ag-sk-profonda">' + (PROFONDA ? T('profondaOn') : T('profondaOff')) + '</button>' +
         '<button type="button" class="ag-ia' + (riservato ? ' on' : '') +
           '" id="ag-sk-riservato">' + (riservato ? T('riservatoOn') : T('riservatoOff')) + '</button>' +
-        '<button type="button" class="ag-toggle ag-toggle-sp' + (codiciAccesi ? ' on' : '') +
+        '<button type="button" class="ag-toggle ag-toggle-sp' + (skOmbra ? ' on' : '') +
           '" id="ag-sk-hl"><span class="ag-dot"></span><span class="ag-lbl">' +
-          (codiciAccesi ? T('evidOn') : T('evidOff')) + '</span></button>' +
+          (skOmbra ? T('evidOn') : T('evidOff')) + '</span></button>' +
         '<span class="ag-sk-sp"></span>' +
         (seSessione ? '<button type="button" class="ag-ia" id="ag-sk-svuota">' +
           T('sesSvuota') + '</button>' : '') +
@@ -13030,6 +13090,11 @@ if (recognition) {
     // quello che si legge qui e' quello che il modello ricevera'.
     function rispecchia() {
       skTesto = area.value;
+      // Qui il pannello dichiara che qualcosa e' cambiato per davvero: testo
+      // caricato, legenda, analisi profonda, pennello. L'ombra tenuta da
+      // parte non vale piu' e va ricalcolata. NON e' il percorso del toggle
+      // visivo, che passa direttamente da skDisegnaOmbra() e riusa la copia.
+      skOmbraPer = null;
       if (!skTesto.trim()) { specchio.innerHTML = ''; disegnaColonna(voci); return; }
       valoriPreview.clear();
       var r = maschera(skTesto, false);
@@ -13181,18 +13246,25 @@ if (recognition) {
       if (b.id === 'ag-sk-pennello') { accendiPennello(b); return; }
       if (b.id === 'ag-sk-evid') {
         skOmbra = !skOmbra;
-        b.classList.toggle('on', skOmbra);
-        var l2 = b.querySelector('.ag-lbl');
-        if (l2) l2.textContent = skOmbra ? T('evidOn') : T('evidOff');
-        skDisegnaOmbra();
+        skAllineaEvid();
+        skMostraOmbraSoloVisiva();
         return;
       }
       if (b.id === 'ag-sk-riservato') { riservatezza(!riservato); return; }
       if (b.id === 'ag-sk-hl') {
-        // Stesso interruttore, altro pannello: passa dallo stesso stato.
-        // aegisResaltado allinea da se' l'aspetto di questo pulsante.
-        window.aegisResaltado();
-        rispecchia();
+        /* QUESTO PULSANTE STA NEL PANNELLO E RESTA NEL PANNELLO.
+           Qui si chiamava window.aegisResaltado(), cioe' l'interruttore degli
+           evidenziatori della CHAT: spegnendo i colori sul testo del RAG si
+           spegnevano quelli delle risposte a destra, in un'altra superficie
+           che l'utente non stava nemmeno guardando. C'era anche rispecchia(),
+           che svuota valoriPreview e rilancia maschera() sul testo del
+           pannello - un interruttore visivo dentro il motore di protezione,
+           che muoveva contatore, vociAI e colorDi, condivisi con la chat.
+           Restano solo lo stato locale e il suo renderer. Il contenuto del
+           RAG - di sessione o dell'utente - non viene letto ne' riscritto. */
+        skOmbra = !skOmbra;
+        skAllineaEvid();
+        skMostraOmbraSoloVisiva();
         return;
       }
       if (b.id === 'ag-sk-profonda') {
@@ -13717,7 +13789,16 @@ if (recognition) {
         }
       }
       else if (quale === 'riservato') riservato = !riservato;
-      else if (quale === 'evidenzia') { try { window.aegisResaltado(); } catch (e) {} }
+      else if (quale === 'evidenzia') {
+        /* NIENTE aggiorna() QUI SOTTO. aggiorna() fa salva(), disegna() e
+           anteprima(): salvataggio, ridisegno dello specchio e RICALCOLO
+           della mascheratura. Per un interruttore visivo e' tutto di
+           troppo, ed e' la stessa strada da cui il toggle rientrava nel
+           motore di protezione passando da un altro pannello.
+           aegisResaltado fa gia' tutto quello che serve. */
+        try { window.aegisResaltado(); } catch (e) {}
+        return this.stato();
+      }
       else return null;
       try { aggiorna(); } catch (e) {}
       return this.stato();
@@ -14234,17 +14315,16 @@ if (recognition) {
     window.aegisEvidenzia(div);
   }
   window.aegisToggleHL=function(btn){
-    /* UN PULSANTE, TUTTE LE SUPERFICI.
-       Questo interruttore comandava solo la propria bolla: era una scelta
-       difendibile finche' l'evidenziazione era una decorazione della singola
-       risposta, ma l'utente ne vede UNA sola di funzione e si aspetta che
-       "Resaltado OFF" spenga tutto. Con quattro superfici e uno stato per
-       bolla si arrivava a meta' conversazione colorata e meta' no, senza che
-       nessuno ricordasse perche'.
-       Ora comanda lo stato centrale, che ridipinge chat, diario, specchio e
-       campo insieme. La ricerca del messaggio resta perche' serve a non
-       reagire a un click arrivato da un pulsante che non e' in una bolla. */
-    var msg=btn.closest('.message, .ag-ag-passo');
+    /* UN PULSANTE, UNA SUPERFICIE: LE RISPOSTE DELLA CHAT.
+       Questo interruttore comandava prima la sola bolla, poi - passando allo
+       stato centrale - anche specchio, campo di scrittura e righe del diario
+       dell'agente. Erano due eccessi opposti.
+       Adesso la superficie e' una: .message, cioe' i messaggi della chat a
+       destra. Le righe .ag-ag-passo sono il diario del pannello agente e
+       restano fuori, come il pannello sinistro, il campo e i pannelli RAG.
+       La ricerca del messaggio resta perche' serve a non reagire a un click
+       arrivato da un pulsante che non e' in una bolla della chat. */
+    var msg=btn.closest('.message');
     if(!msg) return;
     if (window.aegisResaltado) { window.aegisResaltado(!btn.classList.contains('on')); return; }
     // Ripiego, se lo stato centrale non c'e': comportamento di prima.
@@ -14257,8 +14337,10 @@ if (recognition) {
     });
   };
   // Ridipinge solo i messaggi con interruttore acceso (fine scrittura, restore).
+  // SOLO .message: il diario dell'agente (.ag-ag-passo) e' un'altra superficie
+  // e non risponde all'interruttore delle risposte.
   window.aegisRiapplica=function(){
-    document.querySelectorAll('.message .ag-toggle, .ag-ag-passo .ag-toggle').forEach(function(b){
+    document.querySelectorAll('.message .ag-toggle').forEach(function(b){
       /* I MESSAGGI NUOVI NASCONO ALLINEATI.
          Una bolla appena creata ha l'interruttore spento per costruzione:
          se il Resaltado e' acceso, andava accesa anche lei, altrimenti ogni
@@ -14269,7 +14351,7 @@ if (recognition) {
       b.classList.toggle('on', acceso);
       var l=b.querySelector('.ag-lbl');
       if(l && window.aegisEtichettaHL) l.textContent = window.aegisEtichettaHL(acceso);
-      var msg=b.closest('.message, .ag-ag-passo');
+      var msg=b.closest('.message');
       if(!msg) return;
       if(acceso) bersagliDi(msg).forEach(ridipingi);
       else bersagliDi(msg).forEach(function(d){ window.aegisTogliEvidenza(d); });
@@ -14301,18 +14383,25 @@ if (recognition) {
     var nuovo = (acceso === undefined) ? !codiciAccesi : !!acceso;
     codiciAccesi = nuovo;
 
-    // 1) lo specchio: i codici colorati nella colonna centrale
-    try { disegna(); } catch (e) {}
-    // 2) l'anteprima e il campo di scrittura
-    try {
-      var campo = document.getElementById('user-input');
-      if (campo) anteprima(campo.value);
-    } catch (e) {}
-    // 3) le bolle della chat e le righe del diario: qui l'evidenziazione e'
+    // 1) IL PANNELLO SINISTRO NON SI TOCCA.
+    //    Qui c'erano disegna() e anteprima(campo.value). Sembravano due
+    //    ridisegni e invece erano due RICALCOLI: anteprima() svuota
+    //    valoriPreview, rilancia maschera() e riaccende il modello NER, cioe'
+    //    fa passare un interruttore VISIVO dentro il motore di protezione.
+    //    Da un semplice ON/OFF si muovevano contatore, vociAI e colorDi, e lo
+    //    specchio e la colonna dei dati venivano ridisegnati da capo.
+    //    L'interruttore riguarda gli evidenziatori della RISPOSTA, a destra.
+    //    Lo specchio, la colonna, l'anteprima e il campo di scrittura restano
+    //    esattamente come sono: nessun ricalcolo, nessun testo toccato.
+    // 2) le bolle della chat e le righe del diario: qui l'evidenziazione e'
     //    fatta di nodi <mark> che vanno tolti davvero, non nascosti, o
     //    restano attaccati al testo e riaffiorano al primo ridisegno.
     try {
-      document.querySelectorAll('.message, .ag-ag-passo').forEach(function (m) {
+      // SOLO .message: le risposte e i messaggi della chat a destra.
+      // .ag-ag-passo - le righe del diario dell'agente - stavano in questa
+      // query e venivano ripulite dai <mark> a ogni ON/OFF: e' un'altra
+      // superficie, e l'interruttore non deve raggiungerla.
+      document.querySelectorAll('.message').forEach(function (m) {
         var b = m.querySelector ? m.querySelector('.ag-toggle') : null;
         if (b) {
           b.classList.toggle('on', nuovo);
@@ -14326,9 +14415,13 @@ if (recognition) {
         }
       });
     } catch (e) {}
-    // 4) tutti gli interruttori sparsi nei pannelli dicono la stessa cosa
+    // 3) tutti gli interruttori sparsi nei pannelli dicono la stessa cosa
     try {
-      document.querySelectorAll('#ag-sp-hl, #ag-sk-hl, #ag-ant-hl').forEach(function (b) {
+      // Solo #ag-sp-hl: e' l'altra faccia dello stesso interruttore della
+      // chat. #ag-sk-hl e' stato tolto da qui - appartiene al pannello RAG e
+      // segue skOmbra, non lo stato delle risposte. Finche' stava in questo
+      // elenco, spegnere i colori in chat cambiava anche quel pulsante.
+      document.querySelectorAll('#ag-sp-hl').forEach(function (b) {
         b.classList.toggle('on', nuovo);
         var l = b.querySelector('.ag-lbl');
         if (l && window.aegisEtichettaHL) l.textContent = window.aegisEtichettaHL(nuovo);
@@ -14381,7 +14474,16 @@ if (recognition) {
   }
   function coloraTokenInterno(t){
     t = applicaGruppi(t);
-    if(!codiciAccesi) return esc(t);
+    /* LO SPECCHIO NON DIPENDE PIU' DALL'INTERRUTTORE DEGLI EVIDENZIATORI.
+       Qui c'era 'if(!codiciAccesi) return esc(t);'. Toglieva le capsule e i
+       colori dal pannello sinistro ogni volta che si spegneva EVIDENZIA - e
+       peggio: anche a scoppio ritardato, perche' bastava un ridisegno
+       qualsiasi (un messaggio nuovo, un gruppo spento) per far sparire lo
+       specchio molto dopo il click, senza che si capisse perche'.
+       EVIDENZIA riguarda gli evidenziatori della risposta, a destra. Il
+       pannello sinistro mostra sempre cio' che parte davvero, acceso o
+       spento che sia l'interruttore. Il testo sotto e' identico nei due
+       casi: cambiava solo il markup, e ora non cambia piu' nemmeno quello. */
     return esc(t)
       .replace(/\u0002([\s\S]*?)\u0003/g, function(_, v){
         // valore scoperto: evidenziato, ma senza margini ne' riquadri che
@@ -14940,10 +15042,9 @@ if (recognition) {
     if(spHl){
       spHl.addEventListener('click',function(e){
         e.stopPropagation();
-        // Un solo punto di verita': aegisResaltado ridipinge specchio, campo,
-        // bolle della chat e allinea gli altri interruttori. Prima qui si
-        // toccavano solo le prime due superfici, e le bolle a destra
-        // restavano indietro.
+        // aegisResaltado comanda gli evidenziatori della RISPOSTA, a destra,
+        // e allinea gli altri pulsanti che portano lo stesso nome. Lo
+        // specchio qui accanto non cambia: mostra sempre cio' che parte.
         window.aegisResaltado();
       });
     }
@@ -15100,6 +15201,20 @@ if (recognition) {
       document.querySelectorAll('.ag-toggle .ag-lbl').forEach(function(l){
         if(l.textContent) return;
         var b=l.parentElement;
+        // Il pulsante sotto il campo di scrittura e i due del pannello RAG
+        // hanno lo stato loro: se capitassero qui con l'etichetta vuota si
+        // leggerebbe lo stato degli evidenziatori della risposta, che non e'
+        // il loro.
+        if (b && b.id === 'ag-ant-hl') {
+          b.classList.toggle('on', ombraAttiva);
+          l.textContent = ETICHETTE[lingua()][ombraAttiva?0:1];
+          return;
+        }
+        if (b && (b.id === 'ag-sk-hl' || b.id === 'ag-sk-evid')) {
+          b.classList.toggle('on', skOmbra);
+          l.textContent = ETICHETTE[lingua()][skOmbra?0:1];
+          return;
+        }
         // Una bolla nuova nasce con l'etichetta vuota: va riempita con lo
         // stato REALE, non con un OFF di comodo, o si legge "off" su un
         // messaggio che i colori ce li ha.
