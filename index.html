@@ -14724,6 +14724,39 @@ if (recognition) {
     scorri();
     inseguiUltimaRiga();
   }
+  /* Ridisegno VISIVO della legenda: cambiano solo i colori/visibilita' dei
+     gruppi, quindi nessun comando di questo click deve inseguire il fondo.
+     disegna() e anteprima() chiamano normalmente scorri()/inseguiUltimaRiga();
+     durante un click sulla legenda li sospendiamo e poi rimettiamo ESATTAMENTE
+     le posizioni che l'utente aveva prima del click. Cosi' il testo resta fermo
+     anche quando si passa da codice a chiaro o da chiaro a codice. */
+  function ridisegnaLegendaSenzaScorrere(fn){
+    var oldAuto = autoScroll;
+    var listaTop = lista ? lista.scrollTop : null;
+    var anteTop = anteprimaEl ? anteprimaEl.scrollTop : null;
+    var winX = window.scrollX || window.pageXOffset || 0;
+    var winY = window.scrollY || window.pageYOffset || 0;
+    var root = document.scrollingElement || document.documentElement;
+    var rootTop = root ? root.scrollTop : winY;
+    var rootLeft = root ? root.scrollLeft : winX;
+    autoScroll = false;
+    try { fn(); } finally {
+      autoScroll = oldAuto;
+      if (lista && listaTop !== null) lista.scrollTop = listaTop;
+      if (anteprimaEl && anteTop !== null) anteprimaEl.scrollTop = anteTop;
+      try { window.scrollTo(winX, winY); } catch(e) {}
+      try { root.scrollTop = rootTop; root.scrollLeft = rootLeft; } catch(e) {}
+      // Il browser puo' applicare il layout dopo innerHTML: ribadiamo la
+      // posizione al frame successivo, senza animazione e senza inseguire.
+      requestAnimationFrame(function(){
+        if (lista && listaTop !== null) lista.scrollTop = listaTop;
+        if (anteprimaEl && anteTop !== null) anteprimaEl.scrollTop = anteTop;
+        try { window.scrollTo(winX, winY); } catch(e) {}
+        try { root.scrollTop = rootTop; root.scrollLeft = rootLeft; } catch(e) {}
+      });
+    }
+  }
+
   function scorri(){ if(lista && autoScroll) lista.scrollTop=lista.scrollHeight; }
 
   /* Con la striscia alta poche righe, senza inseguimento si vedrebbe sempre
@@ -14985,16 +15018,20 @@ if (recognition) {
             gruppiSpenti[k] = spegni;
             x.classList.toggle('ag-spento', spegni);
           });
-          disegna();
-          var i0 = document.getElementById('user-input');
-          if (i0) anteprima(i0.value);
+          ridisegnaLegendaSenzaScorrere(function(){
+            disegna();
+            var i0 = document.getElementById('user-input');
+            if (i0) anteprima(i0.value);
+          });
           return;
         }
         gruppiSpenti[g] = !gruppiSpenti[g];
         sp.classList.toggle('ag-spento', !!gruppiSpenti[g]);
-        disegna();
-        var i=document.getElementById('user-input');
-        if(i) anteprima(i.value);
+        ridisegnaLegendaSenzaScorrere(function(){
+          disegna();
+          var i=document.getElementById('user-input');
+          if(i) anteprima(i.value);
+        });
       });
     }
 
