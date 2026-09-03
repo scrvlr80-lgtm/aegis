@@ -208,7 +208,7 @@ body.ag-attivo{overflow:hidden;margin:0}
    che ha sostituito, e lo sfondo la segue su entrambe le righe. Non ha
    larghezza ne' altezza proprie, quindi non puo' in nessun caso spostare il
    testo, ne' in orizzontale ne' in verticale. */
-.ag-t.ag-scorre{display:inline;width:auto;height:auto;padding:0;
+.ag-t.ag-scorre{display:inline;width:auto;height:auto;padding:0;white-space:pre-wrap;
   box-decoration-break:clone;-webkit-box-decoration-break:clone}
 /* La sola parola che ospita il codice puo' avere una scatola propria, larga
    quanto la parola che sostituisce: serve a comprimere il codice quando e'
@@ -14567,7 +14567,7 @@ if (recognition) {
           if (/\s/.test(cOrig)) { pezzi2 += cOrig; continue; }   // gli spazi restano spazi
           pezzi2 += (testoBanda[k2] && !/\s/.test(testoBanda[k2])) ? testoBanda[k2] : '\u00b7';
         }
-        return '<span class="ag-t ag-' + (colorDi.get(tok) || colore(tok)) + extra + '"' +
+        return '<span class="ag-t ag-scorre ag-' + (colorDi.get(tok) || colore(tok)) + extra + '"' +
                titolo + '>' + pezzi2 + '</span>';
       }
 
