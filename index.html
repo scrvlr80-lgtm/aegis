@@ -7215,7 +7215,7 @@ if (recognition) {
   let LEXSEG = null;              // segmentazione per lingua del testo in corso
   let DEEP_LAYER = false;
 
-  function LEX() { return DEEP_LAYER ? (root.AEGIS_LEX || null) : null; }
+  function LEX() { return root.AEGIS_LEX || null; }
 
   // Lingua del PARAGRAFO in cui cade la posizione: un indirizzo italiano
   // dentro una lettera spagnola va pesato con il lessico italiano.
@@ -8286,6 +8286,7 @@ if (recognition) {
   // di default.
   let PROFONDO = false;
   let BASE_LAYER = true;
+  let DEEP_LAYER_CORE = false;
   let LINGUA = null;
   let MODELLO_ATTIVO = false;   // vero solo quando il motore contestuale gira
   let FUORI_LINGUA = false;     // il pattern in corso non e' della lingua del testo
@@ -8293,6 +8294,7 @@ if (recognition) {
   function protect(rawText, opts) {
     opts = opts || {};
     PROFONDO = !!opts.profondo;
+    DEEP_LAYER_CORE = !!opts.profondo;
     BASE_LAYER = (opts.base !== false);
     // LINGUA. Quella passata da fuori e' la lingua dell'INTERFACCIA, non del
     // documento: un utente con l'interfaccia in italiano che incolla una
@@ -8314,7 +8316,6 @@ if (recognition) {
     // LINGUA DEL DOCUMENTO, paragrafo per paragrafo. Un indirizzo italiano
     // dentro una lettera spagnola viene pesato con il lessico italiano.
     LEXSEG = null;
-    DEEP_LAYER = !!PROFONDA;
     if (LEX()) {
       const seg = LEX().segmenti(text);
       LEXSEG = seg.segmenti;
@@ -8326,12 +8327,10 @@ if (recognition) {
     KB.patterns.forEach(p => {
       if (disabled.has(p.id)) return;
       // Strati indipendenti: BASE = regole strutturate/codici;
-      // PROFONDA = pattern alimentati dal gazetteer.
+      // DEEP = pattern alimentati dal gazetteer. Se entrambi sono ON girano
+      // entrambi; nessun pattern cambia il significato degli altri.
       if (!BASE_LAYER && !p.gazetteer) return;
-      if (!PROFONDA && p.gazetteer) return;
-      // Il flag profondo viene applicato SOLO allo strato gazetteer corrente.
-      // Un pattern BASE non cambia comportamento quando PROFONDA e' ON.
-      PROFONDO = !!(PROFONDA && p.gazetteer);
+      if (!DEEP_LAYER_CORE && p.gazetteer) return;
       // LINGUA COME PESO, NON COME FILTRO. Spegnere un pattern perche' il
       // testo intorno e' di un'altra lingua faceva sparire la carta
       // d'identita' italiana citata dentro una lettera spagnola, e con essa
@@ -8353,7 +8352,7 @@ if (recognition) {
     // Si applica solo dove serve e con tre uscite di sicurezza, perche' il
     // rischio di un veto e' lasciare scoperto un nome vero.
     // ------------------------------------------------------------------
-    if (PROFONDA) found = vetoParoleComuni(found, text);
+    found = vetoParoleComuni(found, text);
 
     let kept = resolve(found);
     // Il lessico dinamico lavora sulle persone DISTINTE: senza dedup si
@@ -8372,8 +8371,7 @@ if (recognition) {
     // parola comune, il secondo passaggio lo rimetteva in circolo mascherato
     // ("Age" tornava PER dopo essere stato retrocesso). Il veto si applica
     // anche qui, sul risultato: e' il punto dove passano tutti.
-    if (PROFONDA) kept = vetoParoleComuni(resolve(kept.concat(dyn)), text);
-    else kept = resolve(kept.concat(dyn));
+    kept = vetoParoleComuni(resolve(kept.concat(dyn)), text);
     if (BASE_LAYER) {
       kept = resolve(kept.concat(quarantine(text, kept, level)));
       kept = resolve(kept.concat(campiEtichettati(text, kept, level)));
@@ -9111,6 +9109,18 @@ if (recognition) {
   function scorda(){ try{ sessionStorage.removeItem(CHIAVE); }catch(e){} }
 
   /* ---------- utilita' ---------- */
+  function coloreDaCategoria(cat, token){
+    var c = String(cat || '').toLowerCase();
+    var m = {'persona':'per','person':'per','name':'per','nomi':'per','per':'per',
+      'indirizzo':'addr','address':'addr','addr':'addr','luogo':'city','location':'city','city':'city','place':'city',
+      'data':'date','date':'date','birth':'date','bancari':'bank','bank':'bank','account':'bank','card':'bank',
+      'contatti':'mail','contact':'mail','email':'mail','phone':'mail','mail':'mail','documenti':'id','document':'id','id':'id',
+      'tecnici':'tech','technical':'tech','tech':'tech','sanitari':'med','medical':'med','health':'med','med':'med',
+      'aziende':'org','company':'org','organization':'org','org':'org','altri':'altri','other':'altri',
+      'manuale':'mano','manual':'mano','mano':'mano'};
+    return m[c] || colore(token);
+  }
+
   function colore(token){
     var t=String(token).replace(/[\[\]]/g,'').split('_')[0];
     if(t==='PER'||t==='ALIAS'||t==='NAME'||t==='NER') return 'per';
@@ -9293,13 +9303,13 @@ if (recognition) {
         if(congela){
           contatore[tipo]=(contatore[tipo]||0)+1;
           tok=tipo+'_'+String(contatore[tipo]).padStart(2,'0');
-          vault.set(tok,v.value); colorDi.set(tok,colore(v.token));
+          vault.set(tok,v.value); colorDi.set(tok,coloreDaCategoria(v.category, v.token));
           aggiungiMotore(tok, v.engine || 'base');
           varianti(v.value).forEach(function(vr){ if(vr!==v.value) vault.set(tok+'~'+vr, vr); });
         }else{
           tmp[tipo]=(tmp[tipo]||0)+1;
           tok=tipo+'_'+String((contatore[tipo]||0)+tmp[tipo]).padStart(2,'0');
-          colorDi.set(tok,colore(v.token));
+          colorDi.set(tok,coloreDaCategoria(v.category, v.token));
           aggiungiMotore(tok, v.engine || 'base');
           // i token dell'anteprima non entrano nel vault (non sono congelati):
           // senza questa riga i gruppi non potrebbero mai rivelarne il valore
@@ -9315,7 +9325,7 @@ if (recognition) {
         while(usati[cand] !== undefined || vault.has(cand));
         tok = cand;
         if(congela){ vault.set(tok, v.value); }
-        colorDi.set(tok, colore(v.token));
+        colorDi.set(tok, coloreDaCategoria(v.category, v.token));
         aggiungiMotore(tok, v.engine || 'base');
       }
       aggiungiMotore(tok, v.engine || 'base');
@@ -9429,6 +9439,7 @@ if (recognition) {
     DEEP_LAYER = false;
     PROFONDO = false;
     BASE_LAYER = true;
+    DEEP_LAYER_CORE = false;
     return {testo:out, voci:voci, valori:valori};
   }
 
@@ -18486,7 +18497,11 @@ if (recognition) {
       try {
         motore = await pipeline('token-classification', MODELLO, Object.assign({}, conf, {
           progress_callback: function (d) {
-            if (d && d.status === 'progress' && d.progress != null) segnala('carico', Number(d.progress));
+            if (!d) return;
+            if ((d.status === 'progress_total' || d.status === 'progress') &&
+                typeof d.progress === 'number' && isFinite(d.progress)) {
+              segnala('carico', d.progress);
+            }
           }
         }));
       } catch (e) {
@@ -18494,7 +18509,11 @@ if (recognition) {
         motore = await pipeline('token-classification', MODELLO, {
           dtype: 'q8', device: 'wasm',
           progress_callback: function (d) {
-            if (d && d.status === 'progress' && d.progress != null) segnala('carico', Number(d.progress));
+            if (!d) return;
+            if ((d.status === 'progress_total' || d.status === 'progress') &&
+                typeof d.progress === 'number' && isFinite(d.progress)) {
+              segnala('carico', d.progress);
+            }
           }
         });
       }
