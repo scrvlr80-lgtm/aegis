@@ -417,6 +417,8 @@ body.ag-attivo{overflow:hidden;margin:0}
 .ag-gr-tit{display:flex;align-items:center;gap:6px;font-size:9.5px;font-weight:700;
   letter-spacing:.06em;text-transform:uppercase;color:var(--text-light);margin-bottom:4px}
 .ag-gr-tit i{width:9px;height:9px;border-radius:2px;flex:none}
+.ag-motore-gruppo{margin:10px 0 4px;padding:5px 0 4px;border-bottom:1px solid var(--hairline);font-size:9px;font-weight:700;letter-spacing:1.2px;color:var(--text-light)}
+.ag-motore-gruppo:first-child{margin-top:0}
 .ag-gr-voce{display:flex;align-items:center;gap:6px;font-size:11.5px;line-height:1.5;
   color:var(--text-main);padding:1px 0 1px 15px}
 .ag-gr-voce .t{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -7662,6 +7664,7 @@ if (recognition) {
 
       found.push({
         patternId: p.id, category: p.category, sub: p.sub, token: p.token,
+        engine: p.gazetteer ? 'deep' : 'base',
         start, end, value, confidence: conf, priority: p.priority,
         validated, sensitiveExtra: !!p.sensitiveExtra, metaKeep: p.metaKeep || null,
         truncatable: !!p.truncatable, banda: banda, review: banda === 'propose',
@@ -8020,7 +8023,7 @@ if (recognition) {
             v = { key: vk, value: m.value, token: host.token.replace(']]', String.fromCharCode(65 + host.variants.length) + ']]') };
             host.variants.push(v);
           }
-          ent = { token: v.token, value: m.value, type: m.token, count: 0, parent: host.token, category: m.category, sub: m.sub, confidence: m.confidence };
+          ent = { token: v.token, value: m.value, type: m.token, count: 0, parent: host.token, category: m.category, sub: m.sub, confidence: m.confidence, engine: m.engine || 'base' };
           entities.set(k, ent);
         }
       }
@@ -8051,7 +8054,7 @@ if (recognition) {
            che tutto il resto ha finito il suo lavoro. Qui si torna alla forma
            di sempre. */
         const tok = '[[' + m.token + '_' + String(n).padStart(2, '0') + ']]';
-        ent = { token: tok, value: m.value, type: m.token, count: 0, category: m.category, sub: m.sub, confidence: m.confidence, review: !!m.review };
+        ent = { token: tok, value: m.value, type: m.token, count: 0, category: m.category, sub: m.sub, confidence: m.confidence, review: !!m.review, engine: m.engine || 'base' };
         entities.set(k, ent);
         if (m.token === 'PER') {
           ent.words = m.value.split(/\s+/).map(key).filter(Boolean);
@@ -8061,6 +8064,8 @@ if (recognition) {
       }
       ent.count++;
       ent.confidence = Math.max(ent.confidence, m.confidence);
+      if (m.engine && ent.engine && ent.engine !== m.engine) ent.engine = 'both';
+      else if (m.engine && !ent.engine) ent.engine = m.engine;
       m.entity = ent;
     });
 
@@ -8434,7 +8439,7 @@ if (recognition) {
       token: ent.token, value: ent.value, type: ent.type,
       category: ent.category, sub: ent.sub, count: ent.count,
       confidence: Math.round(ent.confidence * 100) / 100, parent: ent.parent || null,
-      review: !!ent.review
+      review: !!ent.review, engine: ent.engine || 'base'
     }));
     vault.sort((a, b) => a.token.localeCompare(b.token));
 
@@ -8705,6 +8710,8 @@ if (recognition) {
     return o;
   }
   var vault=new Map(), colorDi=new Map(), contatore={};
+  // Provenienza per motore: stessa categoria/stesso colore, ma gruppi separati.
+  var motoreDi = new Map(); // token -> base | deep | ner | manual | both
   // PENNELLO. Due elenchi decisi dall'utente, che vincono sempre sul motore.
   //   banditi : testo che va coperto anche se le regole non lo riconoscono
   //   esclusi : testo che NON va coperto, anche se le regole lo riconoscono
@@ -9031,9 +9038,10 @@ if (recognition) {
       // si spezzava fra una sessione e l'altra.
       var ai=[]; vociAI.forEach(function(tok,k){ ai.push([k,tok]); });
       var pv=[]; provenienza.forEach(function(chi,k){ pv.push([k,chi]); });
+      var md=[]; motoreDi.forEach(function(chi,k){ md.push([k,chi]); });
       var cu=[]; categoriePersonali.forEach(function(c,id){ cu.push([id,c]); });
       var pacco = JSON.stringify({v:v,c:c,n:contatore,r:righe,
-        b:b, e:Array.from(esclusi), cu:cu, ai:ai, pv:pv});
+        b:b, e:Array.from(esclusi), cu:cu, ai:ai, pv:pv, m:md});
       sessionStorage.setItem(CHIAVE, pacco);
 
       /* ====== IL VAULT SOPRAVVIVE ALLA SCHEDA ==========================
@@ -9091,6 +9099,7 @@ if (recognition) {
       (d.e||[]).forEach(function(x){ esclusi.add(x); });
       (d.ai||[]).forEach(function(p){ vociAI.set(p[0],p[1]); });
       (d.pv||[]).forEach(function(p){ provenienza.set(p[0],p[1]); });
+      (d.m||[]).forEach(function(p){ motoreDi.set(p[0],p[1]); });
     }catch(e){}
   }
   function scorda(){ try{ sessionStorage.removeItem(CHIAVE); }catch(e){} }
@@ -9218,7 +9227,12 @@ if (recognition) {
     extra.forEach(function(v,i){
       var tk='[[NER_'+String(i+1).padStart(2,'0')+']]';
       try{ testo = testo.split(v).join(tk); }catch(err){ return; }
-      vaultNuovo.push({ token: tk, value: v, sub:'full_name', category:'PERSONA', review:true });
+      var catNer = 'per';
+      try {
+        var entNer = candidati.find(function(e){ return String(e && e.valore || '').trim() === v; });
+        catNer = (entNer && entNer.cat) || 'per';
+      } catch (eCat) {}
+      vaultNuovo.push({ token: tk, value: v, sub:'full_name', category:catNer, review:true, engine:'ner' });
     });
     return { text: testo, vault: vaultNuovo, leaks: res.leaks||[], stats: res.stats };
   }
@@ -9254,11 +9268,13 @@ if (recognition) {
           contatore[tipo]=(contatore[tipo]||0)+1;
           tok=tipo+'_'+String(contatore[tipo]).padStart(2,'0');
           vault.set(tok,v.value); colorDi.set(tok,colore(v.token));
+          motoreDi.set(tok, v.engine || 'base');
           varianti(v.value).forEach(function(vr){ if(vr!==v.value) vault.set(tok+'~'+vr, vr); });
         }else{
           tmp[tipo]=(tmp[tipo]||0)+1;
           tok=tipo+'_'+String((contatore[tipo]||0)+tmp[tipo]).padStart(2,'0');
           colorDi.set(tok,colore(v.token));
+          motoreDi.set(tok, v.engine || 'base');
           // i token dell'anteprima non entrano nel vault (non sono congelati):
           // senza questa riga i gruppi non potrebbero mai rivelarne il valore
           valoriPreview.set(tok, v.value);
@@ -9274,7 +9290,9 @@ if (recognition) {
         tok = cand;
         if(congela){ vault.set(tok, v.value); }
         colorDi.set(tok, colore(v.token));
+        motoreDi.set(tok, v.engine || 'base');
       }
+      motoreDi.set(tok, v.engine || motoreDi.get(tok) || 'base');
       usati[tok] = v.value;
       segnaProvenienza(v.value, 'regole');
       assegnati++;
@@ -9328,6 +9346,7 @@ if (recognition) {
             vociAI.set(chiave, tok);
           }
           colorDi.set(tok, cat);
+          motoreDi.set(tok, 'ner');
           if (congela && !vault.has(tok)) vault.set(tok, testo);
           // ANCHE IN ANTEPRIMA il codice deve sapere quale valore sta
           // sostituendo. Senza questa riga valoreDi() tornava null, la legenda
@@ -9359,6 +9378,7 @@ if (recognition) {
           colorDi.set(v.tok, cat);
         }
         colorDi.set(v.tok, cat);
+        motoreDi.set(v.tok, 'manual');
         if (congela && !vault.has(v.tok)) vault.set(v.tok, testo);
         if (!congela) valoriPreview.set(v.tok, testo);   // vedi sopra
         // CONFINI DI PAROLA, come gia' fanno le proposte del motore.
@@ -11176,63 +11196,64 @@ if (recognition) {
   function disegnaColonna(dove){
     var corpo = dove || document.getElementById('ag-voci-corpo');
     if (!corpo) return;
-    // raccolgo i valori attualmente coperti, raggruppati per categoria
     var gruppi = {};
-    function metti(cat, testo, stato){
-      if (!gruppi[cat]) gruppi[cat] = [];
-      if (!gruppi[cat].some(function(x){ return x.testo===testo; })) gruppi[cat].push({testo:testo, stato:stato});
+    function nomeMotore(id){
+      if (id === 'base') return 'BASE';
+      if (id === 'deep') return 'DEEP';
+      if (id === 'ner') return 'NER';
+      if (id === 'manual') return T('catMano');
+      if (id === 'both') return 'BASE + DEEP';
+      return id || 'BASE';
+    }
+    function attivoMotore(id){
+      if (id === 'base') return BASE_ATTIVO;
+      if (id === 'deep') return PROFONDA;
+      if (id === 'ner') return !!NER_ATTIVO;
+      return true;
+    }
+    function metti(cat,testo,stato,engine){
+      engine=engine||'base';
+      if (!attivoMotore(engine)) return;
+      var k=engine+'::'+cat;
+      if (!gruppi[k]) gruppi[k]={engine:engine,cat:cat,v:[]};
+      if (!gruppi[k].v.some(function(x){return x.testo===testo;})) gruppi[k].v.push({testo:testo,stato:stato});
     }
     if (schedaAttiva === 'default') {
-      // Il vault si riempie all'INVIO. Mentre l'utente scrive, i dati coperti
-      // stanno nell'anteprima: senza questi due elenchi insieme la colonna
-      // restava vuota fino al primo messaggio, e sembrava rotta.
-      vault.forEach(function(val, k){
+      vault.forEach(function(val,k){
         if (k.indexOf('~') !== -1) return;
-        metti(colorDi.get(k) || colore(k), String(val), 'attivo');
+        var eng=motoreDi.get(k) || (/^NER_/i.test(k) ? 'ner' : 'base');
+        metti(colorDi.get(k)||colore(k),String(val),'attivo',eng);
       });
-      valoriPreview.forEach(function(val, k){
-        metti(colorDi.get(k) || colore(k), String(val), 'attivo');
+      valoriPreview.forEach(function(val,k){
+        var eng=motoreDi.get(k) || (/^NER_/i.test(k) ? 'ner' : 'base');
+        metti(colorDi.get(k)||colore(k),String(val),'attivo',eng);
       });
     } else if (schedaAttiva === 'aggiunte') {
-      // SOLO IL PENNELLO. Le proposte del motore stavano qui dentro e
-      // riempivano l'elenco da sole: l'utente apriva "Aggiunte" convinto di
-      // trovarci le sue scelte e ci trovava trenta righe che non aveva mai
-      // toccato. Le proposte del motore sono dati coperti come gli altri e
-      // vivono nella scheda predefinita, con l'icona che dice chi le ha viste.
-      banditi.forEach(function(v, testo){ metti(v.cat || 'per', testo, 'aggiunto'); });
+      banditi.forEach(function(v,testo){ metti(v.cat||'per',testo,'aggiunto','manual'); });
     } else {
-      esclusi.forEach(function(t){ metti('tolti', t, 'tolto'); });
+      esclusi.forEach(function(t){ metti('tolti',t,'tolto','manual'); });
     }
-    var chiavi = Object.keys(gruppi).sort(function(a,b){
-      if (a==='tolti') return 1;
-      if (b==='tolti') return -1;
-      return a.localeCompare(b);
+    var chiavi=Object.keys(gruppi).sort(function(a,b){
+      var ga=gruppi[a],gb=gruppi[b],ord={base:1,deep:2,ner:3,manual:4,both:5};
+      if ((ord[ga.engine]||9)!==(ord[gb.engine]||9)) return (ord[ga.engine]||9)-(ord[gb.engine]||9);
+      return ga.cat.localeCompare(gb.cat);
     });
     if (!chiavi.length) {
-      corpo.innerHTML = '<div class="ag-voci-vuoto">' +
-        (schedaAttiva === 'default' ? T('vuotoDefault')
-          : schedaAttiva === 'aggiunte' ? T('vuotoAggiunte') : T('vuotoRimosse')) + '</div>';
-      aggiornaConta();
-      return;
+      corpo.innerHTML='<div class="ag-voci-vuoto">'+(schedaAttiva==='default'?T('vuotoDefault'):schedaAttiva==='aggiunte'?T('vuotoAggiunte'):T('vuotoRimosse'))+'</div>';
+      aggiornaConta(); return;
     }
-    var h = '';
-    chiavi.forEach(function(cat){
-      h += '<div class="ag-gr"><div class="ag-gr-tit"><i style="background:'+coloreCategoria(cat)+'"></i>'+
-           esc(nomeCategoria(cat))+'</div>';
-      gruppi[cat].forEach(function(v){
-        h += '<div class="ag-gr-voce'+(v.stato==='tolto'?' ag-tolto':'')+'">' +
-             iconaProvenienza(v.testo) +
-             '<span class="t">'+esc(v.testo)+'</span>' +
-             (v.stato==='attivo' ? '' :
-               '<button type="button" data-x="'+esc(v.testo)+'" title="' + T('rimetti') + '">&times;</button>') +
-             '</div>';
+    var h='',prev=null;
+    chiavi.forEach(function(k){
+      var g=gruppi[k];
+      if(g.engine!==prev){ h+='<div class="ag-motore-gruppo"><span>'+esc(nomeMotore(g.engine))+'</span></div>'; prev=g.engine; }
+      h+='<div class="ag-gr"><div class="ag-gr-tit"><i style="background:'+coloreCategoria(g.cat)+'"></i>'+esc(nomeCategoria(g.cat))+'</div>';
+      g.v.forEach(function(v){
+        h+='<div class="ag-gr-voce'+(v.stato==='tolto'?' ag-tolto':'')+'">'+iconaProvenienza(v.testo)+'<span class="t">'+esc(v.testo)+'</span>'+(v.stato==='attivo'?'':'<button type="button" data-x="'+esc(v.testo)+'" title="'+T('rimetti')+'">&times;</button>')+'</div>';
       });
-      h += '</div>';
+      h+='</div>';
     });
-    corpo.innerHTML = h;
-    corpo.querySelectorAll('button[data-x]').forEach(function(b){
-      b.onclick = function(){ disfa(b.getAttribute('data-x')); };
-    });
+    corpo.innerHTML=h;
+    corpo.querySelectorAll('button[data-x]').forEach(function(b){b.onclick=function(){disfa(b.getAttribute('data-x'));};});
     aggiornaConta();
   }
   /* ICONA DI PROVENIENZA.
@@ -12844,7 +12865,7 @@ if (recognition) {
     if (M.pronto) {
       if (ev && ev.shiftKey) {
         if (!(await confermaSpegnimento())) return;
-        suggeriti.clear(); vociAI.clear(); ultimoAnalizzato = ''; provenienza.clear();
+        suggeriti.clear(); vociAI.clear(); ultimoAnalizzato = ''; provenienza.clear(); motoreDi.clear();
         try { localStorage.removeItem('aegis_motore'); } catch (e) {}
         var bm = document.getElementById('ag-motore-btn');
         if (bm) { bm.disabled = true; bm.textContent = T('mRimuovo'); }
@@ -12878,16 +12899,25 @@ if (recognition) {
     if (!(await spiegaMotore())) return;
     NER_ATTIVO = true;
     try { localStorage.removeItem('aegis_ner'); } catch(e) {}
-    try { localStorage.setItem('aegis_motore', '1'); } catch (e) {}
+    // Si memorizza l'installazione SOLO dopo un download riuscito.
+    try { localStorage.removeItem('aegis_motore'); } catch (e) {}
     try {
       var caricamentoMotore = M.carica();
       // carica() cambia lo stato a 'carico' prima del primo await.
       // Ridisegniamo subito: la percentuale non dipende dalla consegna dell'evento.
       statoMotore();
       await caricamentoMotore;
+      try { localStorage.setItem('aegis_motore', '1'); } catch (e) {}
       var i = document.getElementById('user-input');
       if (i && i.value) { await chiediAlModello(i.value, true); anteprima(i.value); }
-    } catch (e) {}
+    } catch (e) {
+      try { localStorage.removeItem('aegis_motore'); } catch (err) {}
+      NER_ATTIVO = false;
+      try { localStorage.setItem('aegis_ner','0'); } catch (err2) {}
+      statoMotore();
+      aggiorna();
+      return;
+    }
     statoMotore();
   }
   // Invito dopo l'informativa: si propone una volta sola per dispositivo.
@@ -15421,7 +15451,10 @@ if (recognition) {
             var i = document.getElementById('user-input');
             if (i && i.value && NER_ATTIVO) chiediAlModello(i.value, true).then(function(){ anteprima(i.value); });
             else if (i) anteprima(i.value);
-          }).catch(function(){ statoMotore(); });
+          }).catch(function(){
+            try { localStorage.removeItem('aegis_motore'); } catch (e) {}
+            statoMotore();
+          });
         }, 1200);
       }
     } catch (e) {}
