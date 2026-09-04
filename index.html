@@ -451,7 +451,9 @@ body.ag-pennello-on .ag-anteprima,
 body.ag-pennello-on #user-input{
   cursor:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26'><circle cx='11' cy='11' r='7' fill='none' stroke='%233D3D42' stroke-width='2'/><path d='M11 7v8M7 11h8' stroke='%233D3D42' stroke-width='2' stroke-linecap='round'/></svg>") 11 11, crosshair}
 body.ag-pennello-on .ag-anteprima .ag-t{
-  cursor:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26'><circle cx='11' cy='11' r='7' fill='none' stroke='%23E5484D' stroke-width='2'/><path d='M7 11h8' stroke='%23E5484D' stroke-width='2' stroke-linecap='round'/></svg>") 11 11, crosshair}
+  cursor:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26'><circle cx='11' cy='11' r='7' fill='none' stroke='%233D3D42' stroke-width='2'/><path d='M11 7v8M7 11h8' stroke='%233D3D42' stroke-width='2' stroke-linecap='round'/></svg>") 11 11, crosshair}
+body.ag-pennello-on .ag-anteprima .ag-t.ag-pennello-inviato{
+  cursor:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26'><circle cx='11' cy='11' r='7' fill='none' stroke='%23E5484D' stroke-width='2'/><path d='M7 7l8 8M15 7l-8 8' stroke='%23E5484D' stroke-width='2' stroke-linecap='round'/></svg>") 11 11, not-allowed}
 .ag-ia svg{width:13px;height:13px;vertical-align:-2px;margin-right:5px;fill:currentColor}
 /* --- modalita' riservata --- */
 /* La modalita' riservata NON sfoca piu' lo specchio: sfocando spariscono
@@ -8781,6 +8783,46 @@ if (recognition) {
     } catch (e) {}
   }
 
+  // Stato storico usato esclusivamente dal pennello. Un valore che è
+  // già entrato in un messaggio inviato al modello non è più modificabile
+  // retroattivamente.
+  function normalizzaPennello(t){
+    return String(t == null ? '' : t).replace(/\s+/g,' ').trim().toLowerCase();
+  }
+  function chiaveBandito(testo){
+    var n = normalizzaPennello(testo), out = null;
+    if (!n) return null;
+    banditi.forEach(function(v,k){
+      if (out === null && normalizzaPennello(k) === n) out = k;
+    });
+    return out;
+  }
+  function datoGiaInviato(testo){
+    var n = normalizzaPennello(testo);
+    if (!n || !congelati || !congelati.size) return false;
+    var trovato = false;
+    congelati.forEach(function(valori){
+      if (trovato) return;
+      (valori || []).forEach(function(v){
+        var x = v && typeof v === 'object' && v.valore != null ? v.valore : v;
+        if (!trovato && normalizzaPennello(x) === n) trovato = true;
+      });
+    });
+    return trovato;
+  }
+  function pennelloSegnaInviato(el, valore){
+    if (!el) return false;
+    var bloccato = datoGiaInviato(valore);
+    el.classList.toggle('ag-pennello-inviato', bloccato);
+    if (bloccato) {
+      el.setAttribute('title','Questo dato è già stato inviato al modello e non può essere modificato.');
+      el.setAttribute('aria-label','Dato già inviato al modello');
+    } else {
+      el.removeAttribute('aria-label');
+    }
+    return bloccato;
+  }
+
   var vociAI = new Map();     // testo minuscolo -> codice gia' assegnato
   // CHI HA TROVATO QUESTA PAROLA. Serve solo a mostrarlo nell'elenco: le
   // regole non hanno bisogno di saperlo per lavorare. Valore minuscolo ->
@@ -10843,7 +10885,7 @@ if (recognition) {
     var d = document.createElement('div');
     d.id = 'ag-tendina';
     d.className = 'ag-tendina';
-    var giaSelezionato = banditi.has(String(testo).trim());
+    var giaSelezionato = chiaveBandito(testo) !== null;
     var h = '<div class="ag-td-tit">' + T('dove') + ' <b>' + esc(testo) + '</b>?</div>';
     if (giaSelezionato) {
       h += '<div class="ag-td-lista">' +
@@ -10871,7 +10913,7 @@ if (recognition) {
     d.addEventListener('click', function(e){
       var b = e.target.closest('button'); if (!b) return;
       if (b.getAttribute('data-a') === 'rimuovi') {
-        scopriTermine(testo);
+        rimuoviDaSelezione(testo);
         chiudiTendina();
         azzeraSelezione();
         return;
@@ -10940,6 +10982,22 @@ if (recognition) {
     // quel codice deve continuare a valere, o il ripristino della cronologia
     // sbaglierebbe persona. Si smette di mascherare da adesso in avanti; non si
     // riscrive il passato.
+    vaiA('rimosse');
+    aggiorna();
+  }
+  function rimuoviDaSelezione(testo){
+    var k = chiaveBandito(testo);
+    if (k === null) return;
+    banditi.delete(k);
+    esclusi.add(k);
+    var basso = normalizzaPennello(k);
+    try {
+      suggeriti.forEach(function(v, kk){ if (normalizzaPennello(kk) === basso) suggeriti.delete(kk); });
+      nerNoti.forEach(function(kk){ if (normalizzaPennello(kk) === basso) nerNoti.delete(kk); });
+      if (nerCache && nerCache.ent) nerCache.ent = nerCache.ent.filter(function(e){
+        return normalizzaPennello(e && e.valore) !== basso;
+      });
+    } catch(e) {}
     vaiA('rimosse');
     aggiorna();
   }
@@ -11198,7 +11256,18 @@ if (recognition) {
               valore = tok ? valoreDi(tok) : null;
             }
           }
-          if (valore) { scopriTermine(valore); return; }
+          if (valore) {
+            if (datoGiaInviato(valore)) {
+              pennelloSegnaInviato(t, valore);
+              return;
+            }
+            if (chiaveBandito(valore) !== null) {
+              tendina(valore, t.getBoundingClientRect());
+              return;
+            }
+            tendina(valore, t.getBoundingClientRect());
+            return;
+          }
         }
 
         /* Nel testo chiaro dello specchio si può aggiungere una parola. */
@@ -11208,8 +11277,8 @@ if (recognition) {
           if (c) {
             var testo = accumula(pos.startContainer, c.da, c.a);
             if (testo) {
-              if (banditi.has(testo)) scopriTermine(testo);
-              else tendina(testo, { left:e.clientX, top:e.clientY, bottom:e.clientY, right:e.clientX });
+              if (datoGiaInviato(testo)) return;
+              tendina(testo, { left:e.clientX, top:e.clientY, bottom:e.clientY, right:e.clientX });
               return;
             }
           }
@@ -11235,8 +11304,12 @@ if (recognition) {
         var testoCampo = txt.slice(a,b).trim();
         if (!testoCampo || testoCampo.length > 90) { chiudiTendina(); return; }
         if (/^@[a-z]{1,3}\d{1,3}[a-z]?@$/.test(testoCampo)) return;
-        if (banditi.has(testoCampo)) scopriTermine(testoCampo);
-        else tendina(testoCampo, { left:e.clientX, top:e.clientY, bottom:e.clientY, right:e.clientX });
+        if (datoGiaInviato(testoCampo)) {
+          campo.setAttribute('title','Questo dato è già stato inviato al modello e non può essere modificato.');
+          setTimeout(function(){ if (campo) campo.removeAttribute('title'); }, 1800);
+          return;
+        }
+        tendina(testoCampo, { left:e.clientX, top:e.clientY, bottom:e.clientY, right:e.clientX });
         return;
       }
     });
@@ -11275,6 +11348,21 @@ if (recognition) {
         else tendina(testo, sel.getRangeAt(0).getBoundingClientRect());
       }, 10);
     });
+
+    document.addEventListener('mousemove', function(e){
+      if (!pennelloAcceso) return;
+      var ante = e.target.closest && e.target.closest('#ag-anteprima');
+      if (!ante) return;
+      var t = e.target.closest && e.target.closest('.ag-t');
+      if (!t) return;
+      var tok = t.getAttribute('data-ag-tok') || '';
+      var valore = tok ? valoreDi(tok) : null;
+      if (valore) pennelloSegnaInviato(t, valore);
+    }, true);
+    document.addEventListener('mouseleave', function(e){
+      var t = e.target && e.target.closest ? e.target.closest('.ag-t') : null;
+      if (t) t.classList.remove('ag-pennello-inviato');
+    }, true);
 
     document.addEventListener('scroll', chiudiTendina, true);
     stileCategorie();
