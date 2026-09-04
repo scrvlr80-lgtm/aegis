@@ -421,6 +421,7 @@ body.ag-attivo{overflow:hidden;margin:0}
 .ag-motore-gruppo:first-child{margin-top:0}
 .ag-gr-voce{display:flex;align-items:center;gap:6px;font-size:11.5px;line-height:1.5;
   color:var(--text-main);padding:1px 0 1px 15px}
+.ag-voce-col{width:7px;height:7px;border-radius:2px;flex:none;display:block}
 .ag-gr-voce .t{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ag-gr-voce button{border:none;background:transparent;color:var(--text-light);
   cursor:pointer;font-size:14px;line-height:1;padding:0 2px}
@@ -4516,6 +4517,11 @@ body {
           }
         } catch (e) {}
         const text = userInput.value.trim();
+        // Conferma dei numeri: SOLO QUI, quando l'utente sta davvero inviando.
+        // Caricare/incollare un documento deve solo rilevare e mostrare.
+        if (text && window.aegisControlloNumeri) {
+          try { await window.aegisControlloNumeri(text); } catch (e) {}
+        }
         // Se c'e' un'immagine selezionata, usiamo il flusso Vision (testo opzionale).
         if (selectedImageDataUrl) { await sendImageMessage(text); return; }
         if (text === '') return;
@@ -9152,6 +9158,26 @@ if (recognition) {
   // quindi al momento dell'invio andavano quasi sempre persi.
   var nerNoti = new Set();
 
+  // Un dato puo' essere visto da piu' motori (es. una persona trovata sia
+  // dalle regole sia dal NER). Non sovrascriviamo piu' la provenienza: la
+  // conserviamo come insieme compatto base/deep/ner/manual.
+  function aggiungiMotore(tok, engine){
+    engine = engine || 'base';
+    var cur = String(motoreDi.get(tok) || '');
+    if (!cur) { motoreDi.set(tok, engine); return; }
+    var parti = cur.split('+').filter(Boolean);
+    if (parti.indexOf(engine) === -1) parti.push(engine);
+    var ord = {base:1,deep:2,ner:3,manual:4};
+    parti.sort(function(a,b){ return (ord[a]||9)-(ord[b]||9); });
+    motoreDi.set(tok, parti.join('+'));
+  }
+  function motoriToken(tok){
+    return String(motoreDi.get(tok) || 'base').split('+').filter(Boolean);
+  }
+  function appartieneMotore(tok, engine){
+    return motoriToken(tok).indexOf(engine) !== -1;
+  }
+
   // Chi analizza: il modello generativo se e' pronto, altrimenti il NER.
   function analizzatore(){
     if(!NER_ATTIVO) return null;
@@ -9268,13 +9294,13 @@ if (recognition) {
           contatore[tipo]=(contatore[tipo]||0)+1;
           tok=tipo+'_'+String(contatore[tipo]).padStart(2,'0');
           vault.set(tok,v.value); colorDi.set(tok,colore(v.token));
-          motoreDi.set(tok, v.engine || 'base');
+          aggiungiMotore(tok, v.engine || 'base');
           varianti(v.value).forEach(function(vr){ if(vr!==v.value) vault.set(tok+'~'+vr, vr); });
         }else{
           tmp[tipo]=(tmp[tipo]||0)+1;
           tok=tipo+'_'+String((contatore[tipo]||0)+tmp[tipo]).padStart(2,'0');
           colorDi.set(tok,colore(v.token));
-          motoreDi.set(tok, v.engine || 'base');
+          aggiungiMotore(tok, v.engine || 'base');
           // i token dell'anteprima non entrano nel vault (non sono congelati):
           // senza questa riga i gruppi non potrebbero mai rivelarne il valore
           valoriPreview.set(tok, v.value);
@@ -9290,9 +9316,9 @@ if (recognition) {
         tok = cand;
         if(congela){ vault.set(tok, v.value); }
         colorDi.set(tok, colore(v.token));
-        motoreDi.set(tok, v.engine || 'base');
+        aggiungiMotore(tok, v.engine || 'base');
       }
-      motoreDi.set(tok, v.engine || motoreDi.get(tok) || 'base');
+      aggiungiMotore(tok, v.engine || 'base');
       usati[tok] = v.value;
       segnaProvenienza(v.value, 'regole');
       assegnati++;
@@ -9346,7 +9372,7 @@ if (recognition) {
             vociAI.set(chiave, tok);
           }
           colorDi.set(tok, cat);
-          motoreDi.set(tok, 'ner');
+          aggiungiMotore(tok, 'ner');
           if (congela && !vault.has(tok)) vault.set(tok, testo);
           // ANCHE IN ANTEPRIMA il codice deve sapere quale valore sta
           // sostituendo. Senza questa riga valoreDi() tornava null, la legenda
@@ -9378,7 +9404,7 @@ if (recognition) {
           colorDi.set(v.tok, cat);
         }
         colorDi.set(v.tok, cat);
-        motoreDi.set(v.tok, 'manual');
+        aggiungiMotore(v.tok, 'manual');
         if (congela && !vault.has(v.tok)) vault.set(v.tok, testo);
         if (!congela) valoriPreview.set(v.tok, testo);   // vedi sopra
         // CONFINI DI PAROLA, come gia' fanno le proposte del motore.
@@ -11218,15 +11244,18 @@ if (recognition) {
       if (!gruppi[k]) gruppi[k]={engine:engine,cat:cat,v:[]};
       if (!gruppi[k].v.some(function(x){return x.testo===testo;})) gruppi[k].v.push({testo:testo,stato:stato});
     }
+    function mettiToken(tok, cat, testo, stato){
+      motoriToken(tok).forEach(function(engine){
+        metti(cat, testo, stato, engine);
+      });
+    }
     if (schedaAttiva === 'default') {
       vault.forEach(function(val,k){
         if (k.indexOf('~') !== -1) return;
-        var eng=motoreDi.get(k) || (/^NER_/i.test(k) ? 'ner' : 'base');
-        metti(colorDi.get(k)||colore(k),String(val),'attivo',eng);
+        mettiToken(k, colorDi.get(k)||colore(k), String(val), 'attivo');
       });
       valoriPreview.forEach(function(val,k){
-        var eng=motoreDi.get(k) || (/^NER_/i.test(k) ? 'ner' : 'base');
-        metti(colorDi.get(k)||colore(k),String(val),'attivo',eng);
+        mettiToken(k, colorDi.get(k)||colore(k), String(val), 'attivo');
       });
     } else if (schedaAttiva === 'aggiunte') {
       banditi.forEach(function(v,testo){ metti(v.cat||'per',testo,'aggiunto','manual'); });
@@ -11248,7 +11277,7 @@ if (recognition) {
       if(g.engine!==prev){ h+='<div class="ag-motore-gruppo"><span>'+esc(nomeMotore(g.engine))+'</span></div>'; prev=g.engine; }
       h+='<div class="ag-gr"><div class="ag-gr-tit"><i style="background:'+coloreCategoria(g.cat)+'"></i>'+esc(nomeCategoria(g.cat))+'</div>';
       g.v.forEach(function(v){
-        h+='<div class="ag-gr-voce'+(v.stato==='tolto'?' ag-tolto':'')+'">'+iconaProvenienza(v.testo)+'<span class="t">'+esc(v.testo)+'</span>'+(v.stato==='attivo'?'':'<button type="button" data-x="'+esc(v.testo)+'" title="'+T('rimetti')+'">&times;</button>')+'</div>';
+        h+='<div class="ag-gr-voce'+(v.stato==='tolto'?' ag-tolto':'')+'">'+iconaProvenienza(v.testo)+'<i class="ag-voce-col" style="background:'+coloreCategoria(g.cat)+'"></i><span class="t">'+esc(v.testo)+'</span>'+(v.stato==='attivo'?'':'<button type="button" data-x="'+esc(v.testo)+'" title="'+T('rimetti')+'">&times;</button>')+'</div>';
       });
       h+='</div>';
     });
@@ -11615,10 +11644,14 @@ if (recognition) {
 
     try {
       var r = AEGIS.protect(testoStr, opzioni());
-      (r.matches || []).forEach(function (m) {
-        if (typeof m.start === 'number' && typeof m.end === 'number' && m.end > m.start) {
-          segs.push({ s:m.start, e:m.end, col:colore(m.token) || 'per' });
-        }
+      // protect() restituisce le voci con il loro valore/categoria, non un
+      // array 'matches'. Il vecchio renderer cercava r.matches e quindi il
+      // campo di scrittura restava completamente nero anche quando la
+      // mascheratura funzionava. Ricostruiamo le occorrenze dal valore:
+      // stessa categoria, stesso colore, stessa corrispondenza.
+      (r.valori || []).forEach(function (m) {
+        if (!m || !m.valore) return;
+        aggiungiSegmento(String(m.valore), m.col || 'per');
       });
     } catch (e) {}
 
@@ -11628,7 +11661,7 @@ if (recognition) {
       if (nerCache && nerCache.testo === testoStr && nerCache.ent) {
         nerCache.ent.forEach(function (e) {
           var v = String((e && e.valore) || '').trim();
-          if (v && !escluso(v)) aggiungiSegmento(v, 'per');
+          if (v && !escluso(v)) aggiungiSegmento(v, (e && e.cat) || 'per');
         });
       }
     } catch (e) {}
@@ -12902,11 +12935,23 @@ if (recognition) {
     // Si memorizza l'installazione SOLO dopo un download riuscito.
     try { localStorage.removeItem('aegis_motore'); } catch (e) {}
     try {
+      // Disegno immediato: il bottone deve mostrare 0% prima ancora che
+      // import() apra la libreria. Gli eventi di Transformers.js aggiornano
+      // poi la percentuale reale.
+      var bm0 = document.getElementById('ag-motore-btn');
+      if (bm0) {
+        bm0.disabled = true;
+        bm0.innerHTML = T('motoreCarico', { p: '<span class="ag-pc">0</span>' });
+      }
       var caricamentoMotore = M.carica();
-      // carica() cambia lo stato a 'carico' prima del primo await.
-      // Ridisegniamo subito: la percentuale non dipende dalla consegna dell'evento.
       statoMotore();
-      await caricamentoMotore;
+      var pollMotore = setInterval(function(){
+        try {
+          if (window.AEGIS_MODELLO && window.AEGIS_MODELLO.stato === 'carico') statoMotore();
+          else clearInterval(pollMotore);
+        } catch(e) { clearInterval(pollMotore); }
+      }, 120);
+      try { await caricamentoMotore; } finally { clearInterval(pollMotore); }
       try { localStorage.setItem('aegis_motore', '1'); } catch (e) {}
       var i = document.getElementById('user-input');
       if (i && i.value) { await chiediAlModello(i.value, true); anteprima(i.value); }
@@ -14779,7 +14824,7 @@ if (recognition) {
       if(!tok) return full;
       // I codici NER sono PROPOSTE del modello, non certezze verificate:
       // vanno distinti a vista da quelli prodotti dalle regole.
-      var extra = (String(tok).split('_')[0] === 'NER') ? ' ag-proposta' : '';
+      var extra = appartieneMotore(tok, 'ner') ? ' ag-proposta' : '';
       var valore = valoreDi(tok);
       var largo = valore ? String(valore).length : full.length;
       // se il codice non ci sta, si rimpicciolisce quel tanto che basta:
@@ -15446,12 +15491,20 @@ if (recognition) {
         setTimeout(function(){
           var pCarica = window.AEGIS_MODELLO.carica();
           statoMotore();
+          var pollAuto = setInterval(function(){
+            try {
+              if (window.AEGIS_MODELLO && window.AEGIS_MODELLO.stato === 'carico') statoMotore();
+              else clearInterval(pollAuto);
+            } catch(e) { clearInterval(pollAuto); }
+          }, 120);
           pCarica.then(function(){
+            clearInterval(pollAuto);
             statoMotore();
             var i = document.getElementById('user-input');
             if (i && i.value && NER_ATTIVO) chiediAlModello(i.value, true).then(function(){ anteprima(i.value); });
             else if (i) anteprima(i.value);
           }).catch(function(){
+            clearInterval(pollAuto);
             try { localStorage.removeItem('aegis_motore'); } catch (e) {}
             statoMotore();
           });
@@ -15472,7 +15525,9 @@ if (recognition) {
         // testo centrato la scritta sobbalza a ogni cifra in piu'. Il numero
         // sta in una scatola di larghezza fissa, allineata a destra, con le
         // cifre a passo fisso.
-        b.innerHTML = T('motoreCarico', { p: '<span class="ag-pc">' + (d.extra || 0) + '</span>' });
+        var pp = (typeof d.extra === 'number' && isFinite(d.extra)) ? d.extra :
+                 ((window.AEGIS_MODELLO && typeof window.AEGIS_MODELLO.percentuale === 'number') ? window.AEGIS_MODELLO.percentuale : 0);
+        b.innerHTML = T('motoreCarico', { p: '<span class="ag-pc">' + pp + '</span>' });
       }
       else statoMotore();
     });
@@ -15784,12 +15839,8 @@ if (recognition) {
       campo.value = prima + testo.trim();
       campo.dispatchEvent(new Event('input', { bubbles: true }));
       campo.focus();
-      // Appena il documento e' dentro, si chiede una volta sola quali
-      // sequenze numeriche vanno coperte: e' il momento in cui l'utente ha
-      // ancora in testa che cos'e' ciascuna.
-      if (window.aegisControlloNumeri) {
-        setTimeout(function(){ window.aegisControlloNumeri(testo); }, 400);
-      }
+      // Il caricamento del documento NON apre finestre: estrae il testo,
+      // aggiorna l'analisi e basta. Le conferme arrivano al solo invio.
       try { campo.setSelectionRange(campo.value.length, campo.value.length); } catch (e) {}
       // GLI EVIDENZIATORI SFASATI. Non e' un calcolo sbagliato: la maschera
       // colorata sta sopra il campo di testo e viene posizionata in base a
