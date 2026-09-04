@@ -18698,6 +18698,21 @@ if (recognition) {
     analizza: analizza,
     nome: MODELLO
   };
+
+  // Compatibilita con il layer Aegis: il coordinatore storico cerca
+  // window.AEGIS_NER e chiama .persone(). Il loader locale espone invece
+  // AEGIS_MODELLO. I due oggetti devono puntare allo STESSO motore: nessuna
+  // seconda installazione, nessun secondo download e nessuna modifica al core.
+  window.AEGIS_NER = {
+    get stato() { return stato; },
+    get percentuale() { return percentuale; },
+    get pronto() { return stato === 'pronto'; },
+    carica: carica,
+    disinstalla: disinstalla,
+    persone: analizza,
+    analizza: analizza,
+    nome: MODELLO
+  };
 })();
 </script>
 <!-- L'indirizzo del backend in UN punto solo: quando il sistema si sposta
