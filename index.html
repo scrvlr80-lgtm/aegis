@@ -10918,11 +10918,17 @@ if (recognition) {
     d.id = 'ag-tendina';
     d.className = 'ag-tendina';
 
-    /* IMPORTANTE: l'opzione di rimozione si AGGIUNGE alle categorie.
-       Non sostituisce mai il menu esistente. */
+    /*
+      REGOLA: QUESTO E' SEMPRE LO STESSO PANNELLO.
+      Le categorie originali NON vengono mai nascoste/sostituite.
+      Se il termine e' gia' selezionato, aggiungiamo semplicemente
+      una seconda azione nello stesso pannello: "Elimina dalla lista".
+    */
     var giaSelezionato = protettoNelPrompt(testo) || chiaveBandito(testo) !== null;
+
     var h = '<div class="ag-td-tit">' + T('dove') + ' <b>' + esc(testo) + '</b>?</div>';
 
+    // MENU ORIGINALE: sempre presente, sempre nello stesso ordine.
     h += '<div class="ag-td-lista">';
     CATEGORIE.forEach(function(c){
       h += '<button type="button" data-c="'+c.id+'"><i style="background:'+coloreCategoria(c.id)+'"></i>'+T(c.k)+'</button>';
@@ -10930,27 +10936,43 @@ if (recognition) {
     categoriePersonali.forEach(function(c,id){
       h += '<button type="button" data-c="'+id+'"><i style="background:'+c.colore+'"></i>'+esc(c.nome)+'</button>';
     });
-    h += '</div><div class="ag-td-nuovo"><input type="text" placeholder="' + T('etichettaNuova') + '" maxlength="24">' +
+    h += '</div>';
+
+    // CAMPO ORIGINALE "nuova etichetta" + "Aggiungi": sempre presente.
+    h += '<div class="ag-td-nuovo"><input type="text" placeholder="' + T('etichettaNuova') + '" maxlength="24">' +
          '<button type="button" data-c="__nuovo">' + T('aggiungi') + '</button></div>';
 
+    // NUOVA AZIONE: aggiunta al pannello esistente, MAI sostitutiva.
     if (giaSelezionato) {
       h += '<div class="ag-td-rimuovi-wrap">' +
-           '<button type="button" class="ag-td-rimuovi" data-a="rimuovi"><i style="background:#444"></i>'+T('rimuoviSelezione')+'</button>' +
+           '<button type="button" class="ag-td-rimuovi" data-a="rimuovi"><i style="background:#444"></i>' +
+           T('rimuoviSelezione') +
+           '</button>' +
            '</div>';
     }
 
     d.innerHTML = h;
     document.body.appendChild(d);
+
     var l = Math.max(8, Math.min(rect.left, window.innerWidth - 250));
     var t = rect.bottom + 8;
-    if (t + d.offsetHeight > window.innerHeight - 8) t = Math.max(8, rect.top - d.offsetHeight - 8);
-    d.style.left = l + 'px'; d.style.top = t + 'px';
+    if (t + d.offsetHeight > window.innerHeight - 8) {
+      t = Math.max(8, rect.top - d.offsetHeight - 8);
+    }
+    d.style.left = l + 'px';
+    d.style.top = t + 'px';
+
     var campo = d.querySelector('input');
 
-    d.addEventListener('mousedown', function(e){ if (e.target.tagName !== 'INPUT') e.preventDefault(); });
-    d.addEventListener('click', function(e){
-      var btn = e.target.closest('button'); if (!btn) return;
+    d.addEventListener('mousedown', function(e){
+      if (e.target.tagName !== 'INPUT') e.preventDefault();
+    });
 
+    d.addEventListener('click', function(e){
+      var btn = e.target.closest('button');
+      if (!btn) return;
+
+      // NUOVA AZIONE: rimuove dal medesimo menu, senza cambiare pannello.
       if (btn.getAttribute('data-a') === 'rimuovi') {
         rimuoviDaSelezione(testo);
         chiudiTendina();
@@ -10958,10 +10980,14 @@ if (recognition) {
         return;
       }
 
+      // TUTTE LE AZIONI ORIGINALI RESTANO INVARIATE.
       var cat = btn.getAttribute('data-c');
       if (cat === '__nuovo') {
         cat = nuovaCategoria(campo.value);
-        if (!cat) { campo.focus(); return; }
+        if (!cat) {
+          campo.focus();
+          return;
+        }
       }
 
       copriTermine(testo, cat);
