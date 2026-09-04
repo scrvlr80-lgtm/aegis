@@ -447,18 +447,10 @@ body.ag-attivo{overflow:hidden;margin:0}
 /* Cursori del pennello: un mirino con il PIU' quando sta per coprire, e con il
    MENO quando sta per togliere la protezione da un dato gia' coperto. Cosi' si
    capisce cosa succede prima di cliccare, senza leggere niente. */
-body.ag-pennello-on .ag-lista,body.ag-pennello-on .ag-anteprima,
-body.ag-pennello-on .chat-messages,
-/* il pennello vale anche dentro il pannello dell'agente e in quello della
-   base di conoscenza: sono testo protetto come tutto il resto, e non c'e'
-   ragione perche' li' si smetta di poterlo correggere a mano. */
-body.ag-pennello-on .ag-ag-passi,
-body.ag-pennello-on .ag-sk-specchio,
-body.ag-pennello-on .ag-voci-corpo{
+body.ag-pennello-on .ag-anteprima,
+body.ag-pennello-on #user-input{
   cursor:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26'><circle cx='11' cy='11' r='7' fill='none' stroke='%233D3D42' stroke-width='2'/><path d='M11 7v8M7 11h8' stroke='%233D3D42' stroke-width='2' stroke-linecap='round'/></svg>") 11 11, crosshair}
-body.ag-pennello-on .ag-t,
-body.ag-pennello-on .ag-ag-passi .ag-t,
-body.ag-pennello-on .ag-voci-corpo .ag-gr-voce{
+body.ag-pennello-on .ag-anteprima .ag-t{
   cursor:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26'><circle cx='11' cy='11' r='7' fill='none' stroke='%23E5484D' stroke-width='2'/><path d='M7 11h8' stroke='%23E5484D' stroke-width='2' stroke-linecap='round'/></svg>") 11 11, crosshair}
 .ag-ia svg{width:13px;height:13px;vertical-align:-2px;margin-right:5px;fill:currentColor}
 /* --- modalita' riservata --- */
@@ -11160,64 +11152,116 @@ if (recognition) {
   function avviaPennello(){
     document.addEventListener('click', function(e){
       if (e.target.closest && e.target.closest('#ag-tendina, .ag-testa, .ag-voci-testa')) return;
-      // col pennello acceso, un clic su una voce dell'elenco vale come un clic
-      // sul dato nel testo: in Default la toglie dalla censura, nelle altre due
-      // schede annulla la scelta fatta prima.
-      var voce = pennelloAcceso && e.target.closest && e.target.closest('.ag-gr-voce');
-      if (voce) {
-        var testoVoce = (voce.querySelector('.t') || {}).textContent;
-        if (testoVoce) {
-          if (schedaAttiva === 'default') scopriTermine(testoVoce.trim());
-          else disfa(testoVoce.trim());
-        }
+
+      if (!pennelloAcceso) {
+        chiudiTendina();
         return;
       }
-      if (e.target.closest && e.target.closest('.ag-voci')) return;
-      // con il pennello acceso: un tocco prende la parola intera
-      if (pennelloAcceso) {
-        var dentro = e.target.closest && e.target.closest('.ag-lista, .ag-anteprima, .chat-messages, #ag-sk-specchio');
-        if (dentro) {
-          var pos = document.caretRangeFromPoint ? document.caretRangeFromPoint(e.clientX, e.clientY) : null;
-          if (pos && pos.startContainer && pos.startContainer.nodeType === 3) {
-            var c = confiniParola(pos.startContainer, pos.startOffset);
-            if (c) {
-              var testo = accumula(pos.startContainer, c.da, c.a);
-              if (testo && !/^@[a-z]{1,3}\d{1,3}[a-z]?@$/.test(testo)) {
-                tendina(testo, { left:e.clientX, top:e.clientY, bottom:e.clientY, right:e.clientX });
-                return;
-              }
+
+      /* IL PENNELLO VIVE SOLO NEI DUE BOX DEL PROMPT:
+         #ag-anteprima a sinistra e #user-input a destra.
+         Chat storica, elenco dati, pannello Skills e diario agente sono fuori. */
+      var ante = e.target.closest && e.target.closest('#ag-anteprima');
+      var campo = e.target.closest && e.target.closest('#user-input');
+      if (!ante && !campo) {
+        chiudiTendina();
+        return;
+      }
+
+      /* Codice/surrogato già protetto nello specchio: il token vero è in
+         data-ag-tok, quindi funziona anche quando a schermo ci sono solo punti
+         o un surrogato e non la stringa @pe01@. */
+      if (ante) {
+        var t = e.target.closest && e.target.closest('.ag-t');
+        if (t) {
+          var tok = t.getAttribute('data-ag-tok') || '';
+          var valore = tok ? valoreDi(tok) : null;
+          if (!valore) {
+            var cod = String(t.textContent || '').trim();
+            var m = cod.match(/@([a-z]{1,3})(\d{1,3})([a-z]?)@/);
+            if (m) {
+              tok = tokenDaSigla(m[1], m[2], m[3]);
+              valore = tok ? valoreDi(tok) : null;
+            }
+          }
+          if (valore) { scopriTermine(valore); return; }
+        }
+
+        /* Nel testo chiaro dello specchio si può aggiungere una parola. */
+        var pos = document.caretRangeFromPoint ? document.caretRangeFromPoint(e.clientX, e.clientY) : null;
+        if (pos && pos.startContainer && pos.startContainer.nodeType === 3) {
+          var c = confiniParola(pos.startContainer, pos.startOffset);
+          if (c) {
+            var testo = accumula(pos.startContainer, c.da, c.a);
+            if (testo) {
+              if (banditi.has(testo)) scopriTermine(testo);
+              else tendina(testo, { left:e.clientX, top:e.clientY, bottom:e.clientY, right:e.clientX });
+              return;
             }
           }
         }
+        chiudiTendina();
+        return;
       }
-      // clic su un codice: SOLO col pennello acceso. Prima toglieva la
-      // protezione anche a pennello spento, e bastava un clic distratto.
-      var t = pennelloAcceso && e.target.closest && e.target.closest('.ag-t');
-      if (t) {
-        var cod = String(t.textContent||'').trim();
-        var m = cod.match(/@([a-z]{1,3})(\d{1,3})([a-z]?)@/);
-        if (m) {
-          var tok = tokenDaSigla(m[1], m[2], m[3]);
-          var valore = tok ? valoreDi(tok) : null;
-          if (valore) { scopriTermine(valore); return; }
+
+      /* Textarea: il DOM non espone i caratteri come text nodes. Usiamo
+         selectionStart/selectionEnd, quindi un semplice click individua la
+         parola sotto il cursore e una selezione manuale continua a funzionare. */
+      if (campo) {
+        var txt = String(campo.value || '');
+        var a = Number(campo.selectionStart);
+        var b = Number(campo.selectionEnd);
+        if (!isFinite(a)) a = 0;
+        if (!isFinite(b)) b = a;
+        if (a === b) {
+          while (a > 0 && /[A-Za-z0-9\u00C0-\u024F'\u2019.@_-]/.test(txt[a-1])) a--;
+          b = Number(campo.selectionStart);
+          while (b < txt.length && /[A-Za-z0-9\u00C0-\u024F'\u2019.@_-]/.test(txt[b])) b++;
         }
+        var testoCampo = txt.slice(a,b).trim();
+        if (!testoCampo || testoCampo.length > 90) { chiudiTendina(); return; }
+        if (/^@[a-z]{1,3}\d{1,3}[a-z]?@$/.test(testoCampo)) return;
+        if (banditi.has(testoCampo)) scopriTermine(testoCampo);
+        else tendina(testoCampo, { left:e.clientX, top:e.clientY, bottom:e.clientY, right:e.clientX });
+        return;
       }
-      chiudiTendina();
     });
-    // selezione col mouse: resta possibile anche a pennello spento
+
     document.addEventListener('mouseup', function(e){
-      if (!pennelloAcceso) return;      // a pennello spento non si tocca nulla
+      if (!pennelloAcceso) return;
       if (e.target.closest && e.target.closest('#ag-tendina')) return;
+
+      /* Le selezioni nel textarea non sono window.getSelection(). */
+      var campo = e.target.closest && e.target.closest('#user-input');
+      if (campo) {
+        setTimeout(function(){
+          var a = Number(campo.selectionStart), b = Number(campo.selectionEnd);
+          var txt = String(campo.value || '');
+          if (!isFinite(a) || !isFinite(b) || b <= a) return;
+          var testo = txt.slice(a,b).trim();
+          if (!testo || testo.length < 2 || testo.length > 90 || /\n/.test(testo)) return;
+          if (/^@[a-z]{1,3}\d{1,3}[a-z]?@$/.test(testo)) return;
+          if (banditi.has(testo)) scopriTermine(testo);
+          else tendina(testo, e.target.getBoundingClientRect());
+        }, 10);
+        return;
+      }
+
+      /* Nel solo specchio sinistro resta possibile selezionare più parole. */
+      var ante = e.target.closest && e.target.closest('#ag-anteprima');
+      if (!ante) return;
       setTimeout(function(){
         var sel = window.getSelection();
         var testo = sel ? String(sel).trim() : '';
         if (!testo || testo.length < 2 || testo.length > 90 || /\n/.test(testo)) return;
         var nodo = sel.anchorNode && sel.anchorNode.parentElement;
-        if (!nodo || !nodo.closest('.ag-lista, .ag-anteprima, .chat-messages, #ag-sk-specchio')) return;
+        if (!nodo || !nodo.closest('#ag-anteprima')) return;
         if (/^@[a-z]{1,3}\d{1,3}[a-z]?@$/.test(testo)) return;
-        tendina(testo, sel.getRangeAt(0).getBoundingClientRect());
+        if (banditi.has(testo)) scopriTermine(testo);
+        else tendina(testo, sel.getRangeAt(0).getBoundingClientRect());
       }, 10);
     });
+
     document.addEventListener('scroll', chiudiTendina, true);
     stileCategorie();
     disegnaColonna();
@@ -11321,30 +11365,81 @@ if (recognition) {
   // chiamata costa quasi zero e il disegno si rifa' sempre.
   function disegnaOmbra(testo) {
     if (!ombraEl) return;
-    /* IL CAMPO DI SCRITTURA HA IL SUO STATO, ED E' ombraAttiva.
-       Qui si leggeva aegisResaltadoStato(), cioe' l'interruttore degli
-       evidenziatori della risposta: spegnendo EVIDENZIA a destra, i colori
-       sparivano anche sotto le parole che si stavano scrivendo - non subito,
-       ma alla battuta successiva, che e' il modo peggiore di sbagliare.
-       ombraAttiva e' comandato dal pulsante che sta sotto il campo
-       (#ag-ant-hl) e riguarda solo questa superficie. */
     var _acceso = ombraAttiva;
     if (!_acceso || !testo) { ombraEl.innerHTML = ''; return; }
-    let r;
-    try { r = AEGIS.protect(String(testo), opzioni()); } catch (e) { ombraEl.innerHTML = ''; return; }
-    // si lavora sulle posizioni, non sulle parole: cosi' non si sbaglia
-    // occorrenza quando la stessa parola compare piu' volte
-    const punti = (r.matches || []).slice().sort(function (a, b) { return a.start - b.start; });
-    let fuori = '', cursore = 0;
-    punti.forEach(function (m) {
-      if (m.start < cursore) return;
-      fuori += esc(testo.slice(cursore, m.start));
-      fuori += '<mark class="ag-om ag-om-' + (colore(m.token) || 'per') + '">' +
-               esc(testo.slice(m.start, m.end)) + '</mark>';
-      cursore = m.end;
+
+    var testoStr = String(testo);
+    var segs = [];
+
+    function aggiungiSegmento(val, col) {
+      val = String(val || '');
+      if (val.length < 2) return;
+      var hay = testoStr.toLocaleLowerCase();
+      var needle = val.toLocaleLowerCase();
+      var i = hay.indexOf(needle);
+      while (i !== -1) {
+        var prima = i > 0 ? testoStr[i - 1] : ' ';
+        var dopo = (i + val.length < testoStr.length) ? testoStr[i + val.length] : ' ';
+        if (!/[\p{L}\p{N}]/u.test(prima) && !/[\p{L}\p{N}]/u.test(dopo)) {
+          segs.push({ s:i, e:i+val.length, col:col || 'per' });
+        }
+        i = hay.indexOf(needle, i + Math.max(1, needle.length));
+      }
+    }
+
+    try {
+      var r = AEGIS.protect(testoStr, opzioni());
+      (r.matches || []).forEach(function (m) {
+        if (typeof m.start === 'number' && typeof m.end === 'number' && m.end > m.start) {
+          segs.push({ s:m.start, e:m.end, col:colore(m.token) || 'per' });
+        }
+      });
+    } catch (e) {}
+
+    /* Il motore NER è asincrono: quando ha finito aggiorna nerCache e
+       anteprima() richiama di nuovo questo renderer. */
+    try {
+      if (nerCache && nerCache.testo === testoStr && nerCache.ent) {
+        nerCache.ent.forEach(function (e) {
+          var v = String((e && e.valore) || '').trim();
+          if (v && !escluso(v)) aggiungiSegmento(v, 'per');
+        });
+      }
+    } catch (e) {}
+
+    /* Le scelte del pennello e le proposte già accettate dalla pipeline
+       devono essere visibili anche nell'ombra del campo, altrimenti il campo
+       dice una cosa e lo specchio un'altra. */
+    try {
+      banditi.forEach(function (v, k) {
+        if (!escluso(k)) aggiungiSegmento(k, (v && v.cat) || 'mano');
+      });
+    } catch (e) {}
+    try {
+      suggeriti.forEach(function (v, k) {
+        if (!escluso(k) && !banditi.has(k)) aggiungiSegmento(k, (v && v.cat) || 'per');
+      });
+    } catch (e) {}
+
+    segs.sort(function(a,b){ return a.s-b.s || b.e-a.e; });
+    var puliti = [], fine = -1;
+    segs.forEach(function(g){
+      if (g.s >= fine) { puliti.push(g); fine = g.e; }
     });
-    fuori += esc(testo.slice(cursore));
+
+    var fuori = '', cursore = 0;
+    puliti.forEach(function (m) {
+      fuori += esc(testoStr.slice(cursore, m.s));
+      fuori += '<mark class="ag-om ag-om-' + m.col + '">' +
+               esc(testoStr.slice(m.s, m.e)) + '</mark>';
+      cursore = m.e;
+    });
+    fuori += esc(testoStr.slice(cursore));
     ombraEl.innerHTML = fuori + '<br>';
+    try {
+      ombraEl.scrollTop = document.getElementById('user-input').scrollTop;
+      ombraEl.scrollLeft = document.getElementById('user-input').scrollLeft;
+    } catch (e) {}
   }
 
   /* ============== VOCE E GIUDIZIO NELLO SPECCHIO ==============
@@ -14568,7 +14663,7 @@ if (recognition) {
           pezzi2 += (testoBanda[k2] && !/\s/.test(testoBanda[k2])) ? testoBanda[k2] : '\u00b7';
         }
         return '<span class="ag-t ag-scorre ag-' + (colorDi.get(tok) || colore(tok)) + extra + '"' +
-               titolo + '>' + pezzi2 + '</span>';
+               ' data-ag-tok="' + esc(tok) + '"' + titolo + '>' + pezzi2 + '</span>';
       }
 
       if (valore && ospite) {
@@ -14611,7 +14706,7 @@ if (recognition) {
           dentro += /\s/.test(ch) ? ch : '\u00b7';           // spazi al loro posto
         }
         return '<span class="ag-t ag-scorre ag-' + (colorDi.get(tok)||colore(tok)) + extra + '"' +
-               titolo + '>' + dentro + '</span>';
+               ' data-ag-tok="' + esc(tok) + '"' + titolo + '>' + dentro + '</span>';
       }
 
       // Valore piu' corto del codice: non c'e' modo di farcelo stare per
@@ -14638,11 +14733,11 @@ if (recognition) {
             var dentroP = sc < 0.995
               ? '<i style="transform:scaleX(' + sc.toFixed(3) + ')">' + full + '</i>'
               : full;
-            fuori += '<span class="ag-t ag-' + col + extra + '" style="width:' + p.length + 'ch"' +
+            fuori += '<span class="ag-t ag-' + col + extra + '" data-ag-tok="' + esc(tok) + '" style="width:' + p.length + 'ch"' +
                      titolo + '>' + dentroP + '</span>';
             primo = false;
           } else {
-            fuori += '<span class="ag-t ag-' + col + extra + '" style="width:' + p.length + 'ch"' +
+            fuori += '<span class="ag-t ag-' + col + extra + '" data-ag-tok="' + esc(tok) + '" style="width:' + p.length + 'ch"' +
                      titolo + '></span>';
           }
         });
@@ -14654,7 +14749,7 @@ if (recognition) {
       var dentro = scala < 0.995
         ? '<i style="transform:scaleX(' + scala.toFixed(3) + ')">' + full + '</i>'
         : full;
-      return '<span class="ag-t ag-'+(colorDi.get(tok)||colore(tok))+extra+'" style="'+stile+'"'+titolo+'>'+dentro+'</span>';
+      return '<span class="ag-t ag-'+(colorDi.get(tok)||colore(tok))+extra+'" data-ag-tok="'+esc(tok)+'" style="'+stile+'"'+titolo+'>'+dentro+'</span>';
     });
   }
   function disegna(){
