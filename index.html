@@ -417,11 +417,8 @@ body.ag-attivo{overflow:hidden;margin:0}
 .ag-gr-tit{display:flex;align-items:center;gap:6px;font-size:9.5px;font-weight:700;
   letter-spacing:.06em;text-transform:uppercase;color:var(--text-light);margin-bottom:4px}
 .ag-gr-tit i{width:9px;height:9px;border-radius:2px;flex:none}
-.ag-motore-gruppo{margin:10px 0 4px;padding:5px 0 4px;border-bottom:1px solid var(--hairline);font-size:9px;font-weight:700;letter-spacing:1.2px;color:var(--text-light)}
-.ag-motore-gruppo:first-child{margin-top:0}
 .ag-gr-voce{display:flex;align-items:center;gap:6px;font-size:11.5px;line-height:1.5;
   color:var(--text-main);padding:1px 0 1px 15px}
-.ag-voce-col{width:7px;height:7px;border-radius:2px;flex:none;display:block}
 .ag-gr-voce .t{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ag-gr-voce button{border:none;background:transparent;color:var(--text-light);
   cursor:pointer;font-size:14px;line-height:1;padding:0 2px}
@@ -4517,11 +4514,6 @@ body {
           }
         } catch (e) {}
         const text = userInput.value.trim();
-        // Conferma dei numeri: SOLO QUI, quando l'utente sta davvero inviando.
-        // Caricare/incollare un documento deve solo rilevare e mostrare.
-        if (text && window.aegisControlloNumeri) {
-          try { await window.aegisControlloNumeri(text); } catch (e) {}
-        }
         // Se c'e' un'immagine selezionata, usiamo il flusso Vision (testo opzionale).
         if (selectedImageDataUrl) { await sendImageMessage(text); return; }
         if (text === '') return;
@@ -7213,7 +7205,6 @@ if (recognition) {
      prosa moltissimo. E' la disambiguazione che prima non esisteva.
      ======================================================================= */
   let LEXSEG = null;              // segmentazione per lingua del testo in corso
-  let DEEP_LAYER = false;
 
   function LEX() { return root.AEGIS_LEX || null; }
 
@@ -7670,7 +7661,6 @@ if (recognition) {
 
       found.push({
         patternId: p.id, category: p.category, sub: p.sub, token: p.token,
-        engine: p.gazetteer ? 'deep' : 'base',
         start, end, value, confidence: conf, priority: p.priority,
         validated, sensitiveExtra: !!p.sensitiveExtra, metaKeep: p.metaKeep || null,
         truncatable: !!p.truncatable, banda: banda, review: banda === 'propose',
@@ -8029,7 +8019,7 @@ if (recognition) {
             v = { key: vk, value: m.value, token: host.token.replace(']]', String.fromCharCode(65 + host.variants.length) + ']]') };
             host.variants.push(v);
           }
-          ent = { token: v.token, value: m.value, type: m.token, count: 0, parent: host.token, category: m.category, sub: m.sub, confidence: m.confidence, engine: m.engine || 'base' };
+          ent = { token: v.token, value: m.value, type: m.token, count: 0, parent: host.token, category: m.category, sub: m.sub, confidence: m.confidence };
           entities.set(k, ent);
         }
       }
@@ -8060,7 +8050,7 @@ if (recognition) {
            che tutto il resto ha finito il suo lavoro. Qui si torna alla forma
            di sempre. */
         const tok = '[[' + m.token + '_' + String(n).padStart(2, '0') + ']]';
-        ent = { token: tok, value: m.value, type: m.token, count: 0, category: m.category, sub: m.sub, confidence: m.confidence, review: !!m.review, engine: m.engine || 'base' };
+        ent = { token: tok, value: m.value, type: m.token, count: 0, category: m.category, sub: m.sub, confidence: m.confidence, review: !!m.review };
         entities.set(k, ent);
         if (m.token === 'PER') {
           ent.words = m.value.split(/\s+/).map(key).filter(Boolean);
@@ -8070,8 +8060,6 @@ if (recognition) {
       }
       ent.count++;
       ent.confidence = Math.max(ent.confidence, m.confidence);
-      if (m.engine && ent.engine && ent.engine !== m.engine) ent.engine = 'both';
-      else if (m.engine && !ent.engine) ent.engine = m.engine;
       m.entity = ent;
     });
 
@@ -8285,8 +8273,6 @@ if (recognition) {
   // Vale solo per la singola scansione richiesta, non cambia il comportamento
   // di default.
   let PROFONDO = false;
-  let BASE_LAYER = true;
-  let DEEP_LAYER_CORE = false;
   let LINGUA = null;
   let MODELLO_ATTIVO = false;   // vero solo quando il motore contestuale gira
   let FUORI_LINGUA = false;     // il pattern in corso non e' della lingua del testo
@@ -8294,8 +8280,6 @@ if (recognition) {
   function protect(rawText, opts) {
     opts = opts || {};
     PROFONDO = !!opts.profondo;
-    DEEP_LAYER_CORE = !!opts.profondo;
-    BASE_LAYER = (opts.base !== false);
     // LINGUA. Quella passata da fuori e' la lingua dell'INTERFACCIA, non del
     // documento: un utente con l'interfaccia in italiano che incolla una
     // lettera spagnola spegneva tutti i pattern spagnoli. Serve solo come
@@ -8326,11 +8310,6 @@ if (recognition) {
     const cache = {};
     KB.patterns.forEach(p => {
       if (disabled.has(p.id)) return;
-      // Strati indipendenti: BASE = regole strutturate/codici;
-      // DEEP = pattern alimentati dal gazetteer. Se entrambi sono ON girano
-      // entrambi; nessun pattern cambia il significato degli altri.
-      if (!BASE_LAYER && !p.gazetteer) return;
-      if (!DEEP_LAYER_CORE && p.gazetteer) return;
       // LINGUA COME PESO, NON COME FILTRO. Spegnere un pattern perche' il
       // testo intorno e' di un'altra lingua faceva sparire la carta
       // d'identita' italiana citata dentro una lettera spagnola, e con essa
@@ -8372,11 +8351,9 @@ if (recognition) {
     // ("Age" tornava PER dopo essere stato retrocesso). Il veto si applica
     // anche qui, sul risultato: e' il punto dove passano tutti.
     kept = vetoParoleComuni(resolve(kept.concat(dyn)), text);
-    if (BASE_LAYER) {
-      kept = resolve(kept.concat(quarantine(text, kept, level)));
-      kept = resolve(kept.concat(campiEtichettati(text, kept, level)));
-      if (level.coverAll) kept = resolve(kept.concat(coverAll(text, kept)));
-    }
+    kept = resolve(kept.concat(quarantine(text, kept, level)));
+    kept = resolve(kept.concat(campiEtichettati(text, kept, level)));
+    if (level.coverAll) kept = resolve(kept.concat(coverAll(text, kept)));
 
     // l'utente ha escluso questi valori dal mascheramento (falsi allarmi)
     if (excluded.size) kept = kept.filter(m => !excluded.has(m.value.toLowerCase()));
@@ -8443,7 +8420,7 @@ if (recognition) {
       token: ent.token, value: ent.value, type: ent.type,
       category: ent.category, sub: ent.sub, count: ent.count,
       confidence: Math.round(ent.confidence * 100) / 100, parent: ent.parent || null,
-      review: !!ent.review, engine: ent.engine || 'base'
+      review: !!ent.review
     }));
     vault.sort((a, b) => a.token.localeCompare(b.token));
 
@@ -8692,19 +8669,15 @@ if (recognition) {
   // e le righe tutte maiuscole. Copre di piu' e sbaglia di piu': per questo
   // e' una scelta dell'utente e non il comportamento di partenza.
   var PROFONDA=false;
-  var BASE_ATTIVO=true;
-  var NER_ATTIVO=true;
-  try{ if(localStorage.getItem('aegis_base')==='0') BASE_ATTIVO=false; }catch(e){}
-  try{ if(localStorage.getItem('aegis_ner')==='0') NER_ATTIVO=false; }catch(e){}
   try{ if(localStorage.getItem('aegis_profonda')==='1') PROFONDA=true; }catch(e){}
   function opzioni(){
     // ANALISI PROFONDA. Prima passava a 'paranoid' E toglieva i freni: un
     // interruttore fra "non trova i nomi" e "maschera mezzo dizionario".
     // Adesso lascia il livello dov'e' e allarga SOLO la banda delle proposte:
     // puo' offrire di piu' all'utente, non puo' mascherare di piu' di nascosto.
-    var o = {level:LIVELLO, profondo:!!PROFONDA, base:!!BASE_ATTIVO};
+    var o = PROFONDA ? {level:LIVELLO, profondo:true} : {level:LIVELLO};
     if (esclusi.size) o.excludedValues = Array.from(esclusi);
-    o.modelloAttivo = !!(NER_ATTIVO && window.AEGIS_MODELLO && window.AEGIS_MODELLO.pronto);
+    o.modelloAttivo = !!(window.AEGIS_MODELLO && window.AEGIS_MODELLO.pronto);
     // Lingua dell'INTERFACCIA: serve solo come ripiego se il lessico di
     // frequenza non e' stato caricato. La lingua che conta e' quella del
     // DOCUMENTO, che il motore adesso legge dal testo, paragrafo per
@@ -8714,8 +8687,6 @@ if (recognition) {
     return o;
   }
   var vault=new Map(), colorDi=new Map(), contatore={};
-  // Provenienza per motore: stessa categoria/stesso colore, ma gruppi separati.
-  var motoreDi = new Map(); // token -> base | deep | ner | manual | both
   // PENNELLO. Due elenchi decisi dall'utente, che vincono sempre sul motore.
   //   banditi : testo che va coperto anche se le regole non lo riconoscono
   //   esclusi : testo che NON va coperto, anche se le regole lo riconoscono
@@ -9042,10 +9013,9 @@ if (recognition) {
       // si spezzava fra una sessione e l'altra.
       var ai=[]; vociAI.forEach(function(tok,k){ ai.push([k,tok]); });
       var pv=[]; provenienza.forEach(function(chi,k){ pv.push([k,chi]); });
-      var md=[]; motoreDi.forEach(function(chi,k){ md.push([k,chi]); });
       var cu=[]; categoriePersonali.forEach(function(c,id){ cu.push([id,c]); });
       var pacco = JSON.stringify({v:v,c:c,n:contatore,r:righe,
-        b:b, e:Array.from(esclusi), cu:cu, ai:ai, pv:pv, m:md});
+        b:b, e:Array.from(esclusi), cu:cu, ai:ai, pv:pv});
       sessionStorage.setItem(CHIAVE, pacco);
 
       /* ====== IL VAULT SOPRAVVIVE ALLA SCHEDA ==========================
@@ -9103,24 +9073,11 @@ if (recognition) {
       (d.e||[]).forEach(function(x){ esclusi.add(x); });
       (d.ai||[]).forEach(function(p){ vociAI.set(p[0],p[1]); });
       (d.pv||[]).forEach(function(p){ provenienza.set(p[0],p[1]); });
-      (d.m||[]).forEach(function(p){ motoreDi.set(p[0],p[1]); });
     }catch(e){}
   }
   function scorda(){ try{ sessionStorage.removeItem(CHIAVE); }catch(e){} }
 
   /* ---------- utilita' ---------- */
-  function coloreDaCategoria(cat, token){
-    var c = String(cat || '').toLowerCase();
-    var m = {'persona':'per','person':'per','name':'per','nomi':'per','per':'per',
-      'indirizzo':'addr','address':'addr','addr':'addr','luogo':'city','location':'city','city':'city','place':'city',
-      'data':'date','date':'date','birth':'date','bancari':'bank','bank':'bank','account':'bank','card':'bank',
-      'contatti':'mail','contact':'mail','email':'mail','phone':'mail','mail':'mail','documenti':'id','document':'id','id':'id',
-      'tecnici':'tech','technical':'tech','tech':'tech','sanitari':'med','medical':'med','health':'med','med':'med',
-      'aziende':'org','company':'org','organization':'org','org':'org','altri':'altri','other':'altri',
-      'manuale':'mano','manual':'mano','mano':'mano'};
-    return m[c] || colore(token);
-  }
-
   function colore(token){
     var t=String(token).replace(/[\[\]]/g,'').split('_')[0];
     if(t==='PER'||t==='ALIAS'||t==='NAME'||t==='NER') return 'per';
@@ -9168,36 +9125,14 @@ if (recognition) {
   // quindi al momento dell'invio andavano quasi sempre persi.
   var nerNoti = new Set();
 
-  // Un dato puo' essere visto da piu' motori (es. una persona trovata sia
-  // dalle regole sia dal NER). Non sovrascriviamo piu' la provenienza: la
-  // conserviamo come insieme compatto base/deep/ner/manual.
-  function aggiungiMotore(tok, engine){
-    engine = engine || 'base';
-    var cur = String(motoreDi.get(tok) || '');
-    if (!cur) { motoreDi.set(tok, engine); return; }
-    var parti = cur.split('+').filter(Boolean);
-    if (parti.indexOf(engine) === -1) parti.push(engine);
-    var ord = {base:1,deep:2,ner:3,manual:4};
-    parti.sort(function(a,b){ return (ord[a]||9)-(ord[b]||9); });
-    motoreDi.set(tok, parti.join('+'));
-  }
-  function motoriToken(tok){
-    return String(motoreDi.get(tok) || 'base').split('+').filter(Boolean);
-  }
-  function appartieneMotore(tok, engine){
-    return motoriToken(tok).indexOf(engine) !== -1;
-  }
-
   // Chi analizza: il modello generativo se e' pronto, altrimenti il NER.
   function analizzatore(){
-    if(!NER_ATTIVO) return null;
     if(window.AEGIS_IA && window.AEGIS_IA.pronto) return window.AEGIS_IA;
     if(window.AEGIS_NER && window.AEGIS_NER.pronto) return window.AEGIS_NER;
     return null;
   }
 
   function aggiornaNer(testo){
-    if(!NER_ATTIVO) return;
     var mot = analizzatore();
     if(!mot) return;
     if(nerCache.testo === testo) return;
@@ -9215,7 +9150,6 @@ if (recognition) {
   // Applica al testo GIA' mascherato dalle regole i nomi trovati dal modello,
   // saltando quelli che ricadono dentro un codice esistente.
   function fondiNer(testoOriginale, res){
-    if(!NER_ATTIVO) return res;
     // si applicano TUTTI i nomi noti che compaiono nel testo, non solo quelli
     // dell'ultima analisi: cosi' l'invio non perde quanto gia' riconosciuto
     /* SOLO l'analisi di QUESTO testo. Prima si riusavano tutti i nomi visti
@@ -9263,12 +9197,7 @@ if (recognition) {
     extra.forEach(function(v,i){
       var tk='[[NER_'+String(i+1).padStart(2,'0')+']]';
       try{ testo = testo.split(v).join(tk); }catch(err){ return; }
-      var catNer = 'per';
-      try {
-        var entNer = candidati.find(function(e){ return String(e && e.valore || '').trim() === v; });
-        catNer = (entNer && entNer.cat) || 'per';
-      } catch (eCat) {}
-      vaultNuovo.push({ token: tk, value: v, sub:'full_name', category:catNer, review:true, engine:'ner' });
+      vaultNuovo.push({ token: tk, value: v, sub:'full_name', category:'PERSONA', review:true });
     });
     return { text: testo, vault: vaultNuovo, leaks: res.leaks||[], stats: res.stats };
   }
@@ -9303,14 +9232,12 @@ if (recognition) {
         if(congela){
           contatore[tipo]=(contatore[tipo]||0)+1;
           tok=tipo+'_'+String(contatore[tipo]).padStart(2,'0');
-          vault.set(tok,v.value); colorDi.set(tok,coloreDaCategoria(v.category, v.token));
-          aggiungiMotore(tok, v.engine || 'base');
+          vault.set(tok,v.value); colorDi.set(tok,colore(v.token));
           varianti(v.value).forEach(function(vr){ if(vr!==v.value) vault.set(tok+'~'+vr, vr); });
         }else{
           tmp[tipo]=(tmp[tipo]||0)+1;
           tok=tipo+'_'+String((contatore[tipo]||0)+tmp[tipo]).padStart(2,'0');
-          colorDi.set(tok,coloreDaCategoria(v.category, v.token));
-          aggiungiMotore(tok, v.engine || 'base');
+          colorDi.set(tok,colore(v.token));
           // i token dell'anteprima non entrano nel vault (non sono congelati):
           // senza questa riga i gruppi non potrebbero mai rivelarne il valore
           valoriPreview.set(tok, v.value);
@@ -9325,10 +9252,8 @@ if (recognition) {
         while(usati[cand] !== undefined || vault.has(cand));
         tok = cand;
         if(congela){ vault.set(tok, v.value); }
-        colorDi.set(tok, coloreDaCategoria(v.category, v.token));
-        aggiungiMotore(tok, v.engine || 'base');
+        colorDi.set(tok, colore(v.token));
       }
-      aggiungiMotore(tok, v.engine || 'base');
       usati[tok] = v.value;
       segnaProvenienza(v.value, 'regole');
       assegnati++;
@@ -9382,7 +9307,6 @@ if (recognition) {
             vociAI.set(chiave, tok);
           }
           colorDi.set(tok, cat);
-          aggiungiMotore(tok, 'ner');
           if (congela && !vault.has(tok)) vault.set(tok, testo);
           // ANCHE IN ANTEPRIMA il codice deve sapere quale valore sta
           // sostituendo. Senza questa riga valoreDi() tornava null, la legenda
@@ -9414,7 +9338,6 @@ if (recognition) {
           colorDi.set(v.tok, cat);
         }
         colorDi.set(v.tok, cat);
-        aggiungiMotore(v.tok, 'manual');
         if (congela && !vault.has(v.tok)) vault.set(v.tok, testo);
         if (!congela) valoriPreview.set(v.tok, testo);   // vedi sopra
         // CONFINI DI PAROLA, come gia' fanno le proposte del motore.
@@ -9436,10 +9359,6 @@ if (recognition) {
       return scudi[Number(i)] !== undefined ? scudi[Number(i)] : m;
     });
     if(congela) salva();
-    DEEP_LAYER = false;
-    PROFONDO = false;
-    BASE_LAYER = true;
-    DEEP_LAYER_CORE = false;
     return {testo:out, voci:voci, valori:valori};
   }
 
@@ -9629,12 +9548,12 @@ if (recognition) {
       mSi:'Scarica e attiva',
       mAI:'proposte dal motore',
       pennello:'Pennello', pennelloOn:'Pennello: ON', pennelloOff:'Pennello: OFF',
-      motoreOff:'Motore: OFF', profondaOff:'Profonda: OFF', riservatoOff:'Riservato: OFF', baseOn:'Base: ON', baseOff:'Base: OFF', nerOn:'NER: ON', nerOff:'NER: OFF',
+      motoreOff:'Motore: OFF', profondaOff:'Profonda: OFF', riservatoOff:'Riservato: OFF',
       profonda:'Analisi profonda', profondaOn:'Profonda: ON',
       riservato:'Riservato', riservatoOn:'Riservato: ON',
       config:'Configurazione',
       aiutoPennello:'Tocca una parola e viene presa tutta: scegli in che categoria coprirla. Tocca un codice gia\u0027 coperto per riportarlo in chiaro. Funziona anche sugli elenchi qui a sinistra.',
-      aiutoBase:'Regole strutturate e codici verificabili. Spegnilo per testare separatamente gli altri motori.', aiutoNer:'Rilevamento NER/modello contestuale. Spegnilo per testare separatamente base e profonda. Maiusc+click sul pulsante disinstalla il modello.', aiutoProfonda:'Misura estrema: copre molto di piu\u0027 e sbaglia molto di piu\u0027. Prende anche i nomi in minuscolo che sono parole comuni. Non serve quasi mai.',
+      aiutoProfonda:'Misura estrema: copre molto di piu\u0027 e sbaglia molto di piu\u0027. Prende anche i nomi in minuscolo che sono parole comuni. Non serve quasi mai.',
       aiutoRiservato:'Sfoca i dati sullo schermo. Utile prima di condividere lo schermo o mostrare il monitor a qualcuno.',
       aiutoConfig:'Avvisi, preferenze di protezione, dati salvati su questo dispositivo, uscita dall\u0027account.',
       espandi:'Espandi la chat a schermo intero',
@@ -9977,12 +9896,12 @@ if (recognition) {
       mSi:'Descargar y activar',
       mAI:'propuestas por el motor',
       pennello:'Pincel', pennelloOn:'Pincel: ON', pennelloOff:'Pincel: OFF',
-      motoreOff:'Motor: OFF', profondaOff:'Profundo: OFF', riservatoOff:'Reservado: OFF', baseOn:'Base: ON', baseOff:'Base: OFF', nerOn:'NER: ON', nerOff:'NER: OFF',
+      motoreOff:'Motor: OFF', profondaOff:'Profundo: OFF', riservatoOff:'Reservado: OFF',
       profonda:'An\u00e1lisis profundo', profondaOn:'Profundo: ON',
       riservato:'Reservado', riservatoOn:'Reservado: ON',
       config:'Configuraci\u00f3n',
       aiutoPennello:'Toca una palabra y se selecciona entera: elige en que categoria ocultarla. Toca un codigo ya oculto para devolverlo a la vista. Funciona tambien en las listas de la izquierda.',
-      aiutoBase:'Reglas estructuradas y códigos verificables. Apágalo para probar los otros motores por separado.', aiutoNer:'Detección NER/modelo contextual. Apágalo para probar por separado base y profundo. Mayús+clic desinstala el modelo.', aiutoProfonda:'Medida extrema: oculta mucho mas y se equivoca mucho mas. Toma tambien los nombres en minuscula que son palabras comunes. Casi nunca hace falta.',
+      aiutoProfonda:'Medida extrema: oculta mucho mas y se equivoca mucho mas. Toma tambien los nombres en minuscula que son palabras comunes. Casi nunca hace falta.',
       aiutoRiservato:'Difumina los datos en pantalla. Util antes de compartir pantalla o ensenar el monitor a alguien.',
       aiutoConfig:'Avisos, preferencias de proteccion, datos guardados en este dispositivo, cierre de sesion.',
       espandi:'Ampliar el chat a pantalla completa',
@@ -10325,12 +10244,12 @@ if (recognition) {
       mSi:'Download and enable',
       mAI:'proposed by the engine',
       pennello:'Brush', pennelloOn:'Brush: ON', pennelloOff:'Brush: OFF',
-      motoreOff:'Engine: OFF', profondaOff:'Deep scan: OFF', riservatoOff:'Private: OFF', baseOn:'Base: ON', baseOff:'Base: OFF', nerOn:'NER: ON', nerOff:'NER: OFF',
+      motoreOff:'Engine: OFF', profondaOff:'Deep scan: OFF', riservatoOff:'Private: OFF',
       profonda:'Deep scan', profondaOn:'Deep scan: ON',
       riservato:'Private', riservatoOn:'Private: ON',
       config:'Settings',
       aiutoPennello:'Tap a word and the whole word is taken: choose which category to mask it under. Tap an existing code to bring it back in the clear. Works on the lists on the left too.',
-      aiutoBase:'Structured rules and verifiable codes. Turn it off to test the other engines separately.', aiutoNer:'NER/contextual model detection. Turn it off to test base and deep separately. Shift-click uninstalls the model.', aiutoProfonda:'Extreme measure: masks far more and gets it wrong far more. It also takes lowercase names that are ordinary words. Rarely needed.',
+      aiutoProfonda:'Extreme measure: masks far more and gets it wrong far more. It also takes lowercase names that are ordinary words. Rarely needed.',
       aiutoRiservato:'Blurs the data on screen. Useful before sharing your screen or showing your monitor to someone.',
       aiutoConfig:'Warnings, protection preferences, data stored on this device, sign out.',
       espandi:'Expand the chat to full screen',
@@ -11233,67 +11152,63 @@ if (recognition) {
   function disegnaColonna(dove){
     var corpo = dove || document.getElementById('ag-voci-corpo');
     if (!corpo) return;
+    // raccolgo i valori attualmente coperti, raggruppati per categoria
     var gruppi = {};
-    function nomeMotore(id){
-      if (id === 'base') return 'BASE';
-      if (id === 'deep') return 'DEEP';
-      if (id === 'ner') return 'NER';
-      if (id === 'manual') return T('catMano');
-      if (id === 'both') return 'BASE + DEEP';
-      return id || 'BASE';
-    }
-    function attivoMotore(id){
-      if (id === 'base') return BASE_ATTIVO;
-      if (id === 'deep') return PROFONDA;
-      if (id === 'ner') return !!NER_ATTIVO;
-      return true;
-    }
-    function metti(cat,testo,stato,engine){
-      engine=engine||'base';
-      if (!attivoMotore(engine)) return;
-      var k=engine+'::'+cat;
-      if (!gruppi[k]) gruppi[k]={engine:engine,cat:cat,v:[]};
-      if (!gruppi[k].v.some(function(x){return x.testo===testo;})) gruppi[k].v.push({testo:testo,stato:stato});
-    }
-    function mettiToken(tok, cat, testo, stato){
-      motoriToken(tok).forEach(function(engine){
-        metti(cat, testo, stato, engine);
-      });
+    function metti(cat, testo, stato){
+      if (!gruppi[cat]) gruppi[cat] = [];
+      if (!gruppi[cat].some(function(x){ return x.testo===testo; })) gruppi[cat].push({testo:testo, stato:stato});
     }
     if (schedaAttiva === 'default') {
-      vault.forEach(function(val,k){
+      // Il vault si riempie all'INVIO. Mentre l'utente scrive, i dati coperti
+      // stanno nell'anteprima: senza questi due elenchi insieme la colonna
+      // restava vuota fino al primo messaggio, e sembrava rotta.
+      vault.forEach(function(val, k){
         if (k.indexOf('~') !== -1) return;
-        mettiToken(k, colorDi.get(k)||colore(k), String(val), 'attivo');
+        metti(colorDi.get(k) || colore(k), String(val), 'attivo');
       });
-      valoriPreview.forEach(function(val,k){
-        mettiToken(k, colorDi.get(k)||colore(k), String(val), 'attivo');
+      valoriPreview.forEach(function(val, k){
+        metti(colorDi.get(k) || colore(k), String(val), 'attivo');
       });
     } else if (schedaAttiva === 'aggiunte') {
-      banditi.forEach(function(v,testo){ metti(v.cat||'per',testo,'aggiunto','manual'); });
+      // SOLO IL PENNELLO. Le proposte del motore stavano qui dentro e
+      // riempivano l'elenco da sole: l'utente apriva "Aggiunte" convinto di
+      // trovarci le sue scelte e ci trovava trenta righe che non aveva mai
+      // toccato. Le proposte del motore sono dati coperti come gli altri e
+      // vivono nella scheda predefinita, con l'icona che dice chi le ha viste.
+      banditi.forEach(function(v, testo){ metti(v.cat || 'per', testo, 'aggiunto'); });
     } else {
-      esclusi.forEach(function(t){ metti('tolti',t,'tolto','manual'); });
+      esclusi.forEach(function(t){ metti('tolti', t, 'tolto'); });
     }
-    var chiavi=Object.keys(gruppi).sort(function(a,b){
-      var ga=gruppi[a],gb=gruppi[b],ord={base:1,deep:2,ner:3,manual:4,both:5};
-      if ((ord[ga.engine]||9)!==(ord[gb.engine]||9)) return (ord[ga.engine]||9)-(ord[gb.engine]||9);
-      return ga.cat.localeCompare(gb.cat);
+    var chiavi = Object.keys(gruppi).sort(function(a,b){
+      if (a==='tolti') return 1;
+      if (b==='tolti') return -1;
+      return a.localeCompare(b);
     });
     if (!chiavi.length) {
-      corpo.innerHTML='<div class="ag-voci-vuoto">'+(schedaAttiva==='default'?T('vuotoDefault'):schedaAttiva==='aggiunte'?T('vuotoAggiunte'):T('vuotoRimosse'))+'</div>';
-      aggiornaConta(); return;
+      corpo.innerHTML = '<div class="ag-voci-vuoto">' +
+        (schedaAttiva === 'default' ? T('vuotoDefault')
+          : schedaAttiva === 'aggiunte' ? T('vuotoAggiunte') : T('vuotoRimosse')) + '</div>';
+      aggiornaConta();
+      return;
     }
-    var h='',prev=null;
-    chiavi.forEach(function(k){
-      var g=gruppi[k];
-      if(g.engine!==prev){ h+='<div class="ag-motore-gruppo"><span>'+esc(nomeMotore(g.engine))+'</span></div>'; prev=g.engine; }
-      h+='<div class="ag-gr"><div class="ag-gr-tit"><i style="background:'+coloreCategoria(g.cat)+'"></i>'+esc(nomeCategoria(g.cat))+'</div>';
-      g.v.forEach(function(v){
-        h+='<div class="ag-gr-voce'+(v.stato==='tolto'?' ag-tolto':'')+'">'+iconaProvenienza(v.testo)+'<i class="ag-voce-col" style="background:'+coloreCategoria(g.cat)+'"></i><span class="t">'+esc(v.testo)+'</span>'+(v.stato==='attivo'?'':'<button type="button" data-x="'+esc(v.testo)+'" title="'+T('rimetti')+'">&times;</button>')+'</div>';
+    var h = '';
+    chiavi.forEach(function(cat){
+      h += '<div class="ag-gr"><div class="ag-gr-tit"><i style="background:'+coloreCategoria(cat)+'"></i>'+
+           esc(nomeCategoria(cat))+'</div>';
+      gruppi[cat].forEach(function(v){
+        h += '<div class="ag-gr-voce'+(v.stato==='tolto'?' ag-tolto':'')+'">' +
+             iconaProvenienza(v.testo) +
+             '<span class="t">'+esc(v.testo)+'</span>' +
+             (v.stato==='attivo' ? '' :
+               '<button type="button" data-x="'+esc(v.testo)+'" title="' + T('rimetti') + '">&times;</button>') +
+             '</div>';
       });
-      h+='</div>';
+      h += '</div>';
     });
-    corpo.innerHTML=h;
-    corpo.querySelectorAll('button[data-x]').forEach(function(b){b.onclick=function(){disfa(b.getAttribute('data-x'));};});
+    corpo.innerHTML = h;
+    corpo.querySelectorAll('button[data-x]').forEach(function(b){
+      b.onclick = function(){ disfa(b.getAttribute('data-x')); };
+    });
     aggiornaConta();
   }
   /* ICONA DI PROVENIENZA.
@@ -11655,14 +11570,10 @@ if (recognition) {
 
     try {
       var r = AEGIS.protect(testoStr, opzioni());
-      // protect() restituisce le voci con il loro valore/categoria, non un
-      // array 'matches'. Il vecchio renderer cercava r.matches e quindi il
-      // campo di scrittura restava completamente nero anche quando la
-      // mascheratura funzionava. Ricostruiamo le occorrenze dal valore:
-      // stessa categoria, stesso colore, stessa corrispondenza.
-      (r.valori || []).forEach(function (m) {
-        if (!m || !m.valore) return;
-        aggiungiSegmento(String(m.valore), m.col || 'per');
+      (r.matches || []).forEach(function (m) {
+        if (typeof m.start === 'number' && typeof m.end === 'number' && m.end > m.start) {
+          segs.push({ s:m.start, e:m.end, col:colore(m.token) || 'per' });
+        }
       });
     } catch (e) {}
 
@@ -11672,7 +11583,7 @@ if (recognition) {
       if (nerCache && nerCache.testo === testoStr && nerCache.ent) {
         nerCache.ent.forEach(function (e) {
           var v = String((e && e.valore) || '').trim();
-          if (v && !escluso(v)) aggiungiSegmento(v, (e && e.cat) || 'per');
+          if (v && !escluso(v)) aggiungiSegmento(v, 'per');
         });
       }
     } catch (e) {}
@@ -11956,7 +11867,6 @@ if (recognition) {
   var analisiInCorso = false;
 
   async function chiediAlModello(testo, forza) {
-    if(!NER_ATTIVO) return false;
     var M = window.AEGIS_MODELLO;
     if (!M || !M.pronto) return false;
     var t = String(testo || '').trim();
@@ -12638,8 +12548,7 @@ if (recognition) {
                 'ag-ia':['profonda','aiutoProfonda'],
                 'ag-riservato-btn':['riservato','aiutoRiservato'],
                 'ag-opzioni-btn':[null,'aiutoConfig'],
-                'ag-motore-btn':[null,'aiutoNer'],
-                'ag-base-btn':[null,'aiutoBase'],
+                'ag-motore-btn':['motore','aiutoMotore'],
                 'ag-sp-hl':[null,'aiutoEvidenzia'],
                 'ag-doc-btn':[null,'docAiuto'] };
       Object.keys(m).forEach(function(id){
@@ -12658,9 +12567,6 @@ if (recognition) {
           passo('motore', statoMotore);
         } else if (id === 'ag-riservato-btn') {
           b.textContent = riservato ? T('riservatoOn') : T('riservatoOff');
-        } else if (id === 'ag-base-btn') {
-          b.textContent = BASE_ATTIVO ? T('baseOn') : T('baseOff');
-          b.classList.toggle('on', BASE_ATTIVO);
         } else {
           b.textContent = T(m[id][0]);
         }
@@ -12868,13 +12774,9 @@ if (recognition) {
     // per spegnere e disinstallare, e non puo' restare bloccato per un avviso
     // arrivato fuori tempo.
     b.disabled = (st === 'carico');
-    if (st === 'carico') {
-      var p = (typeof M.percentuale === 'number' && isFinite(M.percentuale)) ? M.percentuale : 0;
-      b.innerHTML = T('motoreCarico', { p: '<span class=\"ag-pc\">' + p + '</span>' });
-    } else if (st === 'pronto')      b.textContent = NER_ATTIVO ? T('nerOn') : T('nerOff');
+    if (st === 'pronto')      b.textContent = T('motoreOn');
     else if (st === 'fallito') b.textContent = T('motoreKo');
     else                       b.textContent = T('motoreOff');
-    b.classList.toggle('on', st === 'pronto' && NER_ATTIVO);
     b.setAttribute('data-aiuto', T('aiutoMotore'));
   }
   function confermaSpegnimento(){
@@ -12902,80 +12804,35 @@ if (recognition) {
     });
   }
 
-  async function accendiMotore(ev){
+  async function accendiMotore(){
     var M = window.AEGIS_MODELLO;
     if (!M || M.stato === 'carico') return;
-
     if (M.pronto) {
-      if (ev && ev.shiftKey) {
-        if (!(await confermaSpegnimento())) return;
-        suggeriti.clear(); vociAI.clear(); ultimoAnalizzato = ''; provenienza.clear(); motoreDi.clear();
-        try { localStorage.removeItem('aegis_motore'); } catch (e) {}
-        var bm = document.getElementById('ag-motore-btn');
-        if (bm) { bm.disabled = true; bm.textContent = T('mRimuovo'); }
-        try { await M.disinstalla(); } catch (e) {}
-        NER_ATTIVO = false;
-        try { localStorage.setItem('aegis_ner','0'); } catch(e){}
-        statoMotore();
-        aggiorna();
-        return;
-      }
-
-      NER_ATTIVO = !NER_ATTIVO;
-      try {
-        if (NER_ATTIVO) localStorage.removeItem('aegis_ner');
-        else localStorage.setItem('aegis_ner','0');
-      } catch(e) {}
-      statoMotore();
-      suggeriti.clear();
-      vociAI.clear();
-      ultimoAnalizzato = '';
-      nerNoti.clear();
-      nerCache = { testo:null, ent:[] };
-      var inp = document.getElementById('user-input');
-      if (inp) {
-        anteprima(inp.value);
-        if (NER_ATTIVO) chiediAlModello(inp.value, true).then(function(){ anteprima(inp.value); });
-      }
-      return;
-    }
-
-    if (!(await spiegaMotore())) return;
-    NER_ATTIVO = true;
-    try { localStorage.removeItem('aegis_ner'); } catch(e) {}
-    // Si memorizza l'installazione SOLO dopo un download riuscito.
-    try { localStorage.removeItem('aegis_motore'); } catch (e) {}
-    try {
-      // Disegno immediato: il bottone deve mostrare 0% prima ancora che
-      // import() apra la libreria. Gli eventi di Transformers.js aggiornano
-      // poi la percentuale reale.
-      var bm0 = document.getElementById('ag-motore-btn');
-      if (bm0) {
-        bm0.disabled = true;
-        bm0.innerHTML = T('motoreCarico', { p: '<span class="ag-pc">0</span>' });
-      }
-      var caricamentoMotore = M.carica();
-      statoMotore();
-      var pollMotore = setInterval(function(){
-        try {
-          if (window.AEGIS_MODELLO && window.AEGIS_MODELLO.stato === 'carico') statoMotore();
-          else clearInterval(pollMotore);
-        } catch(e) { clearInterval(pollMotore); }
-      }, 120);
-      try { await caricamentoMotore; } finally { clearInterval(pollMotore); }
-      try { localStorage.setItem('aegis_motore', '1'); } catch (e) {}
-      var i = document.getElementById('user-input');
-      if (i && i.value) { await chiediAlModello(i.value, true); anteprima(i.value); }
-    } catch (e) {
-      try { localStorage.removeItem('aegis_motore'); } catch (err) {}
-      NER_ATTIVO = false;
-      try { localStorage.setItem('aegis_ner','0'); } catch (err2) {}
+      // ON e OFF non sono "attiva" e "sospendi": sono INSTALLA e DISINSTALLA.
+      // Chi spegne si aspetta che i file spariscano dal suo dispositivo, e
+      // deve saperlo prima di farlo. La finestra di sistema diceva troppo poco
+      // e in certi browser non compariva affatto: qui si rispiega per intero
+      // che cosa si sta per perdere, con le stesse parole dell'installazione.
+      if (!(await confermaSpegnimento())) return;
+      suggeriti.clear(); vociAI.clear(); ultimoAnalizzato = ''; provenienza.clear();
+      try { localStorage.removeItem('aegis_motore'); } catch (e) {}
+      const b = document.getElementById('ag-motore-btn');
+      if (b) { b.disabled = true; b.textContent = T('mRimuovo'); }
+      try { await M.disinstalla(); } catch (e) {}
       statoMotore();
       aggiorna();
       return;
     }
+    if (!(await spiegaMotore())) return;
+    try { localStorage.setItem('aegis_motore', '1'); } catch (e) {}
+    try {
+      await M.carica();
+      var i = document.getElementById('user-input');
+      if (i && i.value) { await chiediAlModello(i.value, true); anteprima(i.value); }
+    } catch (e) {}
     statoMotore();
   }
+
   // Invito dopo l'informativa: si propone una volta sola per dispositivo.
   window.aegisInvitaMotore = async function () {
     try {
@@ -14835,7 +14692,7 @@ if (recognition) {
       if(!tok) return full;
       // I codici NER sono PROPOSTE del modello, non certezze verificate:
       // vanno distinti a vista da quelli prodotti dalle regole.
-      var extra = appartieneMotore(tok, 'ner') ? ' ag-proposta' : '';
+      var extra = (String(tok).split('_')[0] === 'NER') ? ' ag-proposta' : '';
       var valore = valoreDi(tok);
       var largo = valore ? String(valore).length : full.length;
       // se il codice non ci sta, si rimpicciolisce quel tanto che basta:
@@ -15156,7 +15013,6 @@ if (recognition) {
            servono. Un pulsante che chiede all'utente in che modalita' vuole
            lavorare gli sta chiedendo di conoscere l'architettura. */
         '<button class="ag-ia" id="ag-upgrade-btn" type="button" data-aiuto="Vedi i piani e quanto rende ciascuno.">' + T('btnUpgrade') + '</button>'+
-        '<button class="ag-ia" id="ag-base-btn" type="button"></button>'+
         '</div>'+
       '</div>'+
       '<div class="ag-corpo">'+
@@ -15479,46 +15335,18 @@ if (recognition) {
     var bOpz = document.getElementById('ag-opzioni-btn');
     if (bOpz) bOpz.addEventListener('click', function(e){ e.stopPropagation(); apriOpzioni(); });
     var bMot = document.getElementById('ag-motore-btn');
-    if (bMot) bMot.addEventListener('click', function(e){ e.stopPropagation(); accendiMotore(e); });
-    var bBase = document.getElementById('ag-base-btn');
-    if (bBase) bBase.addEventListener('click', function(e){
-      e.stopPropagation();
-      BASE_ATTIVO = !BASE_ATTIVO;
-      try {
-        if (BASE_ATTIVO) localStorage.removeItem('aegis_base');
-        else localStorage.setItem('aegis_base','0');
-      } catch(err) {}
-      bBase.classList.toggle('on', BASE_ATTIVO);
-      bBase.textContent = BASE_ATTIVO ? T('baseOn') : T('baseOff');
-      disegna();
-      var inp = document.getElementById('user-input');
-      if (inp) anteprima(inp.value);
-    });
+    if (bMot) bMot.addEventListener('click', function(e){ e.stopPropagation(); accendiMotore(); });
     // Chi ha gia' accettato e scaricato non deve rivedere ne' l'avviso ne'
     // l'attesa: i file restano nella memoria del browser, quindi la seconda
     // volta il motore e' pronto in un attimo e parte da solo.
     try {
       if (localStorage.getItem('aegis_motore') === '1' && window.AEGIS_MODELLO) {
         setTimeout(function(){
-          var pCarica = window.AEGIS_MODELLO.carica();
-          statoMotore();
-          var pollAuto = setInterval(function(){
-            try {
-              if (window.AEGIS_MODELLO && window.AEGIS_MODELLO.stato === 'carico') statoMotore();
-              else clearInterval(pollAuto);
-            } catch(e) { clearInterval(pollAuto); }
-          }, 120);
-          pCarica.then(function(){
-            clearInterval(pollAuto);
+          window.AEGIS_MODELLO.carica().then(function(){
             statoMotore();
             var i = document.getElementById('user-input');
-            if (i && i.value && NER_ATTIVO) chiediAlModello(i.value, true).then(function(){ anteprima(i.value); });
-            else if (i) anteprima(i.value);
-          }).catch(function(){
-            clearInterval(pollAuto);
-            try { localStorage.removeItem('aegis_motore'); } catch (e) {}
-            statoMotore();
-          });
+            if (i && i.value) chiediAlModello(i.value, true).then(function(){ anteprima(i.value); });
+          }).catch(function(){ statoMotore(); });
         }, 1200);
       }
     } catch (e) {}
@@ -15536,18 +15364,11 @@ if (recognition) {
         // testo centrato la scritta sobbalza a ogni cifra in piu'. Il numero
         // sta in una scatola di larghezza fissa, allineata a destra, con le
         // cifre a passo fisso.
-        var pp = (typeof d.extra === 'number' && isFinite(d.extra)) ? d.extra :
-                 ((window.AEGIS_MODELLO && typeof window.AEGIS_MODELLO.percentuale === 'number') ? window.AEGIS_MODELLO.percentuale : 0);
-        b.innerHTML = T('motoreCarico', { p: '<span class="ag-pc">' + pp + '</span>' });
+        b.innerHTML = T('motoreCarico', { p: '<span class="ag-pc">' + (d.extra || 0) + '</span>' });
       }
       else statoMotore();
     });
     etichette();
-    var bBaseInit = document.getElementById('ag-base-btn');
-    if (bBaseInit) {
-      bBaseInit.classList.toggle('on', BASE_ATTIVO);
-      bBaseInit.textContent = BASE_ATTIVO ? T('baseOn') : T('baseOff');
-    }
     statoMotore();
     avviaNuvolette();
     try { nonAvvisarePiu = avvisoSpento('invio'); } catch(e) {}
@@ -15636,12 +15457,6 @@ if (recognition) {
           l.textContent = ETICHETTE[lingua()][anteprimaColorata?0:1];
           return;
         }
-        if (b && b.id === 'ag-base-btn') {
-          b.classList.toggle('on', BASE_ATTIVO);
-          l.textContent = BASE_ATTIVO ? T('baseOn') : T('baseOff');
-          return;
-        }
-        if (b && b.id === 'ag-motore-btn') return;
         var acceso = b.classList.contains('on');
         if (!b.dataset.aegisInit) {
           acceso = true;
@@ -15850,8 +15665,12 @@ if (recognition) {
       campo.value = prima + testo.trim();
       campo.dispatchEvent(new Event('input', { bubbles: true }));
       campo.focus();
-      // Il caricamento del documento NON apre finestre: estrae il testo,
-      // aggiorna l'analisi e basta. Le conferme arrivano al solo invio.
+      // Appena il documento e' dentro, si chiede una volta sola quali
+      // sequenze numeriche vanno coperte: e' il momento in cui l'utente ha
+      // ancora in testa che cos'e' ciascuna.
+      if (window.aegisControlloNumeri) {
+        setTimeout(function(){ window.aegisControlloNumeri(testo); }, 400);
+      }
       try { campo.setSelectionRange(campo.value.length, campo.value.length); } catch (e) {}
       // GLI EVIDENZIATORI SFASATI. Non e' un calcolo sbagliato: la maschera
       // colorata sta sopra il campo di testo e viene posizionata in base a
@@ -18467,19 +18286,11 @@ if (recognition) {
   var CDN = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4/+esm';
 
   var stato = 'spento';       // spento | carico | pronto | fallito
-  var percentuale = 0;
   var motore = null;
   var caricamento = null;
 
   function segnala(s, extra) {
     stato = s;
-    if (s === 'carico' && typeof extra === 'number' && isFinite(extra)) {
-      percentuale = Math.max(0, Math.min(100, Math.round(extra)));
-    } else if (s === 'pronto') {
-      percentuale = 100;
-    } else if (s === 'spento') {
-      percentuale = 0;
-    }
     try {
       window.dispatchEvent(new CustomEvent('aegis-modello', { detail: { stato: s, extra: extra } }));
     } catch (e) {}
@@ -18497,11 +18308,7 @@ if (recognition) {
       try {
         motore = await pipeline('token-classification', MODELLO, Object.assign({}, conf, {
           progress_callback: function (d) {
-            if (!d) return;
-            if ((d.status === 'progress_total' || d.status === 'progress') &&
-                typeof d.progress === 'number' && isFinite(d.progress)) {
-              segnala('carico', d.progress);
-            }
+            if (d && d.status === 'progress' && d.progress) segnala('carico', Math.round(d.progress));
           }
         }));
       } catch (e) {
@@ -18509,11 +18316,7 @@ if (recognition) {
         motore = await pipeline('token-classification', MODELLO, {
           dtype: 'q8', device: 'wasm',
           progress_callback: function (d) {
-            if (!d) return;
-            if ((d.status === 'progress_total' || d.status === 'progress') &&
-                typeof d.progress === 'number' && isFinite(d.progress)) {
-              segnala('carico', d.progress);
-            }
+            if (d && d.status === 'progress' && d.progress) segnala('carico', Math.round(d.progress));
           }
         });
       }
@@ -18691,25 +18494,9 @@ if (recognition) {
 
   window.AEGIS_MODELLO = {
     get stato() { return stato; },
-    get percentuale() { return percentuale; },
     get pronto() { return stato === 'pronto'; },
     carica: carica,
     disinstalla: disinstalla,
-    analizza: analizza,
-    nome: MODELLO
-  };
-
-  // Compatibilita con il layer Aegis: il coordinatore storico cerca
-  // window.AEGIS_NER e chiama .persone(). Il loader locale espone invece
-  // AEGIS_MODELLO. I due oggetti devono puntare allo STESSO motore: nessuna
-  // seconda installazione, nessun secondo download e nessuna modifica al core.
-  window.AEGIS_NER = {
-    get stato() { return stato; },
-    get percentuale() { return percentuale; },
-    get pronto() { return stato === 'pronto'; },
-    carica: carica,
-    disinstalla: disinstalla,
-    persone: analizza,
     analizza: analizza,
     nome: MODELLO
   };
