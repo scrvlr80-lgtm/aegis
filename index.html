@@ -10917,23 +10917,28 @@ if (recognition) {
     var d = document.createElement('div');
     d.id = 'ag-tendina';
     d.className = 'ag-tendina';
+
+    /* IMPORTANTE: l'opzione di rimozione si AGGIUNGE alle categorie.
+       Non sostituisce mai il menu esistente. */
     var giaSelezionato = protettoNelPrompt(testo) || chiaveBandito(testo) !== null;
     var h = '<div class="ag-td-tit">' + T('dove') + ' <b>' + esc(testo) + '</b>?</div>';
+
+    h += '<div class="ag-td-lista">';
+    CATEGORIE.forEach(function(c){
+      h += '<button type="button" data-c="'+c.id+'"><i style="background:'+coloreCategoria(c.id)+'"></i>'+T(c.k)+'</button>';
+    });
+    categoriePersonali.forEach(function(c,id){
+      h += '<button type="button" data-c="'+id+'"><i style="background:'+c.colore+'"></i>'+esc(c.nome)+'</button>';
+    });
+    h += '</div><div class="ag-td-nuovo"><input type="text" placeholder="' + T('etichettaNuova') + '" maxlength="24">' +
+         '<button type="button" data-c="__nuovo">' + T('aggiungi') + '</button></div>';
+
     if (giaSelezionato) {
-      h += '<div class="ag-td-lista">' +
+      h += '<div class="ag-td-rimuovi-wrap">' +
            '<button type="button" class="ag-td-rimuovi" data-a="rimuovi"><i style="background:#444"></i>'+T('rimuoviSelezione')+'</button>' +
            '</div>';
-    } else {
-      h += '<div class="ag-td-lista">';
-      CATEGORIE.forEach(function(c){
-        h += '<button type="button" data-c="'+c.id+'"><i style="background:'+coloreCategoria(c.id)+'"></i>'+T(c.k)+'</button>';
-      });
-      categoriePersonali.forEach(function(c,id){
-        h += '<button type="button" data-c="'+id+'"><i style="background:'+c.colore+'"></i>'+esc(c.nome)+'</button>';
-      });
-      h += '</div><div class="ag-td-nuovo"><input type="text" placeholder="' + T('etichettaNuova') + '" maxlength="24">' +
-           '<button type="button" data-c="__nuovo">' + T('aggiungi') + '</button></div>';
     }
+
     d.innerHTML = h;
     document.body.appendChild(d);
     var l = Math.max(8, Math.min(rect.left, window.innerWidth - 250));
@@ -10941,26 +10946,39 @@ if (recognition) {
     if (t + d.offsetHeight > window.innerHeight - 8) t = Math.max(8, rect.top - d.offsetHeight - 8);
     d.style.left = l + 'px'; d.style.top = t + 'px';
     var campo = d.querySelector('input');
+
     d.addEventListener('mousedown', function(e){ if (e.target.tagName !== 'INPUT') e.preventDefault(); });
     d.addEventListener('click', function(e){
-      var b = e.target.closest('button'); if (!b) return;
-      if (b.getAttribute('data-a') === 'rimuovi') {
+      var btn = e.target.closest('button'); if (!btn) return;
+
+      if (btn.getAttribute('data-a') === 'rimuovi') {
         rimuoviDaSelezione(testo);
         chiudiTendina();
         azzeraSelezione();
         return;
       }
-      var cat = b.getAttribute('data-c');
+
+      var cat = btn.getAttribute('data-c');
       if (cat === '__nuovo') {
         cat = nuovaCategoria(campo.value);
         if (!cat) { campo.focus(); return; }
       }
+
       copriTermine(testo, cat);
       chiudiTendina();
       azzeraSelezione();
     });
+
     if (campo) campo.addEventListener('keydown', function(e){
-      if (e.key === 'Enter') { e.preventDefault(); var c = nuovaCategoria(campo.value); if (c) { copriTermine(testo, c); chiudiTendina(); azzeraSelezione(); } }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        var c = nuovaCategoria(campo.value);
+        if (c) {
+          copriTermine(testo, c);
+          chiudiTendina();
+          azzeraSelezione();
+        }
+      }
     });
   }
   function chiudiTendina(){
