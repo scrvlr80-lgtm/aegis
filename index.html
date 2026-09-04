@@ -18500,6 +18500,17 @@ if (recognition) {
     analizza: analizza,
     nome: MODELLO
   };
+
+  /* Adapter: il coordinatore Aegis usa AEGIS_NER, mentre il loader locale
+     espone AEGIS_MODELLO. Un solo modello, nessun secondo download. */
+  window.AEGIS_NER = {
+    get stato(){ return window.AEGIS_MODELLO ? window.AEGIS_MODELLO.stato : 'spento'; },
+    get pronto(){ return !!(window.AEGIS_MODELLO && window.AEGIS_MODELLO.pronto); },
+    carica: function(){ return window.AEGIS_MODELLO ? window.AEGIS_MODELLO.carica() : Promise.reject(new Error('NER loader non disponibile')); },
+    disinstalla: function(){ return window.AEGIS_MODELLO ? window.AEGIS_MODELLO.disinstalla() : Promise.resolve(0); },
+    analizza: function(t){ return window.AEGIS_MODELLO ? window.AEGIS_MODELLO.analizza(t) : Promise.resolve([]); },
+    nome: MODELLO
+  };
 })();
 </script>
 <!-- L'indirizzo del backend in UN punto solo: quando il sistema si sposta
